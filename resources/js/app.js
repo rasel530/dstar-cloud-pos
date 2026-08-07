@@ -1,10 +1,10 @@
-﻿import './bootstrap';
+import './bootstrap';
 import Alpine from 'alpinejs';
 import '../css/app.css';
 import '../css/rtl.css';
 import POS_SOUNDS from './sounds.js';
 
-// ─── Global Theme Store ─── accessible from any Alpine scope via $store.theme
+// --- Global Theme Store --- accessible from any Alpine scope via $store.theme
 Alpine.store('theme', {
     dark: localStorage.getItem('theme') === 'dark'
         || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches),
@@ -24,7 +24,7 @@ Alpine.store('theme', {
     },
 });
 
-// ─── Global Currency Store ───
+// --- Global Currency Store ---
 Alpine.store('currency', {
     code: 'USD',
     symbol: '$',
@@ -112,6 +112,8 @@ Alpine.data('layoutData', () => ({
 
 // --- POS Cart Component ---
   Alpine.data('posCart', () => ({
+    cartOpen: false,
+    hasBranch: true,
     items: [], searchTerm: '', activeCategory: null, products: [],
     categories: [], selectedCustomer: null,
     serviceType: 0, tableNumber: '',
@@ -175,6 +177,14 @@ Alpine.data('layoutData', () => ({
         const q = this.searchTerm.toLowerCase();
         return this.products.filter(p =>
             p.name.toLowerCase().includes(q) || (p.code && p.code.toLowerCase().includes(q)));
+    },
+
+    get gridStyle() {
+        const w = this.screenWidth;
+        const cols = this.posSettings.grid_columns || 4;
+        if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
+        if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
+        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
     },
 
     async init() {
@@ -528,10 +538,49 @@ Alpine.data('layoutData', () => ({
     },
 }));
 
-// --- Dashboard Component ---
+// --- Pill Scroller Component ---
+Alpine.data('pillScroller', () => ({
+    canScrollLeft: false,
+    canScrollRight: false,
+    _observer: null,
+
+    init() {
+        const track = this.$refs.pillTrack;
+        if (!track) return;
+        this.checkOverflow();
+        this._observer = new MutationObserver(() => this.checkOverflow());
+        this._observer.observe(track, { childList: true, subtree: true });
+    },
+
+    checkOverflow() {
+        const el = this.$refs.pillTrack;
+        if (!el) { this.canScrollLeft = false; this.canScrollRight = false; return; }
+        const t = 4;
+        this.canScrollLeft = el.scrollLeft > t;
+        this.canScrollRight = el.scrollLeft < (el.scrollWidth - el.clientWidth - t);
+    },
+
+    scrollLeft() {
+        const el = this.$refs.pillTrack;
+        if (el) el.scrollBy({ left: -el.clientWidth * 0.6, behavior: 'smooth' });
+    },
+
+    scrollRight() {
+        const el = this.$refs.pillTrack;
+        if (el) el.scrollBy({ left: el.clientWidth * 0.6, behavior: 'smooth' });
+    },
+}));// --- Dashboard Component ---
 Alpine.data('dashboard', () => ({
     data: null, loading: true,
     get maxRevenue() { if (!this.data?.revenue_chart?.length) return 1; return Math.max(...this.data.revenue_chart.map(d => d.value), 1); },
+    get gridStyle() {
+        const w = this.screenWidth;
+        const cols = this.posSettings.grid_columns || 4;
+        if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
+        if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
+        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
+    },
+
     async init() {
         try { this.data = await window.POS.api('/api/dashboard'); } catch (e) { this.data = { todays_sales: 0, orders_count: 0, products_count: 0, low_stock_count: 0, revenue_chart: [], recent_orders: [], avg_order_value: 0, customers_count: 0, pending_orders: 0, completed_today: 0 }; } finally { this.loading = false; }
     },
@@ -545,6 +594,14 @@ Alpine.data('productsManager', () => ({
     measurementUnits: [], showNewUnit: false, newUnitName: '', newUnitKey: '',
     showTransferModal: false, transferring: false, transferForm: { product_code: '', quantity: 1, from_branch: '', to_branch: '' }, transferMessage: '', transferError: false,
     form: { name: '', code: '', plu: '', price: 0, cost: 0, product_group_id: null, measurement_unit: '', is_enabled: true, track_inventory: true, is_global: true, stock_qty: 0, branch_stocks: {} },
+    get gridStyle() {
+        const w = this.screenWidth;
+        const cols = this.posSettings.grid_columns || 4;
+        if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
+        if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
+        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
+    },
+
     async init() {
         await Promise.all([this.fetchProducts(), this.fetchGroups(), this.fetchBranches(), this.loadUnits()]);
     },
@@ -672,6 +729,14 @@ Alpine.data('customersManager', () => ({
     showModal: false, editing: false, saving: false,
     toast: { show: false, message: '', type: 'success' },
     form: { name: '', email: '', phone_number: '', code: '', is_enabled: true },
+    get gridStyle() {
+        const w = this.screenWidth;
+        const cols = this.posSettings.grid_columns || 4;
+        if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
+        if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
+        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
+    },
+
     async init() { await this.fetchCustomers(); },
     async fetchCustomers(page = 1) {
         this.loading = true;
@@ -689,7 +754,7 @@ Alpine.data('customersManager', () => ({
         } catch (e) { this.toastMsg(e.message || 'Save failed', 'error'); } finally { this.saving = false; }
     },
     async deleteCustomer(id) { if (!confirm('Delete this customer?')) return; this.customers = this.customers.filter(c => c.id !== id); try { await window.POS.api('/api/customers/' + id, { method: 'DELETE' }); this.toastMsg('Customer deleted', 'success'); } catch (e) { this.toastMsg('Delete failed. Refreshing...', 'error'); this.fetchCustomers(); } },
-    async toggleStatus(customer) { try { await window.POS.api('/api/customers/' + customer.id, { method: 'PUT', body: JSON.stringify({ is_enabled: !customer.is_enabled }) }); customer.is_enabled = !customer.is_enabled; this.toastMsg(customer.is_enabled ? 'Customer enabled' : 'Customer disabled', 'success'); } catch (e) { this.toastMsg('Toggle failed', 'error'); } },
+    async toggleStatus(customer) { const was = customer.is_enabled; customer.is_enabled = !customer.is_enabled; try { await window.POS.api('/api/customers/' + customer.id, { method: 'PUT', body: JSON.stringify({ is_enabled: customer.is_enabled }) }); } catch (e) { customer.is_enabled = was; this.toastMsg('Toggle failed', 'error'); } },
     toastMsg(message, type = 'success') { this.toast = { show: true, message, type }; clearTimeout(this._t); this._t = setTimeout(() => { this.toast.show = false; }, 2500); },
 }));
 
@@ -697,6 +762,14 @@ Alpine.data('customersManager', () => ({
 Alpine.data('ordersList', () => ({
     orders: [], loading: true, statusFilter: 'all', searchQuery: '',
     currentPage: 1, totalPages: 1, totalOrders: 0,
+    get gridStyle() {
+        const w = this.screenWidth;
+        const cols = this.posSettings.grid_columns || 4;
+        if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
+        if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
+        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
+    },
+
     async init() { await this.fetchOrders(); },
     async fetchOrders(page = 1) {
         this.loading = true;
@@ -765,6 +838,14 @@ Alpine.data('reportsManager', () => ({
         if (!this.tabData?.chart_data?.length) return 1;
         return Math.max(...this.tabData.chart_data.map(d => d.value), 1);
     },
+    get gridStyle() {
+        const w = this.screenWidth;
+        const cols = this.posSettings.grid_columns || 4;
+        if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
+        if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
+        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
+    },
+
     async init() { await Promise.all([this.fetchTabData(), this.fetchCustomers()]); },
     async fetchCustomers() {
         try { const r = await window.POS.api('/api/customers?per_page=500'); this.customers = r.data?.data || r.data || []; } catch(e) { this.customers = []; }
@@ -804,6 +885,14 @@ Alpine.data('usersManager', () => ({
     showModal: false, editing: false, saving: false, editId: null, showPwd: false, uploadingStock: false,
     error: '',
     form: { first_name: '', last_name: '', username: '', email: '', password: '', access_level: 0, is_enabled: true, branch_id: '', branch_ids: [] },
+    get gridStyle() {
+        const w = this.screenWidth;
+        const cols = this.posSettings.grid_columns || 4;
+        if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
+        if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
+        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
+    },
+
     async init() {
         try {
             const me = await window.POS.api('/api/auth/me');
@@ -847,6 +936,14 @@ Alpine.data('taxesManager', () => ({
     taxes: [], loading: true, pagination: null,
     showModal: false, editing: false, saving: false,
     form: { name: '', rate: 10, code: '', is_fixed: false, is_enabled: true },
+    get gridStyle() {
+        const w = this.screenWidth;
+        const cols = this.posSettings.grid_columns || 4;
+        if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
+        if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
+        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
+    },
+
     async init() { await this.fetchTaxes(); },
     async fetchTaxes(page = 1) {
         this.loading = true;
@@ -871,6 +968,14 @@ Alpine.data('promotionsManager', () => ({
     promotions: [], loading: true, pagination: null,
     showModal: false, editing: false, saving: false,
     form: { name: '', start_date: '', end_date: '', days_of_week: 127, is_enabled: true },
+    get gridStyle() {
+        const w = this.screenWidth;
+        const cols = this.posSettings.grid_columns || 4;
+        if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
+        if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
+        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
+    },
+
     async init() { await this.fetchPromotions(); },
     async fetchPromotions(page = 1) {
         this.loading = true;
@@ -895,6 +1000,14 @@ Alpine.data('loyaltyManager', () => ({
     cards: [], loading: true, pagination: null, customers: [],
     showModal: false, points: 0, selectedCard: null, transactionType: 'earn',
     showAddCard: false, newCard: { customer_id: '', card_number: '' },
+    get gridStyle() {
+        const w = this.screenWidth;
+        const cols = this.posSettings.grid_columns || 4;
+        if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
+        if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
+        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
+    },
+
     async init() { await Promise.all([this.fetchCards(), this.fetchCustomers()]); },
     async fetchCustomers() {
         try { const r = await window.POS.api('/api/customers'); this.customers = r?.data?.data || r?.data || []; } catch (e) { this.customers = []; }
@@ -928,6 +1041,14 @@ Alpine.data('printersManager', () => ({
     printers: [], loading: true, pagination: null,
     showModal: false, editing: false, saving: false,
     form: { printer_name: '', paper_width: 32, header: '', footer: '', feed_lines: 0, cut_paper: true, open_cash_drawer: true, printer_type: 0, number_of_copies: 1 },
+    get gridStyle() {
+        const w = this.screenWidth;
+        const cols = this.posSettings.grid_columns || 4;
+        if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
+        if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
+        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
+    },
+
     async init() { await this.fetchPrinters(); },
     async fetchPrinters(page = 1) {
         this.loading = true;
@@ -953,6 +1074,14 @@ Alpine.data('branchesManager', () => ({
     showModal: false, editing: false, saving: false,
     uniqueBusinessTypes: [],
     form: { name: '', branch_code: '', business_type: 'Retail', address: '', phone: '', is_headquarters: false },
+    get gridStyle() {
+        const w = this.screenWidth;
+        const cols = this.posSettings.grid_columns || 4;
+        if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
+        if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
+        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
+    },
+
     async init() { await this.fetchBranches(); },
     async fetchBranches() {
         this.loading = true;
@@ -979,6 +1108,14 @@ Alpine.data('inventoryManager', () => ({
     showWarehouseModal: false, warehouseSaving: false, editingWarehouseId: null,
     warehouseForm: { name: '', is_default: false },
     allProducts: [], addProductId: '', addProductQty: 1,
+    get gridStyle() {
+        const w = this.screenWidth;
+        const cols = this.posSettings.grid_columns || 4;
+        if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
+        if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
+        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
+    },
+
     async init() { await Promise.all([this.fetchWarehouses(), this.fetchAllProducts()]); },
     async fetchWarehouses() {
         this.loading = true;
@@ -1009,7 +1146,7 @@ Alpine.data('inventoryManager', () => ({
             const items = r?.data?.data || r?.data || [];
             this.warehouseStocks = items.map(s => ({
                 product_id: s.product_id,
-                product_name: s.product ? s.product.name : '—',
+                product_name: s.product ? s.product.name : '\u2014',
                 product_code: s.product ? s.product.code : '',
                 quantity: parseFloat(s.quantity) || 0,
                 branch_summary: '',
@@ -1093,6 +1230,14 @@ Alpine.data('inventoryManager', () => ({
 Alpine.data('activityManager', () => ({
     logs: [], loading: true, pagination: null,
     filterModule: '', filterDateFrom: '', filterDateTo: '',
+    get gridStyle() {
+        const w = this.screenWidth;
+        const cols = this.posSettings.grid_columns || 4;
+        if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
+        if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
+        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
+    },
+
     async init() { await this.fetchLogs(); },
     async fetchLogs(page = 1) {
         this.loading = true;

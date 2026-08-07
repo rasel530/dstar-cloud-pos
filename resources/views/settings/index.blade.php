@@ -10,7 +10,7 @@
         <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage your store configuration</p>
     </div>
 
-    <div class="flex flex-wrap gap-1.5 border-b border-slate-200 dark:border-slate-700 pb-0">
+    <div class="flex flex-nowrap gap-1.5 border-b border-slate-200 dark:border-slate-700 pb-0 overflow-x-auto hide-scrollbar">
         <button @click="activeTab = 'general'" :class="activeTab === 'general' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 -mb-[1px] transition-colors">
             <svg class="w-4 h-4 inline-block mr-1.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>
             General

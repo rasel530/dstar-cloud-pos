@@ -1,8 +1,6 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', 'Products'); ?>
 
-@section('title', 'Products')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div x-data="productsManager" class="flex flex-col h-full">
     <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 shrink-0">
         <div>
@@ -122,7 +120,7 @@
         </div>
     </div>
 
-    {{-- Add/Edit Product Modal --}}
+    
     <div x-show="showModal" class="fixed inset-0 z-50 flex items-start justify-center pt-10" @click.self="showModal = false">
         <div class="fixed inset-0 bg-black/60"></div>
         <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
@@ -173,7 +171,7 @@
         </div>
     </div>
 
-    {{-- Transfer Stock Modal --}}
+    
     <div x-show="showTransferModal" class="fixed inset-0 z-50 flex items-center justify-center" @click.self="showTransferModal = false">
         <div class="fixed inset-0 bg-black/50"></div>
         <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6 border border-gray-200 dark:border-gray-700">
@@ -195,4 +193,6 @@
     </div>
 
 </div>
-@endsection
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH E:\POS Software\D Star Company\resources\views/products/index.blade.php ENDPATH**/ ?>

@@ -1,8 +1,6 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', 'Inventory'); ?>
 
-@section('title', 'Inventory')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div x-data="inventoryManager" class="flex flex-col h-full">
     <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 shrink-0">
         <div>
@@ -24,7 +22,7 @@
     </div>
 
     <div class="px-4 sm:px-6 flex-1 flex flex-col overflow-hidden space-y-4 sm:space-y-6">
-        {{-- Warehouse Cards --}}
+        
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 shrink-0">
             <template x-for="w in warehouses" :key="w.id">
                  <div class="bg-white dark:bg-[#1a1f3d] rounded-xl border border-gray-100 dark:border-white/5 p-5 hover:shadow-md transition-shadow"
@@ -62,7 +60,7 @@
             </template>
         </div>
 
-        {{-- Stock Table for Selected Warehouse --}}
+        
         <div x-show="selectedWarehouse" class="bg-white dark:bg-[#1a1f3d] rounded-xl border border-gray-100 dark:border-white/5 flex flex-col flex-1 overflow-hidden min-h-0">
             <div class="px-4 sm:px-6 py-3 border-b border-gray-100 dark:border-white/5 flex items-center justify-between shrink-0">
                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white" x-text="'Stock in ' + (selectedWarehouseName || 'Warehouse')"></h3>
@@ -120,7 +118,7 @@
         </div>
     </div>
 
-    {{-- Add Warehouse Modal --}}
+    
     <div x-show="showWarehouseModal" class="fixed inset-0 z-50 flex items-center justify-center" @click.self="showWarehouseModal = false">
         <div class="fixed inset-0 bg-black/50"></div>
         <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6 border border-gray-200 dark:border-gray-700">
@@ -136,4 +134,6 @@
         </div>
     </div>
 </div>
-@endsection
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH E:\POS Software\D Star Company\resources\views/warehouses/index.blade.php ENDPATH**/ ?>

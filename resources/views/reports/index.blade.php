@@ -10,13 +10,13 @@
 @endpush
 
 @section('content')
-<div x-data="reportsManager" class="min-h-full">
-    <div class="flex items-center justify-between px-6 py-4">
+<div x-data="reportsManager" class="flex flex-col h-full">
+    <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 shrink-0">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Reports</h1>
+            <h1 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Reports</h1>
             <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Analytics and business insights</p>
         </div>
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
             <input
                 type="date"
                 x-model="dateFrom"
@@ -40,10 +40,10 @@
         </div>
     </div>
 
-    <div class="px-6">
-        <div class="bg-white dark:bg-[#1a1f3d] rounded-xl border border-gray-100 dark:border-white/5 mb-6">
+    <div class="px-4 sm:px-6 flex-1 overflow-hidden flex flex-col pb-4">
+        <div class="bg-white dark:bg-[#1a1f3d] rounded-xl border border-gray-100 dark:border-white/5 flex flex-col flex-1 overflow-hidden">
             <div class="border-b border-gray-100 dark:border-white/5">
-                <nav class="flex gap-0 -mb-px">
+                <nav class="flex gap-0 -mb-px overflow-x-auto hide-scrollbar">
                     <template x-for="tab in tabs" :key="tab.key">
                     <button
                         @click="activeTab = tab.key; fetchTabData()"
@@ -57,7 +57,7 @@
                 </nav>
             </div>
 
-            <div x-show="loading" class="flex justify-center py-20">
+            <div x-show="loading" class="flex justify-center py-20 flex-1 items-center">
                 <svg class="animate-spin h-8 w-8 text-gray-400 dark:text-white/30" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -65,11 +65,11 @@
             </div>
 
             <template x-if="!loading">
-                <div>
+                <div class="flex flex-col flex-1 overflow-auto">
                     <template x-if="activeTab === 'sales'">
-                        <div>
-                            <div class="p-6">
-                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+                        <div class="flex flex-col flex-1 overflow-auto">
+                            <div class="p-4 sm:p-6">
+                                <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 mb-4 shrink-0">
                                     <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                         <span class="text-xs text-gray-500 dark:text-white/50">Total Sales</span>
                                         <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="$store.currency.symbol + parseFloat(tabData.total_sales || 0).toLocaleString('en-US', {minimumFractionDigits: 2})"></div>
@@ -114,23 +114,23 @@
                                         <table class="w-full text-sm">
                                             <thead>
                                                 <tr class="border-b border-gray-100 dark:border-white/5">
-                                                    <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Date</th>
-                                                    <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Order #</th>
-                                                    <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Customer</th>
-                                                    <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Subtotal</th>
-                                                    <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Tax</th>
-                                                    <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Total</th>
+                                                    <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Date</th>
+                                                    <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Order #</th>
+                                                    <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Customer</th>
+                                                    <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Subtotal</th>
+                                                    <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Tax</th>
+                                                    <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Total</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 <template x-for="row in tabData.records" :key="row.id">
                                                     <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-100 dark:hover:bg-white/5">
-                                                        <td class="px-6 py-3 text-gray-500 dark:text-white/70" x-text="row.date || '--'"></td>
-                                                        <td class="px-6 py-3 font-mono text-xs text-gray-900 dark:text-white" x-text="'#' + row.id"></td>
-                                                        <td class="px-6 py-3 text-gray-900 dark:text-white" x-text="row.customer || 'Walk-in'"></td>
-                                                        <td class="px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.subtotal || 0).toFixed(2)"></td>
-                                                        <td class="px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.tax || 0).toFixed(2)"></td>
-                                                        <td class="px-6 py-3 text-right font-mono font-semibold text-gray-900 dark:text-white" x-text="$store.currency.symbol + parseFloat(row.total || 0).toFixed(2)"></td>
+                                                        <td class="px-3 sm:px-6 py-3 text-gray-500 dark:text-white/70" x-text="row.date || '--'"></td>
+                                                        <td class="px-3 sm:px-6 py-3 font-mono text-xs text-gray-900 dark:text-white" x-text="'#' + row.id"></td>
+                                                        <td class="px-3 sm:px-6 py-3 text-gray-900 dark:text-white" x-text="row.customer || 'Walk-in'"></td>
+                                                        <td class="px-3 sm:px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.subtotal || 0).toFixed(2)"></td>
+                                                        <td class="px-3 sm:px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.tax || 0).toFixed(2)"></td>
+                                                        <td class="px-3 sm:px-6 py-3 text-right font-mono font-semibold text-gray-900 dark:text-white" x-text="$store.currency.symbol + parseFloat(row.total || 0).toFixed(2)"></td>
                                                     </tr>
                                                 </template>
                                             </tbody>
@@ -144,23 +144,23 @@
                     </template>
 
                     <!-- Best Selling Tab -->
-                    <div x-show="activeTab === 'bestselling'">
+                    <div x-show="activeTab === 'bestselling'" class="flex-1 overflow-auto">
                         <template x-if="tabData.records && tabData.records.length">
                             <div class="overflow-x-auto">
                                 <table class="w-full text-sm">
                                     <thead>
                                         <tr class="border-b border-gray-100 dark:border-white/5">
-                                            <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Rank</th>
-                                            <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Name</th>
-                                            <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Qty Sold</th>
-                                            <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Revenue</th>
-                                            <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Profit</th>
+                                            <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Rank</th>
+                                            <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Name</th>
+                                            <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Qty Sold</th>
+                                            <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Revenue</th>
+                                            <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Profit</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <template x-for="(row, i) in tabData.records" :key="i">
                                             <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5">
-                                                <td class="px-6 py-3">
+                                                <td class="px-3 sm:px-6 py-3">
                                                     <span
                                                         class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold"
                                                         :class="{
@@ -172,10 +172,10 @@
                                                         x-text="i + 1"
                                                     ></span>
                                                 </td>
-                                                <td class="px-6 py-3 font-medium text-gray-900 dark:text-white" x-text="row.name"></td>
-                                                <td class="px-6 py-3 text-right text-gray-700 dark:text-gray-300" x-text="row.quantity || 0"></td>
-                                                <td class="px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.revenue || 0).toFixed(2)"></td>
-                                                <td class="px-6 py-3 text-right font-mono text-green-600 dark:text-green-400" x-text="$store.currency.symbol + parseFloat(row.profit || 0).toFixed(2)"></td>
+                                                <td class="px-3 sm:px-6 py-3 font-medium text-gray-900 dark:text-white" x-text="row.name"></td>
+                                                <td class="px-3 sm:px-6 py-3 text-right text-gray-700 dark:text-gray-300" x-text="row.quantity || 0"></td>
+                                                <td class="px-3 sm:px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.revenue || 0).toFixed(2)"></td>
+                                                <td class="px-3 sm:px-6 py-3 text-right font-mono text-green-600 dark:text-green-400" x-text="$store.currency.symbol + parseFloat(row.profit || 0).toFixed(2)"></td>
                                             </tr>
                                         </template>
                                     </tbody>
@@ -194,7 +194,7 @@
 
 
                     <!-- Customer Analytics Tab -->
-                    <div x-show="activeTab === 'customers'">
+                    <div x-show="activeTab === 'customers'" class="flex-1 overflow-auto">
                         <template x-if="tabData.records && tabData.records.length">
                             <div>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 p-6">
@@ -211,16 +211,16 @@
                                     <table class="w-full text-sm">
                                         <thead>
                                             <tr class="border-b border-gray-100 dark:border-white/5">
-                                                <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Rank</th>
-                                                <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Name</th>
-                                                <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Orders</th>
-                                                <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Total Spent</th>
+                                                <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Rank</th>
+                                                <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Name</th>
+                                                <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Orders</th>
+                                                <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Total Spent</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <template x-for="(row, i) in tabData.records" :key="i">
                                                 <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5">
-                                                    <td class="px-6 py-3">
+                                                    <td class="px-3 sm:px-6 py-3">
                                                         <span
                                                             class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold"
                                                             :class="{
@@ -232,9 +232,9 @@
                                                             x-text="i + 1"
                                                         ></span>
                                                     </td>
-                                                    <td class="px-6 py-3 font-medium text-gray-900 dark:text-white" x-text="row.name || '--'"></td>
-                                                    <td class="px-6 py-3 text-right text-gray-700 dark:text-gray-300" x-text="row.order_count || 0"></td>
-                                                    <td class="px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.total_spent || 0).toFixed(2)"></td>
+                                                    <td class="px-3 sm:px-6 py-3 font-medium text-gray-900 dark:text-white" x-text="row.name || '--'"></td>
+                                                    <td class="px-3 sm:px-6 py-3 text-right text-gray-700 dark:text-gray-300" x-text="row.order_count || 0"></td>
+                                                    <td class="px-3 sm:px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.total_spent || 0).toFixed(2)"></td>
                                                 </tr>
                                             </template>
                                         </tbody>
@@ -254,10 +254,10 @@
 
 
                     <!-- Customer Detail Tab -->
-                    <div x-show="activeTab === 'customer-detail'">
+                    <div x-show="activeTab === 'customer-detail'" class="flex-1 overflow-auto">
                         <template x-if="customerId && tabData.customer">
                             <div>
-                                <div class="p-6">
+                                <div class="p-4 sm:p-6">
                                     <div class="flex items-center gap-4 mb-6">
                                         <div class="bg-blue-50 dark:bg-blue-900/20 rounded-full w-14 h-14 flex items-center justify-center text-lg font-bold text-blue-600 dark:text-blue-400" x-text="(tabData.customer.name || '?')[0]"></div>
                                         <div>
@@ -265,7 +265,7 @@
                                             <p class="text-sm text-gray-500 dark:text-gray-400" x-text="tabData.customer.email || tabData.customer.phone || '--'"></p>
                                         </div>
                                     </div>
-                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 shrink-0">
                                         <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                             <span class="text-xs text-gray-500 dark:text-white/50">Total Orders</span>
                                             <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="tabData.summary.order_count || 0"></div>
@@ -298,23 +298,23 @@
                                     <table class="w-full text-sm">
                                         <thead>
                                             <tr class="border-b border-gray-100 dark:border-white/5">
-                                                <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Order #</th>
-                                                <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Date</th>
-                                                <th class="text-center text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Items</th>
-                                                <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Total</th>
-                                                <th class="text-center text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Payment</th>
-                                                <th class="text-center text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Receipt</th>
+                                                <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Order #</th>
+                                                <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Date</th>
+                                                <th class="text-center text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Items</th>
+                                                <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Total</th>
+                                                <th class="text-center text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Payment</th>
+                                                <th class="text-center text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Receipt</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <template x-for="order in tabData.orders" :key="order.id">
                                                 <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5">
-                                                    <td class="px-6 py-3 font-medium text-gray-900 dark:text-white" x-text="order.number"></td>
-                                                    <td class="px-6 py-3 text-gray-500 dark:text-gray-400 text-xs" x-text="order.date"></td>
-                                                    <td class="px-6 py-3 text-center text-gray-700 dark:text-gray-300" x-text="order.item_count"></td>
-                                                    <td class="px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(order.total || 0).toFixed(2)"></td>
-                                                    <td class="px-6 py-3 text-center text-xs text-gray-500 dark:text-gray-400" x-text="order.payment + (order.service_type === 0 ? ' (Dine-in)' : order.service_type === 1 ? ' (Takeaway)' : '')"></td>
-                                                    <td class="px-6 py-3 text-center">
+                                                    <td class="px-3 sm:px-6 py-3 font-medium text-gray-900 dark:text-white" x-text="order.number"></td>
+                                                    <td class="px-3 sm:px-6 py-3 text-gray-500 dark:text-gray-400 text-xs" x-text="order.date"></td>
+                                                    <td class="px-3 sm:px-6 py-3 text-center text-gray-700 dark:text-gray-300" x-text="order.item_count"></td>
+                                                    <td class="px-3 sm:px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(order.total || 0).toFixed(2)"></td>
+                                                    <td class="px-3 sm:px-6 py-3 text-center text-xs text-gray-500 dark:text-gray-400" x-text="order.payment + (order.service_type === 0 ? ' (Dine-in)' : order.service_type === 1 ? ' (Takeaway)' : '')"></td>
+                                                    <td class="px-3 sm:px-6 py-3 text-center">
                                                         <button @click="downloadCustReceipt(order.id)" class="text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 p-1 rounded transition-colors" title="Download Receipt">
                                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
                                                         </button>
@@ -343,10 +343,10 @@
                     </div>
 
                     <!-- Tax Report Tab -->
-                    <div x-show="activeTab === 'tax'">
+                    <div x-show="activeTab === 'tax'" class="flex-1 overflow-auto">
                         <template x-if="tabData.records && tabData.records.length">
                             <div>
-                                <div class="p-6">
+                                <div class="p-4 sm:p-6">
                                     <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5 inline-block mb-6">
                                         <span class="text-xs text-gray-500 dark:text-white/50">Total Tax Collected</span>
                                         <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="$store.currency.symbol + parseFloat(tabData.total_tax || 0).toFixed(2)"></div>
@@ -356,17 +356,17 @@
                                     <table class="w-full text-sm">
                                         <thead>
                                             <tr class="border-b border-gray-100 dark:border-white/5">
-                                                <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Date</th>
-                                                <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Taxable Amount</th>
-                                                <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-6 py-3">Tax Amount</th>
+                                                <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Date</th>
+                                                <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Taxable Amount</th>
+                                                <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Tax Amount</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <template x-for="(row, i) in tabData.records" :key="i">
                                                 <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5">
-                                                    <td class="px-6 py-3 font-medium text-gray-900 dark:text-white" x-text="row.date || '--'"></td>
-                                                    <td class="px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.taxable_amount || 0).toFixed(2)"></td>
-                                                    <td class="px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.tax_amount || 0).toFixed(2)"></td>
+                                                    <td class="px-3 sm:px-6 py-3 font-medium text-gray-900 dark:text-white" x-text="row.date || '--'"></td>
+                                                    <td class="px-3 sm:px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.taxable_amount || 0).toFixed(2)"></td>
+                                                    <td class="px-3 sm:px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.tax_amount || 0).toFixed(2)"></td>
                                                 </tr>
                                             </template>
                                         </tbody>
@@ -385,7 +385,7 @@
                     </div>
 
                     <template x-if="pagination && pagination.last_page > 1">
-                        <div class="flex items-center justify-between px-6 py-4 border-t border-gray-100 dark:border-white/5">
+                        <div class="flex items-center justify-between px-4 sm:px-6 py-3 border-t border-gray-100 dark:border-white/5 shrink-0">
                             <span class="text-sm text-gray-500 dark:text-gray-400" x-text="'Page ' + pagination.current_page + ' of ' + pagination.last_page + ' (' + pagination.total + ' records)'"></span>
                             <div class="flex gap-2">
                                 <button @click="fetchTabData(pagination.current_page - 1)" :disabled="pagination.current_page <= 1" class="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-white/5">Previous</button>

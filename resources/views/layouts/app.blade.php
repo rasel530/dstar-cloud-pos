@@ -20,7 +20,7 @@
 
 <div class="flex h-screen overflow-hidden">
 
-    <aside class="flex flex-col bg-[#0a0f28] text-white shrink-0 transition-all duration-300" :class="sidebarOpen ? 'w-56' : 'w-16'">
+    <aside class="flex flex-col bg-[#0a0f28] text-white shrink-0 transition-all duration-300 fixed lg:relative inset-y-0 left-0 z-40" :class="sidebarOpen ? 'w-56 translate-x-0 pointer-events-auto' : 'w-56 -translate-x-full lg:w-16 lg:translate-x-0 pointer-events-none lg:pointer-events-auto'">
         <div class="flex flex-col items-center justify-center h-20 px-2 border-b border-white/10 overflow-hidden">
             <template x-if="companyLogo">
                 <img :src="companyLogo" class="h-8 max-w-[100px] object-contain" alt="Logo">
@@ -111,6 +111,7 @@
         </div>
     </aside>
 
+    <div x-show="sidebarOpen" @click="sidebarOpen = false" class="lg:hidden fixed inset-0 bg-black/50 z-30" x-cloak></div>
     <button @click="sidebarOpen = !sidebarOpen" class="lg:hidden fixed top-3 left-3 z-50 p-2 rounded-md bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200">
         <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
@@ -134,7 +135,7 @@
                 </div>
             </div>
 
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2 sm:gap-4 flex-wrap">
                 <template x-if="systemMode !== 'single' && branches.length === 1">
                     <span class="text-xs font-medium text-blue-400 bg-blue-500/10 px-2 py-1 rounded" x-text="branches[0].name"></span>
                 </template>
@@ -149,8 +150,8 @@
                 <template x-if="systemMode !== 'single' && branches.length === 0">
                     <span class="text-xs font-medium text-red-400 bg-red-500/10 px-2 py-1 rounded">Unable to load branches. Please refresh.</span>
                 </template>
-                <button @click="rtlMode = !rtlMode; localStorage.setItem('pos_dir', rtlMode ? 'rtl' : 'ltr'); document.documentElement.dir = rtlMode ? 'rtl' : 'ltr'" class="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400" title="Toggle RTL/LTR"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12m-5.25 0l1.5-1.5m-1.5 1.5l1.5 1.5m10.5-5.25h.008v.008h-.008V13.5zm0 5.25h.008v.008h-.008V18.75z"/></svg></button>
-                <span class="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap" x-text="currentTime" x-init="currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); setInterval(() => currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 1000)"></span>
+                <button @click="rtlMode = !rtlMode; localStorage.setItem('pos_dir', rtlMode ? 'rtl' : 'ltr'); document.documentElement.dir = rtlMode ? 'rtl' : 'ltr'" class="hidden sm:block p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400" title="Toggle RTL/LTR"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12m-5.25 0l1.5-1.5m-1.5 1.5l1.5 1.5m10.5-5.25h.008v.008h-.008V13.5zm0 5.25h.008v.008h-.008V18.75z"/></svg></button>
+                <span class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap" x-text="currentTime" x-init="currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); setInterval(() => currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 1000)"></span>
 
                 <div class="flex items-center gap-2" x-show="user">
                     <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-medium flex-shrink-0" x-text="(user?.first_name || user?.username || 'U').charAt(0)?.toUpperCase()"></div>

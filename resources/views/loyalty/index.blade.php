@@ -6,9 +6,9 @@
 <div x-data="loyaltyManager" x-init="init()">
 
     {{-- Header --}}
-    <div class="flex items-center justify-between px-6 py-4">
+    <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 shrink-0">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Loyalty Cards</h1>
+            <h1 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Loyalty Cards</h1>
             <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage customer loyalty program</p>
         </div>
         <button @click="showAddCard = true" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-2">
@@ -18,7 +18,7 @@
     </div>
 
     {{-- Table --}}
-    <div class="px-6">
+    <div class="px-4 sm:px-6 flex-1 overflow-hidden flex flex-col pb-4">
         <div class="bg-white dark:bg-[#1a1f3d] rounded-xl border border-gray-100 dark:border-white/5">
             <template x-if="loading">
                 <div class="flex justify-center py-12">

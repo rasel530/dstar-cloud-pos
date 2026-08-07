@@ -40,7 +40,7 @@ class GenerateDailyReport extends Command
                 $this->error("Invalid email address: {$emailOverride}");
                 return 1;
             }
-            $this->info("Overriding recipients — sending report to {$emailOverride}");
+            $this->info("Overriding recipients \u2014 sending report to {$emailOverride}");
         }
 
         $this->info('Daily sales report sent successfully.');

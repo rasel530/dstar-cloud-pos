@@ -17,3 +17,32 @@ body {
 [x-cloak] { display: none !important; }
 
 svg { max-width: 100%; height: auto; flex-shrink: 0; }
+
+/* Mobile responsive utilities */
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Minimum touch target for interactive elements */
+@media (max-width: 639px) {
+    .touch-target {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
+/* Prevent zoom on input focus for iOS */
+@media (max-width: 639px) {
+    input[type="text"],
+    input[type="email"],
+    input[type="number"],
+    input[type="search"],
+    input[type="tel"],
+    input[type="date"],
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+}

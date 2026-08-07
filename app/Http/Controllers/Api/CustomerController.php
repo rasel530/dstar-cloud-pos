@@ -17,7 +17,7 @@ class CustomerController extends Controller
 
         if ($search = $request->query('search')) {
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
+                $q->where('name', 'ilike', "%{$search}%")
                   ->orWhere('code', 'like', "%{$search}%")
                   ->orWhere('phone_number', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%");
@@ -29,7 +29,7 @@ class CustomerController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
+        $data = $request->validate([
             'name'          => 'required|max:255',
             'email'         => 'nullable|email',
             'phone_number'  => 'nullable|string',
@@ -40,14 +40,12 @@ class CustomerController extends Controller
         ]);
 
         try {
-            $data = $request->validated();
             $data['tenant_id'] = auth()->user()->tenant_id;
             if (empty($data['code'])) {
                 $data['code'] = 'CUST-' . str_pad(Customer::count() + 1, 4, '0', STR_PAD_LEFT);
             }
             $customer = Customer::create($data);
 
-            // Auto-create loyalty card
             \App\Models\LoyaltyCard::firstOrCreate(
                 ['customer_id' => $customer->id],
                 [
@@ -62,9 +60,7 @@ class CustomerController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to create customer'], 500);
         }
-    }
-
-    public function quickStore(Request $request): JsonResponse
+    }    public function quickStore(Request $request): JsonResponse
     {
         $request->validate([
             'phone_number' => 'required|string|min:7',
@@ -123,7 +119,7 @@ class CustomerController extends Controller
             return response()->json(['message' => 'Customer not found'], 404);
         }
 
-        $request->validate([
+        $validated = $request->validate([
             'name'         => 'sometimes|required|max:255',
             'email'        => 'nullable|email',
             'phone_number' => 'nullable|string',
@@ -132,15 +128,14 @@ class CustomerController extends Controller
         ]);
 
         try {
-            $customer->update($request->validated());
+            $customer->update($validated);
 
             return response()->json(['data' => $customer], 200);
         } catch (\Exception $e) {
-            return response()->json(['message' => 'Failed to update customer'], 500);
+            \Illuminate\Support\Facades\Log::error('Customer update: ' . $e->getMessage(), ['id' => $id, 'error' => $e->getMessage()]);
+            return response()->json(['message' => 'Failed to update customer', 'error' => $e->getMessage()], 500);
         }
-    }
-
-    public function destroy($id)
+    }    public function destroy($id)
     {
         $customer = Customer::find($id);
 

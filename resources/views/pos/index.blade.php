@@ -44,24 +44,52 @@
         </div>
 
         {{-- Category Pills --}}
-        <div class="px-4 pb-3 flex gap-2 overflow-x-auto shrink-0 scrollbar-none">
-            <button
-                @click="activeCategory = null; loadProducts()"
-                :class="activeCategory === null
-                    ? 'bg-blue-500 text-white shadow-sm'
-                    : 'bg-white dark:bg-[#1a1f3d] text-gray-600 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/5 border border-gray-200 dark:border-white/5'"
-                class="px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all"
-            >All</button>
-            <template x-for="cat in categories" :key="cat.id">
+        <div class="px-4 pb-3 shrink-0" x-data="pillScroller" x-init @resize.window="checkOverflow()" @resize.window="checkOverflow()" @resize.window="checkOverflow()">
+            <div class="relative">
                 <button
-                    @click="activeCategory = cat.id; loadProducts()"
-                    :class="activeCategory === cat.id
-                        ? 'bg-blue-500 text-white shadow-sm'
-                        : 'bg-white dark:bg-[#1a1f3d] text-gray-600 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/5 border border-gray-200 dark:border-white/5'"
-                    class="px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all"
-                    x-text="cat.name"
-                ></button>
-            </template>
+                    x-show="canScrollLeft"
+                    x-cloak
+                    @click="scrollLeft()"
+                    class="absolute -left-1 top-1/2 z-10 w-7 h-7 rounded-full bg-white dark:bg-gray-700 shadow border border-gray-200 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition -translate-y-1/2"
+                    aria-label="Scroll pills left"
+                >
+                    <svg class="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <button
+                    x-show="canScrollRight"
+                    x-cloak
+                    @click="scrollRight()"
+                    class="absolute -right-1 top-1/2 z-10 w-7 h-7 rounded-full bg-white dark:bg-gray-700 shadow border border-gray-200 dark:border-gray-600 flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-600 transition -translate-y-1/2"
+                    aria-label="Scroll pills right"
+                >
+                    <svg class="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </button>
+
+                <div
+                    x-ref="pillTrack"
+                    @scroll.debounce.50ms="checkOverflow()"
+                    class="flex gap-2 overflow-x-auto hide-scrollbar scroll-smooth px-0.5"
+                    style="-webkit-overflow-scrolling: touch; scroll-behavior: smooth;"
+                >
+                    <button
+                        @click="activeCategory = null; loadProducts()"
+                        :class="activeCategory === null
+                            ? 'bg-blue-500 text-white shadow-sm'
+                            : 'bg-white dark:bg-[#1a1f3d] text-gray-600 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/5 border border-gray-200 dark:border-white/5'"
+                        class="px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all shrink-0"
+                    >All</button>
+                    <template x-for="cat in categories" :key="cat.id">
+                        <button
+                            @click="activeCategory = cat.id; loadProducts()"
+                            :class="activeCategory === cat.id
+                                ? 'bg-blue-500 text-white shadow-sm'
+                                : 'bg-white dark:bg-[#1a1f3d] text-gray-600 dark:text-white/50 hover:bg-gray-100 dark:hover:bg-white/5 border border-gray-200 dark:border-white/5'"
+                            class="px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium whitespace-nowrap transition-all shrink-0"
+                            x-text="cat.name"
+                        ></button>
+                    </template>
+                </div>
+            </div>
         </div>
 
         {{-- Product Grid --}}
@@ -71,16 +99,16 @@
                     <span x-text="searchTerm ? 'No products found' : 'No products available'"></span>
                 </div>
             </template>
-            <div class="grid gap-2" :style="'grid-template-columns: repeat(' + posSettings.grid_columns + ', minmax(0, 1fr))'">
+            <div class="grid gap-2" :style="gridStyle">
                 <template x-for="(product, idx) in filteredProducts" :key="product.id">
                     <button
                         @click="addToCart(product)"
                         :disabled="product.track_inventory && stockMap[product.id] && stockMap[product.id].current_stock <= 0"
-                        class="rounded-xl p-4 text-white text-center cursor-pointer hover:brightness-110 hover:scale-[1.02] active:scale-95 transition-all duration-150 shadow-md flex flex-col items-center justify-center gap-1.5 min-h-[90px] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 disabled:hover:scale-100"
+                        class="rounded-xl p-2 sm:p-3 lg:p-4 text-white text-center cursor-pointer hover:brightness-110 hover:scale-[1.02] active:scale-95 transition-all duration-150 shadow-md flex flex-col items-center justify-center gap-1 sm:gap-1.5 min-h-[72px] sm:min-h-[80px] lg:min-h-[90px] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 disabled:hover:scale-100"
                         :style="'background-color: ' + colorForProduct(product)"
                     >
-                        <span class="font-semibold text-sm leading-tight" x-text="product.name"></span>
-                        <span class="text-xs opacity-80 font-mono tracking-tight" x-text="formatMoney(product.price)"></span>
+                        <span class="font-semibold text-xs sm:text-sm leading-tight" x-text="product.name"></span>
+                        <span class="text-[10px] sm:text-xs opacity-80 font-mono tracking-tight" x-text="formatMoney(product.price)"></span>
                         <span
                             x-show="stockMap[product.id] && product.track_inventory"
                             class="text-[10px] opacity-70"
@@ -93,10 +121,23 @@
         </div>
     </div>
 
+    {{-- RIGHT: Order Cart Panel Toggle (mobile) --}}
+    <button @click="cartOpen = !cartOpen" class="lg:hidden fixed bottom-4 right-4 z-50 w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-xl flex items-center justify-center transition-transform active:scale-95">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/>
+        </svg>
+        <span x-show="items.length > 0" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold" x-text="items.length"></span>
+    </button>
+
+    {{-- Cart Backdrop Overlay (mobile only) --}}
+    <div x-show="cartOpen" @click="cartOpen = false" class="lg:hidden fixed inset-0 bg-black/60 z-35" x-cloak></div>
+
     {{-- RIGHT: Order Cart Panel --}}
-    <div class="w-72 bg-white dark:bg-[#1a1f3d] flex flex-col shrink-0 border-l border-gray-200 dark:border-white/5" style="overflow: visible;">
+    <div class="w-72 bg-white dark:bg-[#1a1f3d] flex flex-col shrink-0 border-l border-gray-200 dark:border-white/10 fixed lg:relative inset-y-0 right-0 z-40 transition-transform duration-300 lg:translate-x-0 shadow-2xl lg:shadow-none" :class="cartOpen ? 'translate-x-0 pointer-events-auto' : 'translate-x-full lg:translate-x-0 pointer-events-none lg:pointer-events-auto'" style="overflow: visible;">
+
+
         {{-- Cart Header --}}
-        <div class="px-4 py-3 border-b border-gray-100 dark:border-white/5 flex items-center justify-between shrink-0">
+        <div class="px-4 py-3 border-b border-gray-100 dark:border-white/10 flex items-center justify-between shrink-0">
             <h3 class="font-bold text-sm text-gray-800 dark:text-white/90 uppercase tracking-wide">Current Order</h3>
             <span
                 x-show="items.length > 0"
@@ -105,26 +146,26 @@
             ></span>
         </div>
         {{-- Order Type & Customer --}}
-        <div class="px-3 py-2 border-b border-gray-100 dark:border-white/5 space-y-2 shrink-0">
+        <div class="px-3 py-2 border-b border-gray-100 dark:border-white/10 space-y-2 shrink-0">
             <div class="flex gap-1.5">
                 <button @click="serviceType = 0"
-                    :class="serviceType === 0 ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40'"
+                    :class="serviceType === 0 ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/60'"
                     class="flex-1 py-1.5 rounded text-xs font-medium transition-colors">Dine-in</button>
                 <button @click="serviceType = 1"
-                    :class="serviceType === 1 ? 'bg-amber-500 text-white' : 'bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40'"
+                    :class="serviceType === 1 ? 'bg-amber-500 text-white' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/60'"
                     class="flex-1 py-1.5 rounded text-xs font-medium transition-colors">Takeaway</button>
             </div>
             <div x-show="serviceType === 0" class="flex items-center gap-2">
-                <span class="text-xs text-gray-400 dark:text-white/40 shrink-0">Table:</span>
+                <span class="text-xs text-gray-400 dark:text-white/50 shrink-0">Table:</span>
                 <input type="text" x-model="tableNumber" placeholder="e.g. A5"
-                    class="flex-1 h-7 text-xs rounded border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-gray-800 dark:text-white/80 px-2 focus:outline-none focus:ring-1 focus:ring-blue-500/50">
+                    class="flex-1 h-7 text-xs rounded border border-gray-200 dark:border-white/15 bg-gray-50 dark:bg-white/10 text-gray-800 dark:text-white/90 px-2 focus:outline-none focus:ring-1 focus:ring-blue-500/50">
             </div>
 
             {{-- Customer Search (always visible) --}}
             <div class="relative">
                 <div class="flex items-center gap-1.5 text-xs">
                     <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
-                    <span x-show="!showCustomerSearch" class="text-gray-500 dark:text-white/50 cursor-pointer" @click="showCustomerSearch = true"
+                    <span x-show="!showCustomerSearch" class="text-gray-500 dark:text-white/70 cursor-pointer" @click="showCustomerSearch = true"
                         x-text="selectedCustomer ? selectedCustomer.name + ' (selected)' : 'Walk-in Customer'"></span>
                 </div>
                 <div x-show="showCustomerSearch" class="mt-1">
@@ -203,10 +244,10 @@
         {{-- Cart Items --}}
         <div class="flex-1 overflow-y-auto p-3 space-y-1.5">
             <template x-if="items.length === 0">
-                <div class="flex items-center justify-center h-full text-gray-300 dark:text-white/15 text-sm font-medium">Cart is empty</div>
+                <div class="flex items-center justify-center h-full text-gray-300 dark:text-white/25 text-sm font-medium">Cart is empty</div>
             </template>
             <template x-for="(item, idx) in items" :key="idx">
-                <div class="flex flex-col gap-1 py-2 border-b border-gray-50 dark:border-white/[0.03]">
+                <div class="flex flex-col gap-1 py-2 border-b border-gray-50 dark:border-white/10">
                     <div class="flex items-center gap-2.5">
                         <span
                             class="bg-blue-500 text-white w-5 h-5 rounded-full text-[10px] flex items-center justify-center font-bold shrink-0"
@@ -214,35 +255,35 @@
                         ></span>
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-medium text-gray-800 dark:text-white/90 truncate" x-text="item.name"></p>
-                            <p class="text-[11px] text-gray-400 dark:text-white/35 font-mono" x-text="formatMoney(item.price) + ' × ' + item.qty"></p>
+                            <p class="text-[11px] text-gray-400 dark:text-white/50 font-mono" x-text="formatMoney(item.price) + ' × ' + item.qty"></p>
                         </div>
                         <p class="text-sm font-mono font-semibold text-gray-900 dark:text-white shrink-0 tabular-nums" x-text="formatMoney(item.price * item.qty)"></p>
-                        <button @click="removeItem(idx)" class="text-gray-300 dark:text-white/15 hover:text-red-400 dark:hover:text-red-400 text-base leading-none shrink-0 transition-colors p-0.5" title="Remove">&times;</button>
+                        <button @click="removeItem(idx)" class="text-gray-300 dark:text-white/30 hover:text-red-400 dark:hover:text-red-400 text-base leading-none shrink-0 transition-colors p-0.5" title="Remove">&times;</button>
                     </div>
                     <div class="flex items-center gap-1 ml-7">
                         <button @click="updateQty(idx, item.qty - 1)"
                             :disabled="item.qty <= 1"
-                            class="w-6 h-6 rounded bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 hover:bg-gray-200 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-bold flex items-center justify-center transition-colors">-</button>
+                            class="w-6 h-6 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/15 disabled:opacity-30 disabled:cursor-not-allowed text-sm font-bold flex items-center justify-center transition-colors">-</button>
                         <input
                             type="number"
                             x-model.number="item.qty"
                             @input.debounce.300ms="updateQty(idx, item.qty)"
                             min="1"
-                            class="w-12 h-6 text-center text-xs rounded bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-800 dark:text-white/80 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500"
+                            class="w-12 h-6 text-center text-xs rounded bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/90 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500"
                         >
                         <button @click="updateQty(idx, item.qty + 1)"
-                            class="w-6 h-6 rounded bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/40 hover:bg-gray-200 dark:hover:bg-white/10 text-sm font-bold flex items-center justify-center transition-colors">+</button>
+                            class="w-6 h-6 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/15 text-sm font-bold flex items-center justify-center transition-colors">+</button>
                     </div>
                 </div>
             </template>
         </div>
 
         {{-- Totals --}}
-        <div class="border-t border-gray-200 dark:border-white/5 px-4 py-3 space-y-1.5 text-sm shrink-0">
+        <div class="border-t border-gray-200 dark:border-white/10 px-4 py-3 space-y-1.5 text-sm shrink-0">
             {{-- Order Discount --}}
-            <div class="flex items-center gap-1.5 pb-2 border-b border-gray-100 dark:border-white/[0.03]">
-                <span class="text-xs text-gray-500 dark:text-white/45 whitespace-nowrap">Discount</span>
-                <select x-model="discountType" class="h-7 text-xs rounded border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-gray-700 dark:text-white/70 focus:outline-none focus:ring-1 focus:ring-blue-500/50 px-1">
+            <div class="flex items-center gap-1.5 pb-2 border-b border-gray-100 dark:border-white/10">
+                <span class="text-xs text-gray-500 dark:text-white/60 whitespace-nowrap">Discount</span>
+                <select x-model="discountType" class="h-7 text-xs rounded border border-gray-200 dark:border-white/15 bg-gray-50 dark:bg-white/10 text-gray-700 dark:text-white/80 focus:outline-none focus:ring-1 focus:ring-blue-500/50 px-1">
                     <option value="percent">%</option>
                     <option value="flat" x-text="$store.currency.symbol">$</option>
                 </select>
@@ -252,14 +293,14 @@
                     min="0"
                     step="0.01"
                     placeholder="0.00"
-                    class="flex-1 h-7 text-xs rounded border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 text-gray-800 dark:text-white/80 px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500"
+                    class="flex-1 h-7 text-xs rounded border border-gray-200 dark:border-white/15 bg-gray-50 dark:bg-white/10 text-gray-800 dark:text-white/90 px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500"
                 >
             </div>
-            <div class="flex justify-between text-gray-500 dark:text-white/45">
+            <div class="flex justify-between text-gray-500 dark:text-white/60">
                 <span>Subtotal</span>
                 <span class="font-mono tabular-nums" x-text="formatMoney(subtotal)"></span>
             </div>
-            <div class="flex justify-between text-gray-500 dark:text-white/45">
+            <div class="flex justify-between text-gray-500 dark:text-white/60">
                 <span>Discount</span>
                 <span class="font-mono text-red-400 tabular-nums" x-text="'-' + formatMoney(discount)"></span>
             </div>
@@ -267,18 +308,18 @@
                 <span>Promo</span>
                 <span class="font-mono tabular-nums" x-text="'-' + formatMoney(promoDiscount)"></span>
             </div>
-            <div class="flex justify-between text-gray-500 dark:text-white/45">
+            <div class="flex justify-between text-gray-500 dark:text-white/60">
                 <span>Tax</span>
                 <span class="font-mono tabular-nums" x-text="formatMoney(tax)"></span>
             </div>
-            <div class="flex justify-between text-base font-bold border-t border-gray-200 dark:border-white/5 pt-2.5 mt-1 text-gray-900 dark:text-white">
+            <div class="flex justify-between text-base font-bold border-t border-gray-200 dark:border-white/10 pt-2.5 mt-1 text-gray-900 dark:text-white">
                 <span>Total</span>
                 <span class="font-mono tabular-nums text-blue-600 dark:text-blue-400" x-text="formatMoney(grandTotal)"></span>
             </div>
         </div>
 
         {{-- Action Buttons --}}
-        <div class="border-t border-gray-200 dark:border-white/5 p-3 space-y-2 shrink-0">
+        <div class="border-t border-gray-200 dark:border-white/10 p-3 space-y-2 shrink-0">
             <div class="flex gap-2">
                 <button
                     @click="openPayment('cash')"
@@ -299,7 +340,7 @@
             <button
                 @click="newSale()"
                 :disabled="items.length === 0"
-                class="w-full bg-red-500/10 hover:bg-red-500/20 disabled:opacity-30 disabled:cursor-not-allowed text-red-500 font-semibold py-2 rounded-lg transition text-sm"
+                class="w-full bg-red-500/10 dark:bg-red-500/15 hover:bg-red-500/20 dark:hover:bg-red-500/25 disabled:opacity-30 disabled:cursor-not-allowed text-red-500 dark:text-red-400 font-semibold py-2 rounded-lg transition text-sm"
             >New Sale</button>
         </div>
     </div>

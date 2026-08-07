@@ -9,19 +9,19 @@
 @endpush
 
 @section('content')
-<div x-data="taxesManager" x-init="init()" class="px-6">
+<div x-data="taxesManager" x-init="init()" class="flex flex-col h-full">
 
     {{-- Header --}}
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 py-4">
+    <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 shrink-0">
         <div>
-            <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Taxes</h1>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage tax rates</p>
+            <h1 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Taxes</h1>
+            <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage tax rates</p>
         </div>
         <button
             @click="openAdd()"
-            class="inline-flex items-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900"
+            class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-2 shrink-0"
         >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
             </svg>
             Add Tax
@@ -185,7 +185,7 @@
             @click="showModal = false"
         ></div>
 
-        <div class="flex min-h-full items-center justify-center p-4">
+        <div class="flex flex flex-col h-full items-center justify-center p-4">
             <div
                 x-show="showModal"
                 x-transition

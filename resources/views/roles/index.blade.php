@@ -5,9 +5,9 @@
 @section('content')
 <div x-data="rolesManager" x-init="init()">
 
-    <div class="flex items-center justify-between px-6 py-4">
+    <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 shrink-0">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Roles & Permissions</h1>
+            <h1 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">Roles & Permissions</h1>
             <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Create custom roles and assign module access</p>
         </div>
         <button @click="openAdd()" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-2">
@@ -16,7 +16,7 @@
         </button>
     </div>
 
-    <div class="px-6">
+    <div class="px-4 sm:px-6 flex-1 overflow-hidden flex flex-col pb-4">
         <template x-if="loading">
             <div class="flex justify-center py-12"><svg class="animate-spin h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg></div>
         </template>

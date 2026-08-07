@@ -56,7 +56,7 @@ class RecalculateStock extends Command
                     $verified++;
                     $rows[] = [$product->name, $stock->warehouse->name ?? 'N/A', number_format($currentQty, 4), 'OK'];
                 } else {
-                    $this->warn("Discrepancy: {$product->name} — expected {$expectedQty}, found {$currentQty}");
+                    $this->warn("Discrepancy: {$product->name} \u2014 expected {$expectedQty}, found {$currentQty}");
 
                     if ($shouldFix) {
                         $stock->update(['quantity' => $expectedQty]);
