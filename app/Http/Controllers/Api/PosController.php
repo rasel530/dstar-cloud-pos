@@ -1,0 +1,519 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\PosOrder;
+use App\Models\PosOrderItem;
+use App\Models\Document;
+use App\Models\DocumentItem;
+use App\Models\Payment;
+use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+
+class PosController extends Controller
+{
+    public function index(Request $request)
+    {
+        $query = PosOrder::query()
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->with([
+                "customer",
+                "user",
+                "posOrderItems.product",
+            ])
+            ->withCount("posOrderItems");
+
+        if ($request->has("status")) {
+            $query->where("status", $request->status);
+        }
+
+        if ($request->has("customer_id")) {
+            $query->where("customer_id", $request->customer_id);
+        }
+
+        if ($request->has("user_id")) {
+            $query->where("user_id", $request->user_id);
+        }
+
+        if ($request->has("date_from")) {
+            $query->whereDate("created_at", ">=", $request->date_from);
+        }
+
+        if ($request->has("date_to")) {
+            $query->whereDate("created_at", "<=", $request->date_to);
+        }
+
+        $orders = $query->orderBy("created_at", "desc")->paginate(25);
+
+        return response()->json(["data" => $orders]);
+    }
+
+    public function show($id)
+    {
+        $o = PosOrder::where('id', $id)
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->first();
+        if (! $o) {
+            return response()->json(["message" => "Order not found"], 404);
+        }
+        $items = PosOrderItem::with('product')
+            ->where('pos_order_id', $id)
+            ->get()
+            ->each(function ($item) {
+                $item->product_name = $item->product?->name ?? 'Item';
+                $item->product_price = $item->product?->price ?? 0;
+            });
+        $o->pos_order_items = $items;
+        $o->total = round((float) $o->total, 2);
+        $o->discount = round((float) $o->discount, 2);
+        return response()->json(["data" => $o]);
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            "items" => "required|array|min:1",
+            "items.*.product_id" => "required|exists:products,id",
+            "items.*.quantity" => "required|numeric|min:0.01",
+            "items.*.price" => "required|numeric|min:0",
+            "customer_id" => "nullable|exists:customers,id",
+            "service_type" => "nullable|integer|min:0|max:1",
+            "table_number" => "nullable|string|max:50",
+        ]);
+
+        $user = auth()->user();
+        $tenantId = $user->tenant_id;
+        $branchId = $user->branch_id ?? $user->tenant_id;
+
+        $branch = \App\Models\Tenant::find($branchId);
+        $branchCode = (!\App\Services\SystemModeService::isSingleMode() && $branch?->branch_code) ? $branch->branch_code . '-' : '';
+        $dateFmt = $branchCode . "ORD-" . now()->format("Ymd") . "-";
+        $count = PosOrder::whereDate("created_at", today())->where('number', 'like', $dateFmt . '%')->count() + 1;
+        $orderNumber = $dateFmt . str_pad($count, 4, "0", STR_PAD_LEFT);
+
+        $order = PosOrder::create([
+            "tenant_id"     => $tenantId,
+            "user_id"       => $user->id,
+            "customer_id"   => $request->customer_id,
+            "branch_id"     => $branchId,
+            "number"        => $orderNumber,
+            "service_type"  => $request->service_type ?? 0,
+            "status"        => "open",
+            "total"         => $request->total ?? 0,
+            "discount"      => $request->discount ?? 0,
+            "discount_type" => 0,
+        ]);
+
+        foreach ($request->items as $item) {
+            PosOrderItem::create([
+                "pos_order_id" => $order->id,
+                "product_id"   => $item["product_id"],
+                "quantity"     => $item["quantity"],
+                "price"        => $item["price"],
+            ]);
+        }
+
+        $order->load(["posOrderItems.product", "customer"]);
+
+        return response()->json(["data" => $order], 201);
+    }
+
+    public function closeOrder(Request $request, $order)
+    {
+        $o = PosOrder::where('id', $order)
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->first();
+        if (! $o) return response()->json(["message" => "Order not found"], 404);
+        if ($o->status === "closed") return response()->json(["message" => "Order is already closed"], 422);
+
+        $orderModel = PosOrder::with('posOrderItems.product')->find($order);
+        $calc = (new \App\Services\Pricing\TaxCalculator)->calculate($orderModel);
+
+        $o->update([
+            'status' => 'closed',
+            'total' => $calc['total'],
+            'discount' => $calc['discount'],
+            'updated_at' => now(),
+        ]);
+        $o->refresh();
+        try {
+            $orderModel = PosOrder::with('customer')->find($order);
+            if ($orderModel) {
+                (new \App\Services\LoyaltyAutoAwardService)->awardForOrder($orderModel);
+            }
+        } catch (\Exception $e) { /* loyalty award is non-critical */ }
+        return response()->json(["data" => $o]);
+    }
+
+    public function addItem(Request $request, $orderId)
+    {
+        $validated = $request->validate([
+            'product_id' => 'required|exists:products,id',
+            'quantity'   => 'required|numeric|min:0.01|max:9999',
+            'price'      => 'required|numeric|min:0',
+        ]);
+
+        $order = PosOrder::where('id', $orderId)
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->firstOrFail();
+
+        $product = \App\Models\Product::findOrFail($validated['product_id']);
+        if ($validated['price'] > ($product->price * 5)) {
+            return response()->json(['message' => 'Price exceeds maximum allowed (5x product price).'], 422);
+        }
+
+        $item = PosOrderItem::create([
+            "pos_order_id" => $orderId,
+            "product_id"   => $validated['product_id'],
+            "quantity"     => $validated['quantity'],
+            "price"        => $validated['price'],
+            "round_number" => 1,
+        ]);
+        return response()->json(["data" => $item], 201);
+    }
+
+    public function removeItem(Request $request, $orderId, $itemId)
+    {
+        $item = PosOrderItem::where("pos_order_id", $orderId)->where("id", $itemId)->firstOrFail();
+        $item->delete();
+        return response()->json(null, 204);
+    }
+
+    public function checkout(Request $request, $orderId)
+    {
+        $order = PosOrder::with("posOrderItems.product")
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->findOrFail($orderId);
+        $user = auth()->user();
+
+        $calculatedTotal = $order->posOrderItems->sum(fn($i) => $i->quantity * $i->price);
+        $discount = $request->input('discount', $order->discount ?? 0);
+        $discountType = $request->input('discount_type', $order->discount_type ?? 0);
+        $discountAmount = $discountType === 1 ? floatval($discount) : ($calculatedTotal * floatval($discount) / 100);
+
+        if ($discountType === 1 && $discountAmount > $calculatedTotal * 0.5) {
+            return response()->json(['message' => 'Fixed discount cannot exceed 50% of order total.'], 422);
+        }
+        if ($discountType === 0 && floatval($discount) > 50) {
+            return response()->json(['message' => 'Percentage discount cannot exceed 50%.'], 422);
+        }
+
+        $order->discount = $discountAmount;
+        $order->discount_type = $discountType;
+        $calc = (new \App\Services\Pricing\TaxCalculator)->calculate($order);
+        $finalTotal = $calc['total'];
+
+        $tenantId = $user->tenant_id;
+        $branchId = $request->header('X-Branch-Id') ?: $order->branch_id;
+        if ($branchId && !\App\Models\Tenant::where('id', $branchId)->exists()) {
+            $branchId = $user->branch_id ?? $user->tenant_id;
+        }
+        $paymentMethod = $request->input('payment_type', 'cash');
+        $paidAmount = (float) ($request->input('paid_amount') ?: $finalTotal);
+        $changeAmount = max(0, $paidAmount - $finalTotal);
+        $taxAmount = $calc['tax'] ?? 0;
+
+        $branch = $branchId ? \App\Models\Tenant::find($branchId) : null;
+        $branchCode = (!\App\Services\SystemModeService::isSingleMode() && $branch?->branch_code) ? $branch->branch_code . '-' : '';
+        $dateFmt = $branchCode . "ORD-" . now()->format("Ymd") . "-";
+        $count = Document::whereDate("created_at", today())->where('number', 'like', $dateFmt . '%')->count() + 1;
+        $docNumber = $dateFmt . str_pad($count, 4, "0", STR_PAD_LEFT);
+        $docType = \App\Models\DocumentType::where("code", "200")->first();
+        $warehouse = \App\Models\Warehouse::where("tenant_id", $user->tenant_id)->first();
+        $paymentType = \App\Models\PaymentType::first();
+
+        $doc = Document::create([
+            "tenant_id" => $user->tenant_id,
+            "user_id" => $user->id,
+            "customer_id" => $order->customer_id,
+            "number" => $docNumber,
+            "order_number" => $order->number,
+            "document_type_id" => $docType?->id,
+            "warehouse_id" => $warehouse?->id,
+            "date" => now()->toDateString(),
+            "stock_date" => now(),
+            "total" => $finalTotal,
+            "discount" => $discountAmount,
+            "discount_type" => $discountType,
+            "paid_status" => 1,
+        ]);
+
+        foreach ($order->posOrderItems as $oi) {
+            DocumentItem::create([
+                "document_id" => $doc->id,
+                "product_id" => $oi->product_id,
+                "quantity" => $oi->quantity,
+                "price" => $oi->price,
+                "total" => $oi->quantity * $oi->price,
+            ]);
+        }
+
+        Payment::create([
+            "tenant_id" => $user->tenant_id,
+            "document_id" => $doc->id,
+            "payment_type_id" => $paymentType?->id,
+            "user_id" => $user->id,
+            "amount" => $finalTotal,
+        ]);
+
+        \DB::table('pos_orders')->where('id', $orderId)->update([
+            'status' => 'closed',
+            'total' => $finalTotal,
+            'discount' => $discountAmount,
+            'discount_type' => $discountType,
+            'paid_amount' => $paidAmount,
+            'change_amount' => $changeAmount,
+            'payment_method' => $paymentMethod,
+            'tax_amount' => $taxAmount,
+            'customer_id' => $request->input('customer_id', $order->customer_id),
+            'branch_id' => $branchId,
+            'updated_at' => now(),
+        ]);
+
+        $warehouseId = $request->input('warehouse_id') ?: \App\Models\Warehouse::where('tenant_id', $user->tenant_id)->where('is_default', true)->value('id');
+        $allowNegative = \App\Models\ApplicationSetting::where('tenant_id', $user->tenant_id)->where('key', 'allow_negative_stock')->value('value');
+        $allowNegative = $allowNegative === 'true' || $allowNegative === '1';
+        $branchId = $request->input('branch_id') ?: $request->header('X-Branch-Id');
+
+        if ($warehouseId) {
+            $stockService = new \App\Services\Inventory\StockService;
+            foreach ($order->posOrderItems as $item) {
+                $product = \App\Models\Product::find($item->product_id);
+                if (!$product || $product->is_service || !$product->track_inventory) continue;
+                $qty = (float) ($item->quantity ?? 1);
+                $bi = null;
+                try {
+                    if ($branchId) {
+                        $bi = \App\Models\BranchInventory::where('product_id', $item->product_id)->where('branch_id', $branchId)->first();
+                        $current = $bi ? (float) $bi->stock : 0;
+                        if (!$allowNegative && $current < $qty) {
+                            throw new \RuntimeException("Insufficient stock for '{$product->name}'. Available: {$current}");
+                        }
+                    }
+                    $stockService->decrement($item->product_id, $warehouseId, $qty, $user->id, $user->tenant_id, 'sale', $orderId);
+
+                    if ($branchId) {
+                        $bi = \App\Models\BranchInventory::where('product_id', $item->product_id)->where('branch_id', $branchId)->first();
+                        if ($bi) { $bi->stock -= $qty; $bi->save(); }
+                        else { \App\Models\BranchInventory::create(['tenant_id' => $user->tenant_id, 'product_id' => $item->product_id, 'branch_id' => $branchId, 'stock' => -$qty]); }
+                    }
+                } catch (\RuntimeException $e) {
+                    if (!$allowNegative) {
+                        return response()->json(['message' => $e->getMessage()], 422);
+                    }
+                }
+            }
+        }
+
+        $order->status = 'closed';
+        $order->total = $finalTotal;
+        $order->paid_amount = $paidAmount;
+        $order->change_amount = $changeAmount;
+        $order->payment_method = $paymentMethod;
+        $order->tax_amount = $taxAmount;
+
+        try {
+            (new \App\Services\LoyaltyAutoAwardService)->awardForOrder($order);
+        } catch (\Exception $e) { /* loyalty award is non-critical */ }
+
+        $receipt = $this->buildReceipt($order, $doc);
+
+        return response()->json(["data" => [
+            "document" => $doc,
+            "order" => $order,
+            "receipt" => $receipt,
+        ]]);
+    }
+
+    public function transferItems(Request $request, $orderId){}
+    public function mergeCartItems(Request $request) {}
+
+    public function refund(Request $request, $orderId): JsonResponse
+    {
+        $user = auth()->user();
+        $order = PosOrder::where('id', $orderId)
+            ->where('tenant_id', $user->tenant_id)
+            ->with('posOrderItems.product')
+            ->firstOrFail();
+
+        if ($order->status === 'refunded') {
+            return response()->json(['message' => 'Order has already been refunded.', 'data' => $order]);
+        }
+
+        if ($order->status !== 'closed') {
+            return response()->json(['message' => 'Only completed orders can be refunded.'], 422);
+        }
+
+        $reason = $request->input('reason', 'Customer refund');
+
+        $doc = Document::where('order_number', $order->number)
+            ->where('tenant_id', $user->tenant_id)
+            ->first();
+
+        if ($doc) {
+            try {
+                $checkoutService = app(\App\Services\Pos\CheckoutService::class);
+                $checkoutService->processRefund($doc->id, $user->id, $reason);
+            } catch (\InvalidArgumentException $e) {
+                if ($order->status !== 'refunded') {
+                    $order->update(['status' => 'refunded', 'updated_at' => now()]);
+                }
+                return response()->json(['message' => 'Order refunded.', 'data' => $order]);
+            }
+        }
+
+        $branchId = $order->branch_id;
+        if ($branchId) {
+            $warehouseId = \App\Models\Warehouse::where('tenant_id', $user->tenant_id)->where('is_default', true)->value('id');
+            foreach ($order->posOrderItems as $item) {
+                $product = $item->product;
+                if (!$product || $product->is_service || !$product->track_inventory) continue;
+                $bi = \App\Models\BranchInventory::where('product_id', $item->product_id)->where('branch_id', $branchId)->first();
+                if ($bi) { $bi->stock += (float) ($item->quantity ?? 1); $bi->save(); }
+                if ($bi && $warehouseId) {
+                    try {
+                        $stockService = new \App\Services\Inventory\StockService;
+                        $stockService->decrement($item->product_id, $warehouseId, (float) ($item->quantity ?? 1), $user->id, $user->tenant_id, 'refund_correction', $orderId);
+                    } catch (\Exception $e) {}
+                }
+            }
+        }
+
+        $order->update(['status' => 'refunded', 'updated_at' => now()]);
+
+        return response()->json(['message' => 'Order refunded successfully.', 'data' => $order]);
+    }
+
+    public function voidItem(Request $request, $orderId, $itemId): JsonResponse
+    {
+        if (!auth()->user() || auth()->user()->access_level < 5) {
+            return response()->json(['message' => 'Insufficient access level.'], 403);
+        }
+
+        $item = PosOrderItem::where('id', $itemId)
+            ->where('pos_order_id', $orderId)
+            ->firstOrFail();
+
+        $order = PosOrder::where('id', $orderId)
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->firstOrFail();
+
+        if ($order->status === 'closed') {
+            return response()->json(['message' => 'Cannot void items on a closed order.'], 422);
+        }
+
+        $item->delete();
+
+        return response()->json(['message' => 'Item voided successfully.']);
+    }
+
+    public function receipt($orderId): JsonResponse
+    {
+        $order = PosOrder::where('id', $orderId)
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->with(['posOrderItems.product', 'customer', 'user', 'branch'])
+            ->first();
+
+        if (!$order) {
+            return response()->json(['message' => 'Order not found'], 404);
+        }
+
+        $doc = Document::where('order_number', $order->number)->first();
+        if (!$doc) {
+            return response()->json(['message' => 'Receipt not available'], 404);
+        }
+
+        $receipt = $this->buildReceipt($order, $doc);
+        return response()->json(['data' => $receipt]);
+    }
+
+    private function buildReceipt(PosOrder $order, Document $doc): array
+    {
+        $order->load(['posOrderItems.product', 'customer', 'user', 'branch']);
+        $tenantId = $order->tenant_id;
+
+        $settings = \App\Models\ApplicationSetting::where('tenant_id', $tenantId)
+            ->orderBy('key')->get()->pluck('value', 'key')->toArray();
+
+        $company = [
+            'name' => $settings['company_name'] ?? config('app.name'),
+            'address' => $settings['company_address'] ?? '',
+            'phone' => $settings['company_phone'] ?? '',
+            'email' => $settings['company_email'] ?? '',
+        ];
+
+        $branchData = null;
+        if (!\App\Services\SystemModeService::isSingleMode() && $order->branch_id && $order->branch) {
+            $branchData = [
+                'name' => $order->branch->name,
+                'branch_code' => $order->branch->branch_code,
+                'address' => $order->branch->address ?? '',
+                'phone' => $order->branch->phone ?? '',
+            ];
+        }
+
+        $customerName = $order->customer ? ($order->customer->name ?? '') : '';
+        $customerPhone = $order->customer ? ($order->customer->phone_number ?? ($order->customer->phone ?? '')) : '';
+        $cashierName = $order->user ? trim(($order->user->first_name ?? '') . ' ' . ($order->user->last_name ?? '')) : '';
+
+        $items = $order->posOrderItems->map(fn($i) => [
+            'product_name' => $i->product_name ?? $i->product?->name ?? 'Item',
+            'quantity' => (float) ($i->quantity ?? 1),
+            'price' => (float) ($i->price ?? 0),
+            'total' => (float) ($i->quantity ?? 1) * (float) ($i->price ?? 0),
+        ])->toArray();
+
+        $receiptNumber = $doc->number;
+
+        $receiptOrder = [
+            'number' => $doc->number,
+            'created_at' => $order->created_at,
+            'date' => $order->created_at->format('Y-m-d H:i:s'),
+            'items' => $items,
+            'subtotal' => round($order->posOrderItems->sum(fn($i) => $i->quantity * $i->price), 2),
+            'tax_amount' => round($order->tax_amount ?? 0, 2),
+            'discount' => round($order->discount ?? 0, 2),
+            'total' => round($order->total ?? 0, 2),
+            'paid_amount' => round($order->paid_amount ?? 0, 2),
+            'change_amount' => round($order->change_amount ?? 0, 2),
+            'payment_method' => $order->payment_method ?? 'cash',
+            'cashier' => $cashierName,
+            'customer' => $customerName ?: 'Walk-in Customer',
+            'customer_phone' => $customerPhone,
+            'branch' => $branchData,
+            'document_type' => ['name' => 'Sale'],
+            'payments' => [],
+            'service_type' => (int) ($order->service_type ?? 0),
+            'table_number' => $order->table_number ?? '',
+        ];
+
+        return [
+            'receipt_number' => $receiptNumber,
+            'order_number' => $order->number,
+            'date' => $order->created_at->format('d M Y'),
+            'time' => $order->created_at->format('h:i A'),
+            'company' => $company,
+            'branch' => $branchData,
+            'cashier' => $cashierName,
+            'customer' => $customerName ?: 'Walk-in Customer',
+            'customer_phone' => $customerPhone,
+            'items' => $items,
+            'subtotal' => $receiptOrder['subtotal'],
+            'tax_amount' => $receiptOrder['tax_amount'],
+            'discount' => $receiptOrder['discount'],
+            'grand_total' => $receiptOrder['total'],
+            'paid_amount' => $receiptOrder['paid_amount'],
+            'change_amount' => $receiptOrder['change_amount'],
+            'payment_method' => $receiptOrder['payment_method'],
+            'service_type' => (int) ($order->service_type ?? 0),
+            'table_number' => $order->table_number ?? '',
+            'currency_symbol' => $settings['currency_symbol'] ?? '$',
+            'receipt_header' => $settings['receipt_header'] ?? '',
+            'receipt_footer' => $settings['receipt_footer'] ?? 'Thank you for your purchase!',
+            'logo' => $settings['logo'] ?? '',
+            'receipt_html' => (new \App\Services\Printing\ReceiptBuilder)->build($receiptOrder, $company, $settings),
+        ];
+    }
+}
+
