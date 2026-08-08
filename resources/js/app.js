@@ -46,7 +46,7 @@ window.POS = {
         const token = this.token();
         if (token) headers['Authorization'] = 'Bearer ' + token;
         const branchId = localStorage.getItem('active_branch_id');
-        if (branchId && localStorage.getItem('system_mode') !== 'single') headers['X-Branch-Id'] = branchId;
+        if (branchId && localStorage.getItem('system_mode') !== 'single') headers['X-Active-Branch'] = branchId;
         options.headers = { ...headers, ...(options.headers || {}) };
         const res = await fetch(url, options);
         if (res.status === 401) { localStorage.removeItem('auth_token'); window.location.href = '/login'; return null; }
@@ -131,6 +131,8 @@ Alpine.data('layoutData', () => ({
         sound_effects: true, payment_confirmation: true,
         notification_duration: 3, notification_position: 'bottom-center',
         receipt_auto_print: false,
+        dine_in_enabled: null, takeaway_enabled: null, table_management_enabled: null,
+        _settingsReady: false, _uiReady: false,
     },
 
     get discount() {
@@ -194,6 +196,7 @@ Alpine.data('layoutData', () => ({
         this.loadCategories();
         await this.loadProducts();
         await this.loadFiscalItems();
+        this.posSettings._uiReady = true;
         await this.loadTaxRate();
         await this.loadDefaultCustomer();
         await this.loadStockSummary();
@@ -224,8 +227,11 @@ Alpine.data('layoutData', () => ({
                 if (s.notification_duration) this.posSettings.notification_duration = parseInt(s.notification_duration) || 3;
                 if (s.notification_position) this.posSettings.notification_position = s.notification_position;
                 if (s.receipt_auto_print !== undefined) this.posSettings.receipt_auto_print = s.receipt_auto_print === 'true' || s.receipt_auto_print === true;
+                if (s.dine_in_enabled !== undefined) this.posSettings.dine_in_enabled = s.dine_in_enabled === 'true' || s.dine_in_enabled === true;
+                if (s.takeaway_enabled !== undefined) this.posSettings.takeaway_enabled = s.takeaway_enabled === 'true' || s.takeaway_enabled === true;
+                if (s.table_management_enabled !== undefined) this.posSettings.table_management_enabled = s.table_management_enabled === 'true' || s.table_management_enabled === true;
             }
-        } catch (e) { /* use defaults */ }
+        } catch (e) { /* use defaults */ } finally { this.posSettings._settingsReady = true; }
     },
     async loadDefaultCustomer() {
         try {
@@ -588,7 +594,7 @@ Alpine.data('dashboard', () => ({
 
 // --- Products Manager Component ---
 Alpine.data('productsManager', () => ({
-    products: [], loading: true, search: '', pagination: null,
+    products: [], loading: true, search: '', pagination: {},
     showModal: false, editing: false, saving: false, productGroups: [], branches: [],
     showNewGroup: false, newGroupName: '', uploadingStock: false, toast: { show: false, message: '', type: 'success' },
     measurementUnits: [], showNewUnit: false, newUnitName: '', newUnitKey: '',
@@ -725,7 +731,7 @@ Alpine.data('productsManager', () => ({
 
 // --- Customers Manager Component ---
 Alpine.data('customersManager', () => ({
-    customers: [], loading: true, search: '', pagination: null,
+    customers: [], loading: true, search: '', pagination: {},
     showModal: false, editing: false, saving: false,
     toast: { show: false, message: '', type: 'success' },
     form: { name: '', email: '', phone_number: '', code: '', is_enabled: true },
@@ -826,12 +832,13 @@ Alpine.data('ordersList', () => ({
 // --- Reports Component ---
 Alpine.data('reportsManager', () => ({
     activeTab: 'sales', tabData: {}, loading: false, dateFrom: '', dateTo: '',
-    customerId: '', customers: [], pagination: null, custPage: 1,
+    customerId: '', customers: [], employeeId: '', employees: [], branchId: '', branches: [], pagination: {}, custPage: 1,
     tabs: [
         { key: 'sales', label: 'Sales Summary' },
         { key: 'bestselling', label: 'Best Selling' },
         { key: 'customers', label: 'Customer Analytics' },
         { key: 'customer-detail', label: 'Customer Detail' },
+        { key: 'employee-detail', label: 'Employee Detail' },
         { key: 'tax', label: 'Tax Report' },
     ],
     get chartMax() {
@@ -846,19 +853,30 @@ Alpine.data('reportsManager', () => ({
         return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
     },
 
-    async init() { await Promise.all([this.fetchTabData(), this.fetchCustomers()]); },
+    async init() { await Promise.all([this.fetchTabData(), this.fetchCustomers(), this.fetchEmployees(), this.fetchBranches()]); },
     async fetchCustomers() {
         try { const r = await window.POS.api('/api/customers?per_page=500'); this.customers = r.data?.data || r.data || []; } catch(e) { this.customers = []; }
     },
+    async fetchEmployees() {
+        try { const r = await window.POS.api('/api/users'); this.employees = r.data?.data || r.data || []; } catch(e) { this.employees = []; }
+    },
+    async fetchBranches() {
+        try { const r = await window.POS.api('/api/branches'); this.branches = r.data?.data || r.data || []; } catch(e) { this.branches = []; }
+    },
     async fetchTabData(page = 1) {
+        if (this.activeTab === 'employee-detail' && !this.employeeId) { this.loading = false; return; }
+        if (this.activeTab === 'customer-detail' && !this.customerId) { this.loading = false; return; }
+        if (this.branchId && this.branchId !== 'all') { localStorage.setItem('active_branch_id', this.branchId); } else { localStorage.removeItem('active_branch_id'); }
         this.loading = true;
         try {
-            const apiMap = { sales: 'sales-summary', bestselling: 'best-selling', customers: 'customers', tax: 'taxes', 'customer-detail': 'customer-sales' };
+            const apiMap = { sales: 'sales-summary', bestselling: 'best-selling', customers: 'customers', tax: 'taxes', 'customer-detail': 'customer-sales', 'employee-detail': 'employee-sales' };
             let url = '/api/reports/' + (apiMap[this.activeTab] || 'sales-summary');
             let params = [];
             if (this.dateFrom) params.push('start_date=' + this.dateFrom + '&end_date=' + this.dateTo);
             params.push('page=' + page + '&per_page=25');
+            if (this.activeTab === 'employee-detail' && this.employeeId) params.push('user_id=' + this.employeeId + '&per_page=10');
             if (this.activeTab === 'customer-detail' && this.customerId) params.push('customer_id=' + this.customerId + '&per_page=10');
+            
             if (params.length) url += '?' + params.join('&');
             const data = await window.POS.api(url);
             this.tabData = data?.data || data || {};
@@ -881,7 +899,7 @@ Alpine.data('reportsManager', () => ({
 
 // --- Users Manager Component ---
 Alpine.data('usersManager', () => ({
-    users: [], loading: true, pagination: null, roles: [], branches: [], currentUserId: null,
+    users: [], loading: true, pagination: {}, roles: [], branches: [], currentUserId: null,
     showModal: false, editing: false, saving: false, editId: null, showPwd: false, uploadingStock: false,
     error: '',
     form: { first_name: '', last_name: '', username: '', email: '', password: '', access_level: 0, is_enabled: true, branch_id: '', branch_ids: [] },
@@ -933,7 +951,7 @@ Alpine.data('usersManager', () => ({
 
 // --- Taxes Manager Component ---
 Alpine.data('taxesManager', () => ({
-    taxes: [], loading: true, pagination: null,
+    taxes: [], loading: true, pagination: {},
     showModal: false, editing: false, saving: false,
     form: { name: '', rate: 10, code: '', is_fixed: false, is_enabled: true },
     get gridStyle() {
@@ -965,7 +983,7 @@ Alpine.data('taxesManager', () => ({
 
 // --- Promotions Manager Component ---
 Alpine.data('promotionsManager', () => ({
-    promotions: [], loading: true, pagination: null,
+    promotions: [], loading: true, pagination: {},
     showModal: false, editing: false, saving: false,
     form: { name: '', start_date: '', end_date: '', days_of_week: 127, is_enabled: true },
     get gridStyle() {
@@ -997,7 +1015,7 @@ Alpine.data('promotionsManager', () => ({
 
 // --- Loyalty Manager Component ---
 Alpine.data('loyaltyManager', () => ({
-    cards: [], loading: true, pagination: null, customers: [],
+    cards: [], loading: true, pagination: {}, customers: [],
     showModal: false, points: 0, selectedCard: null, transactionType: 'earn',
     showAddCard: false, newCard: { customer_id: '', card_number: '' },
     get gridStyle() {
@@ -1038,7 +1056,7 @@ Alpine.data('loyaltyManager', () => ({
 
 // --- Printers Manager Component ---
 Alpine.data('printersManager', () => ({
-    printers: [], loading: true, pagination: null,
+    printers: [], loading: true, pagination: {},
     showModal: false, editing: false, saving: false,
     form: { printer_name: '', paper_width: 32, header: '', footer: '', feed_lines: 0, cut_paper: true, open_cash_drawer: true, printer_type: 0, number_of_copies: 1 },
     get gridStyle() {
@@ -1070,7 +1088,7 @@ Alpine.data('printersManager', () => ({
 
 // Branches Manager
 Alpine.data('branchesManager', () => ({
-    branches: [], loading: true, pagination: null,
+    branches: [], loading: true, pagination: {},
     showModal: false, editing: false, saving: false,
     uniqueBusinessTypes: [],
     form: { name: '', branch_code: '', business_type: 'Retail', address: '', phone: '', is_headquarters: false },
@@ -1228,7 +1246,7 @@ Alpine.data('inventoryManager', () => ({
 
 // --- Activity Log Manager Component ---
 Alpine.data('activityManager', () => ({
-    logs: [], loading: true, pagination: null,
+    logs: [], loading: true, pagination: {},
     filterModule: '', filterDateFrom: '', filterDateTo: '',
     get gridStyle() {
         const w = this.screenWidth;

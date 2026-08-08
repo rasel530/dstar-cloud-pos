@@ -15,7 +15,7 @@ class WarehouseController extends Controller
 
         if ($request->has('search')) {
             $search = $request->search;
-            $query->where('name', 'like', "%{$search}%");
+            $query->where('name', 'ilike', "%{$search}%");
         }
 
         if ($request->has('is_default')) {

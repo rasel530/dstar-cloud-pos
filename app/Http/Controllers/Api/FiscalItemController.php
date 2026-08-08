@@ -13,7 +13,7 @@ class FiscalItemController extends Controller
     {
         $items = FiscalItem::query()
             ->where('tenant_id', auth()->user()->tenant_id)
-            ->when($request->search, fn($q, $s) => $q->where('name', 'like', "%{$s}%")->orWhere('plu', 'like', "%{$s}%"))
+            ->when($request->search, fn($q, $s) => $q->where('name', 'ilike', "%{$s}%")->orWhere('plu', 'ilike', "%{$s}%"))
             ->orderBy('created_at', 'desc')
             ->paginate(25);
 

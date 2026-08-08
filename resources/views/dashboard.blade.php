@@ -12,69 +12,69 @@
 @endpush
 
 @section('content')
-<div x-data="dashboard" x-init="init()" class="px-6">
+<div x-data="dashboard" x-init="init()" class="flex flex-col h-full">
 
     {{-- Welcome Header --}}
     <div class="py-4">
-        <h1 class="text-2xl font-bold text-slate-900 dark:text-white">Welcome back</h1>
-        <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Here's what's happening with your store today.</p>
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Welcome back</h1>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Here's what's happening with your store today.</p>
     </div>
 
     {{-- Summary Cards --}}
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {{-- Today's Sales --}}
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <div class="bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-5">
             <div class="flex items-center justify-between mb-3">
-                <span class="text-sm font-medium text-slate-500 dark:text-slate-400">Today's Sales</span>
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Today's Sales</span>
                 <div class="h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center">
                     <svg class="h-5 w-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                 </div>
             </div>
-            <p class="text-2xl font-bold text-slate-900 dark:text-white" x-text="formatCurrency(stats.todaySales)"></p>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" x-text="'vs ' + formatCurrency(stats.yesterdaySales) + ' yesterday'"></p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white" x-text="formatCurrency(stats.todaySales)"></p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1" x-text="'vs ' + formatCurrency(stats.yesterdaySales) + ' yesterday'"></p>
         </div>
 
         {{-- Number of Orders --}}
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <div class="bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-5">
             <div class="flex items-center justify-between mb-3">
-                <span class="text-sm font-medium text-slate-500 dark:text-slate-400">Orders</span>
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Orders</span>
                 <div class="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center">
                     <svg class="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
                     </svg>
                 </div>
             </div>
-            <p class="text-2xl font-bold text-slate-900 dark:text-white" x-text="stats.todayOrders"></p>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" x-text="stats.pendingOrders + ' pending'"></p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white" x-text="stats.todayOrders"></p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1" x-text="stats.pendingOrders + ' pending'"></p>
         </div>
 
         {{-- Products Count --}}
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <div class="bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-5">
             <div class="flex items-center justify-between mb-3">
-                <span class="text-sm font-medium text-slate-500 dark:text-slate-400">Products</span>
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Products</span>
                 <div class="h-10 w-10 rounded-lg bg-purple-100 dark:bg-purple-500/20 flex items-center justify-center">
                     <svg class="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                     </svg>
                 </div>
             </div>
-            <p class="text-2xl font-bold text-slate-900 dark:text-white" x-text="stats.totalProducts"></p>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1" x-text="stats.activeProducts + ' active'"></p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white" x-text="stats.totalProducts"></p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1" x-text="stats.activeProducts + ' active'"></p>
         </div>
 
         {{-- Low Stock --}}
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <div class="bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-5">
             <div class="flex items-center justify-between mb-3">
-                <span class="text-sm font-medium text-slate-500 dark:text-slate-400">Low Stock</span>
+                <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Low Stock</span>
                 <div class="h-10 w-10 rounded-lg bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
                     <svg class="h-5 w-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016zM12 9v2m0 4h.01"/>
                     </svg>
                 </div>
             </div>
-            <p class="text-2xl font-bold text-slate-900 dark:text-white" x-text="stats.lowStockItems"></p>
+            <p class="text-2xl font-bold text-gray-900 dark:text-white" x-text="stats.lowStockItems"></p>
             <p class="text-xs text-red-500 dark:text-red-400 mt-1" x-text="'Needs restock'"></p>
         </div>
     </div>
@@ -82,17 +82,17 @@
     {{-- Revenue Chart + Quick Stats --}}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {{-- Revenue Chart --}}
-        <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
+        <div class="lg:col-span-2 bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-5">
             <div class="flex items-center justify-between mb-6">
-                <h2 class="text-base font-semibold text-slate-900 dark:text-white">Revenue (Last 7 Days)</h2>
-                <span class="text-sm text-slate-500 dark:text-slate-400" x-text="formatCurrency(stats.weekRevenue) + ' total'"></span>
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">Revenue (Last 7 Days)</h2>
+                <span class="text-sm text-gray-500 dark:text-gray-400" x-text="formatCurrency(stats.weekRevenue) + ' total'"></span>
             </div>
 
             {{-- Bar chart --}}
             <div x-show="!chartLoading" class="flex items-end justify-between gap-2 h-52 px-2" x-ref="chartContainer">
                 <template x-for="(day, index) in chartData" :key="index">
                     <div class="flex-1 flex flex-col items-center gap-1.5 min-w-0">
-                        <span class="text-xs font-medium text-slate-600 dark:text-slate-300" x-text="formatCurrency(day.revenue)"></span>
+                        <span class="text-xs font-medium text-gray-600 dark:text-gray-300" x-text="formatCurrency(day.revenue)"></span>
                         <div
                             class="chart-bar w-full rounded-t-md"
                             :style="'height: ' + barHeight(day.revenue) + 'px'"
@@ -100,13 +100,13 @@
                                 ? 'bg-blue-500 dark:bg-blue-400'
                                 : 'bg-blue-200 dark:bg-blue-500/30'"
                         ></div>
-                        <span class="text-xs text-slate-400 dark:text-slate-500 pt-1" x-text="day.label"></span>
+                        <span class="text-xs text-gray-400 dark:text-gray-500 pt-1" x-text="day.label"></span>
                     </div>
                 </template>
             </div>
 
             <div x-show="chartLoading" class="h-52 flex items-center justify-center">
-                <svg class="animate-spin h-6 w-6 text-slate-400" fill="none" viewBox="0 0 24 24">
+                <svg class="animate-spin h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                 </svg>
@@ -114,45 +114,45 @@
         </div>
 
         {{-- Quick Stats Sidebar --}}
-        <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5">
-            <h2 class="text-base font-semibold text-slate-900 dark:text-white mb-4">Quick Stats</h2>
+        <div class="bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-5">
+            <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Quick Stats</h2>
             <div class="space-y-4">
                 <div class="flex items-center justify-between">
-                    <span class="text-sm text-slate-500 dark:text-slate-400">Avg Order Value</span>
-                    <span class="text-sm font-semibold text-slate-900 dark:text-white" x-text="formatCurrency(stats.avgOrderValue)"></span>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">Avg Order Value</span>
+                    <span class="text-sm font-semibold text-gray-900 dark:text-white" x-text="formatCurrency(stats.avgOrderValue)"></span>
                 </div>
                 <div class="flex items-center justify-between">
-                    <span class="text-sm text-slate-500 dark:text-slate-400">Top Seller</span>
-                    <span class="text-sm font-semibold text-slate-900 dark:text-white truncate max-w-[120px]" x-text="stats.topSeller || '--'"></span>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">Top Seller</span>
+                    <span class="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[120px]" x-text="stats.topSeller || '--'"></span>
                 </div>
                 <div class="flex items-center justify-between">
-                    <span class="text-sm text-slate-500 dark:text-slate-400">Best Category</span>
-                    <span class="text-sm font-semibold text-slate-900 dark:text-white truncate max-w-[120px]" x-text="stats.bestCategory || '--'"></span>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">Best Category</span>
+                    <span class="text-sm font-semibold text-gray-900 dark:text-white truncate max-w-[120px]" x-text="stats.bestCategory || '--'"></span>
                 </div>
                 <div class="flex items-center justify-between">
-                    <span class="text-sm text-slate-500 dark:text-slate-400">Customers Today</span>
-                    <span class="text-sm font-semibold text-slate-900 dark:text-white" x-text="stats.customersToday"></span>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">Customers Today</span>
+                    <span class="text-sm font-semibold text-gray-900 dark:text-white" x-text="stats.customersToday"></span>
                 </div>
                 <div class="flex items-center justify-between">
-                    <span class="text-sm text-slate-500 dark:text-slate-400">Refunds Today</span>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">Refunds Today</span>
                     <span class="text-sm font-semibold text-red-600 dark:text-red-400" x-text="stats.refundsToday + ' (' + $store.currency.symbol + (stats.refundAmount || 0).toFixed(2) + ')'"></span>
                 </div>
                 <div class="flex items-center justify-between">
-                    <span class="text-sm text-slate-500 dark:text-slate-400">Voided Orders</span>
-                    <span class="text-sm font-semibold text-slate-900 dark:text-white" x-text="stats.voidedOrders"></span>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">Voided Orders</span>
+                    <span class="text-sm font-semibold text-gray-900 dark:text-white" x-text="stats.voidedOrders"></span>
                 </div>
             </div>
 
             {{-- Divider --}}
-            <hr class="my-4 border-slate-200 dark:border-slate-700">
+            <hr class="my-4 border-gray-200 dark:border-white/10">
 
             {{-- Profit margin --}}
             <div>
                 <div class="flex items-center justify-between mb-2">
-                    <span class="text-sm text-slate-500 dark:text-slate-400">Profit Margin</span>
+                    <span class="text-sm text-gray-500 dark:text-gray-400">Profit Margin</span>
                     <span class="text-sm font-semibold text-emerald-600 dark:text-emerald-400" x-text="(stats.profitMargin || 0).toFixed(1) + '%'"></span>
                 </div>
-                <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2.5">
+                <div class="w-full bg-gray-200 dark:bg-[#0f1535] rounded-full h-2.5">
                     <div
                         class="bg-emerald-500 dark:bg-emerald-400 h-2.5 rounded-full transition-all duration-700"
                         :style="'width: ' + Math.min((stats.profitMargin || 0), 100) + '%'"
@@ -163,27 +163,27 @@
     </div>
 
     {{-- Recent Orders Table --}}
-    <div class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-700">
-            <h2 class="text-base font-semibold text-slate-900 dark:text-white">Recent Orders</h2>
+    <div class="bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10">
+            <h2 class="text-base font-semibold text-gray-900 dark:text-white">Recent Orders</h2>
             <a href="/orders" class="text-sm font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors">View All</a>
         </div>
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-                <thead class="bg-slate-50 dark:bg-slate-800/50">
+            <table class="min-w-full divide-y divide-slate-200 dark:divide-white/5">
+                <thead class="bg-gray-50 dark:bg-white/5">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Order #</th>
-                        <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Customer</th>
-                        <th class="px-6 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Amount</th>
-                        <th class="px-6 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Items</th>
-                        <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-right text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Time</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Order #</th>
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Customer</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Amount</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Items</th>
+                        <th class="px-6 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Time</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-200 dark:divide-slate-700">
+                <tbody class="divide-y divide-slate-200 dark:divide-white/5">
                     <template x-if="recentOrdersLoading">
                         <tr>
-                            <td colspan="6" class="px-6 py-8 text-center text-sm text-slate-400 dark:text-slate-500">
+                            <td colspan="6" class="px-6 py-8 text-center text-sm text-gray-400 dark:text-gray-500">
                                 <div class="flex items-center justify-center gap-2">
                                     <svg class="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
@@ -197,8 +197,8 @@
 
                     <template x-if="!recentOrdersLoading && recentOrders.length === 0">
                         <tr>
-                            <td colspan="6" class="px-6 py-12 text-center text-sm text-slate-500 dark:text-slate-400">
-                                <svg class="mx-auto h-10 w-10 text-slate-300 dark:text-slate-600 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                            <td colspan="6" class="px-6 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
+                                <svg class="mx-auto h-10 w-10 text-gray-300 dark:text-gray-600 mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
                                 </svg>
                                 No recent orders
@@ -207,18 +207,18 @@
                     </template>
 
                     <template x-for="order in recentOrders" :key="order.id">
-                        <tr class="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
+                        <tr class="hover:bg-gray-50 dark:hover:bg-white/5/50 transition-colors">
                             <td class="px-6 py-3.5 whitespace-nowrap">
                                 <span class="text-sm font-mono font-medium text-blue-600 dark:text-blue-400" x-text="'#' + order.order_number"></span>
                             </td>
                             <td class="px-6 py-3.5 whitespace-nowrap">
-                                <span class="text-sm text-slate-700 dark:text-slate-300" x-text="order.customer_name || 'Walk-in'"></span>
+                                <span class="text-sm text-gray-700 dark:text-gray-300" x-text="order.customer_name || 'Walk-in'"></span>
                             </td>
                             <td class="px-6 py-3.5 whitespace-nowrap text-right">
-                                <span class="text-sm font-medium text-slate-900 dark:text-white" x-text="formatCurrency(order.total_amount)"></span>
+                                <span class="text-sm font-medium text-gray-900 dark:text-white" x-text="formatCurrency(order.total_amount)"></span>
                             </td>
                             <td class="px-6 py-3.5 whitespace-nowrap text-right">
-                                <span class="text-sm text-slate-600 dark:text-slate-400" x-text="order.items_count + ' item' + (order.items_count !== 1 ? 's' : '')"></span>
+                                <span class="text-sm text-gray-600 dark:text-gray-400" x-text="order.items_count + ' item' + (order.items_count !== 1 ? 's' : '')"></span>
                             </td>
                             <td class="px-6 py-3.5 whitespace-nowrap text-center">
                                 <span
@@ -228,7 +228,7 @@
                                 ></span>
                             </td>
                             <td class="px-6 py-3.5 whitespace-nowrap text-right">
-                                <span class="text-xs text-slate-500 dark:text-slate-400" x-text="timeAgo(order.created_at)"></span>
+                                <span class="text-xs text-gray-500 dark:text-gray-400" x-text="timeAgo(order.created_at)"></span>
                             </td>
                         </tr>
                     </template>
@@ -330,7 +330,7 @@ document.addEventListener('alpine:init', () => {
             if (s === 'cancelled' || s === 'voided') {
                 return 'bg-red-100 dark:bg-red-500/20 text-red-700 dark:text-red-400';
             }
-            return 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400';
+            return 'bg-gray-100 dark:bg-[#0f1535] text-gray-600 dark:text-gray-400';
         },
 
         timeAgo(dateStr) {

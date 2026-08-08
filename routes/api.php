@@ -141,6 +141,7 @@ Route::middleware(['auth:sanctum', 'user.enabled', 'throttle:api', 'track.activi
         Route::get('reports/taxes', [ReportController::class, 'taxReport']);
         Route::get('reports/payments', [ReportController::class, 'paymentTypeBreakdown']);
         Route::get('reports/employees', [ReportController::class, 'employeeSalesReport']);
+        Route::get('reports/employee-sales', [ReportController::class, 'employeeSalesDetail']);
         Route::get('reports/profit-margin', [ReportController::class, 'profitMarginReport']);
         Route::get('reports/inventory-valuation', [ReportController::class, 'inventoryValuation']);
 

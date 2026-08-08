@@ -147,18 +147,20 @@
         </div>
         {{-- Order Type & Customer --}}
         <div class="px-3 py-2 border-b border-gray-100 dark:border-white/10 space-y-2 shrink-0">
+            <div x-show="posSettings._settingsReady" class="space-y-2">
             <div class="flex gap-1.5">
-                <button @click="serviceType = 0"
+                <button @click="serviceType = 0" x-show="posSettings.dine_in_enabled !== false"
                     :class="serviceType === 0 ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/60'"
                     class="flex-1 py-1.5 rounded text-xs font-medium transition-colors">Dine-in</button>
-                <button @click="serviceType = 1"
+                <button @click="serviceType = 1" x-show="posSettings.takeaway_enabled !== false"
                     :class="serviceType === 1 ? 'bg-amber-500 text-white' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/60'"
                     class="flex-1 py-1.5 rounded text-xs font-medium transition-colors">Takeaway</button>
             </div>
-            <div x-show="serviceType === 0" class="flex items-center gap-2">
+            <div x-show="serviceType === 0 && posSettings.table_management_enabled !== false" class="flex items-center gap-2">
                 <span class="text-xs text-gray-400 dark:text-white/50 shrink-0">Table:</span>
                 <input type="text" x-model="tableNumber" placeholder="e.g. A5"
                     class="flex-1 h-7 text-xs rounded border border-gray-200 dark:border-white/15 bg-gray-50 dark:bg-white/10 text-gray-800 dark:text-white/90 px-2 focus:outline-none focus:ring-1 focus:ring-blue-500/50">
+            </div>
             </div>
 
             {{-- Customer Search (always visible) --}}

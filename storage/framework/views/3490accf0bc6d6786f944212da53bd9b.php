@@ -1,7 +1,7 @@
 <?php $__env->startSection('title', 'Customers'); ?>
 
 <?php $__env->startSection('content'); ?>
-<div x-data="customersManager" class="min-h-full">
+<div x-data="customersManager" class="flex flex-col h-full">
     <div class="flex items-center justify-between px-6 py-4">
         <div>
             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Customers</h1>

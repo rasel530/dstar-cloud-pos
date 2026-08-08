@@ -1,11 +1,9 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', 'Fiscal Items'); ?>
 
-@section('title', 'Fiscal Items')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div x-data="fiscalItemsManager" class="flex flex-col h-full">
 
-    {{-- Header --}}
+    
     <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 shrink-0">
         <div>
             <h1 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Fiscal Items</h1>
@@ -22,7 +20,7 @@
         </button>
     </div>
 
-    {{-- Search --}}
+    
     <div class="relative">
         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <svg class="h-5 w-5 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -38,7 +36,7 @@
         />
     </div>
 
-    {{-- Table --}}
+    
     <div class="bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-slate-200 dark:divide-white/5">
@@ -121,7 +119,7 @@
             </table>
         </div>
 
-        {{-- Pagination --}}
+        
         <div class="flex items-center justify-between px-6 py-3 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5" x-show="pagination && pagination.last_page > 1">
             <div class="text-sm text-gray-600 dark:text-gray-400">
                 <span x-text="'Page ' + pagination.current_page + ' of ' + pagination.last_page"></span>
@@ -149,7 +147,7 @@
         </div>
     </div>
 
-    {{-- Modal --}}
+    
     <div
         x-show="showModal"
         x-cloak
@@ -340,4 +338,6 @@ document.addEventListener('alpine:init', () => {
     }));
 });
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH E:\POS Software\D Star Company\resources\views/fiscal/index.blade.php ENDPATH**/ ?>

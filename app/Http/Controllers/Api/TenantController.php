@@ -14,6 +14,7 @@ class TenantController extends Controller
     {
         $tenants = Tenant::orderBy('is_headquarters', 'desc')
             ->orderBy('name')
+            ->when(auth()->user()->access_level < 9, fn($q) => $q->whereIn('id', auth()->user()->branches->pluck('id')))
             ->get();
 
         return response()->json(['data' => $tenants]);

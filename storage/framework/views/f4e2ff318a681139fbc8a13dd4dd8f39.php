@@ -1,8 +1,6 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', 'Branches'); ?>
 
-@section('title', 'Branches')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div x-data="branchesManager" x-init="fetchBranches()" class="flex flex-col h-full">
     <div class="flex items-center justify-between py-4">
         <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">Branches</h1>
@@ -105,12 +103,12 @@
                     <input x-model="form.business_type" type="text" list="business-types" 
                         class="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="e.g., Cafe, Pharmacy, Boutique...">
                                         <datalist id="business-types">
-                        @foreach(config('business.types', []) as $key => $info)
-                        <option value="{{ $info['label'] }}">{{ $info['label'] }}</option>
-                        @endforeach
-                        @foreach(config('business.other_types', []) as $key => $label)
-                        <option value="{{ $key }}">{{ $label }}</option>
-                        @endforeach
+                        <?php $__currentLoopData = config('business.types', []); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $key => $info): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($info['label']); ?>"><?php echo e($info['label']); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                        <?php $__currentLoopData = config('business.other_types', []); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $key => $label): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($key); ?>"><?php echo e($label); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         <template x-for="b in uniqueBusinessTypes" :key="b">
                             <option :value="b" x-text="b"></option>
                         </template>
@@ -143,13 +141,14 @@
         </div>
     </div>
 </div>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@section('sidebar-nav')
-    <a href="{{ route('web.branches.index') }}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors {{ request()->routeIs('web.branches.index') ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-white/5 hover:text-white' }}" title="Branches">
+<?php $__env->startSection('sidebar-nav'); ?>
+    <a href="<?php echo e(route('web.branches.index')); ?>" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors <?php echo e(request()->routeIs('web.branches.index') ? 'bg-blue-600/20 text-blue-400' : 'text-gray-400 hover:bg-white/5 hover:text-white'); ?>" title="Branches">
         <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819"/>
         </svg>
         <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Branches</span>
     </a>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH E:\POS Software\D Star Company\resources\views/branches/index.blade.php ENDPATH**/ ?>

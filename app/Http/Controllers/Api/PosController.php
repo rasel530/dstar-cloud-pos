@@ -17,6 +17,7 @@ class PosController extends Controller
     {
         $query = PosOrder::query()
             ->where('tenant_id', auth()->user()->tenant_id)
+            ->when(request()->header('X-Active-Branch'), fn($q, $bid) => $q->where('branch_id', $bid))
             ->with([
                 "customer",
                 "user",
@@ -205,7 +206,7 @@ class PosController extends Controller
         $finalTotal = $calc['total'];
 
         $tenantId = $user->tenant_id;
-        $branchId = $request->header('X-Branch-Id') ?: $order->branch_id;
+        $branchId = $request->header('X-Active-Branch') ?: $order->branch_id;
         if ($branchId && !\App\Models\Tenant::where('id', $branchId)->exists()) {
             $branchId = $user->branch_id ?? $user->tenant_id;
         }
@@ -274,7 +275,7 @@ class PosController extends Controller
         $warehouseId = $request->input('warehouse_id') ?: \App\Models\Warehouse::where('tenant_id', $user->tenant_id)->where('is_default', true)->value('id');
         $allowNegative = \App\Models\ApplicationSetting::where('tenant_id', $user->tenant_id)->where('key', 'allow_negative_stock')->value('value');
         $allowNegative = $allowNegative === 'true' || $allowNegative === '1';
-        $branchId = $request->input('branch_id') ?: $request->header('X-Branch-Id');
+        $branchId = $request->input('branch_id') ?: $request->header('X-Active-Branch');
 
         if ($warehouseId) {
             $stockService = new \App\Services\Inventory\StockService;
@@ -412,6 +413,7 @@ class PosController extends Controller
     {
         $order = PosOrder::where('id', $orderId)
             ->where('tenant_id', auth()->user()->tenant_id)
+            ->when(request()->header('X-Active-Branch'), fn($q, $bid) => $q->where('branch_id', $bid))
             ->with(['posOrderItems.product', 'customer', 'user', 'branch'])
             ->first();
 

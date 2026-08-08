@@ -47,9 +47,9 @@ class DocumentController extends Controller
         if ($request->has('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('number', 'like', "%{$search}%")
-                    ->orWhere('order_number', 'like', "%{$search}%")
-                    ->orWhere('reference_document_number', 'like', "%{$search}%");
+                $q->where('number', 'ilike', "%{$search}%")
+                    ->orWhere('order_number', 'ilike', "%{$search}%")
+                    ->orWhere('reference_document_number', 'ilike', "%{$search}%");
             });
         }
 

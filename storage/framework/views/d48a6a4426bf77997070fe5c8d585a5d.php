@@ -1,21 +1,19 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', 'Taxes'); ?>
 
-@section('title', 'Users')
-
-@push('styles')
+<?php $__env->startPush('styles'); ?>
 <style>
     [x-cloak] { display: none !important; }
 </style>
-@endpush
+<?php $__env->stopPush(); ?>
 
-@section('content')
-<div x-data="usersManager" x-init="init()" class="flex flex-col h-full">
+<?php $__env->startSection('content'); ?>
+<div x-data="taxesManager" x-init="init()" class="flex flex-col h-full">
 
-    {{-- Header --}}
+    
     <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 shrink-0">
         <div>
-            <h1 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Users</h1>
-            <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage system users</p>
+            <h1 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Taxes</h1>
+            <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage tax rates</p>
         </div>
         <button
             @click="openAdd()"
@@ -24,19 +22,19 @@
             <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
             </svg>
-            Add User
+            Add Tax
         </button>
     </div>
 
-    {{-- Table --}}
+    
     <div class="bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-slate-200 dark:divide-white/5">
                 <thead class="bg-gray-50 dark:bg-white/5">
                     <tr>
-                        <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Username</th>
-                        <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
-                        <th class="px-6 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Access Level</th>
+                        <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                        <th class="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rate</th>
+                        <th class="px-6 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
                         <th class="px-6 py-3.5 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
                         <th class="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -50,68 +48,72 @@
                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
                                     </svg>
-                                    <span class="text-sm">Loading users...</span>
+                                    <span class="text-sm">Loading taxes...</span>
                                 </div>
                             </td>
                         </tr>
                     </template>
 
-                    <template x-if="!loading && users.length === 0">
+                    <template x-if="!loading && taxes.length === 0">
                         <tr>
                             <td colspan="5" class="px-6 py-16 text-center">
                                 <svg class="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 14.25l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.25a.375.375 0 11-.75 0 .375.375 0 01.75 0zm5 5a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/>
                                 </svg>
-                                <h3 class="mt-3 text-sm font-medium text-gray-900 dark:text-white">No users found</h3>
-                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by adding your first user.</p>
+                                <h3 class="mt-3 text-sm font-medium text-gray-900 dark:text-white">No taxes found</h3>
+                                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by adding your first tax rate.</p>
                             </td>
                         </tr>
                     </template>
 
-                    <template x-for="u in users" :key="u.id">
+                    <template x-for="t in taxes" :key="t.id">
                         <tr class="hover:bg-gray-50 dark:hover:bg-white/5/50 transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
-                                    <div class="h-9 w-9 flex-shrink-0 rounded-full bg-blue-100 dark:bg-blue-500/20 flex items-center justify-center">
-                                        <span class="text-xs font-semibold text-blue-600 dark:text-blue-400" x-text="(u.first_name?.charAt(0) + u.last_name?.charAt(0)).toUpperCase()"></span>
+                                    <div class="h-9 w-9 flex-shrink-0 rounded-lg bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 14.25l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/>
+                                        </svg>
                                     </div>
                                     <div class="ml-3">
-                                        <div class="text-sm font-medium text-gray-900 dark:text-white" x-text="u.username"></div>
-                                        <div class="text-xs text-gray-500 dark:text-gray-400" x-text="(u.first_name || '') + ' ' + (u.last_name || '')"></div>
+                                        <div class="text-sm font-medium text-gray-900 dark:text-white" x-text="t.name"></div>
+                                        <div class="text-xs text-gray-500 dark:text-gray-400" x-text="t.code || ''"></div>
                                     </div>
                                 </div>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-300" x-text="u.email"></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right">
+                                <span
+                                    class="inline-flex items-center text-sm font-semibold"
+                                    :class="t.is_fixed ? 'text-blue-600 dark:text-blue-400' : 'text-gray-700 dark:text-gray-300'"
+                                    x-text="t.is_fixed ? '$' + parseFloat(t.rate).toFixed(2) : parseFloat(t.rate).toFixed(1) + '%'"
+                                ></span>
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 <span
                                     class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                                    :class="{
-                                        'bg-purple-100 dark:bg-purple-500/20 text-purple-700 dark:text-purple-400': u.access_level >= 9,
-                                        'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400': u.access_level >= 5 && u.access_level < 9,
-                                        'bg-gray-100 dark:bg-[#0f1535] text-gray-600 dark:text-gray-400': u.access_level < 5,
-                                    }"
-                                    x-text="getRoleName(u.access_level)"
+                                    :class="t.is_fixed ? 'bg-blue-100 dark:bg-blue-500/20 text-blue-700 dark:text-blue-400' : 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400'"
+                                    x-text="t.is_fixed ? 'Fixed' : 'Percentage'"
                                 ></span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 <button
-                                    @click="toggleStatus(u)"
+                                    @click="toggleStatus(t)"
                                     type="button"
                                     class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                                    :class="u.is_enabled ? 'bg-blue-600 dark:bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'"
-                                    :aria-checked="u.is_enabled"
+                                    :class="t.is_enabled ? 'bg-blue-600 dark:bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'"
+                                    :aria-checked="t.is_enabled"
                                     role="switch"
                                 >
                                     <span
                                         class="inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform duration-200"
-                                        :class="u.is_enabled ? 'translate-x-6' : 'translate-x-1'"
+                                        :class="t.is_enabled ? 'translate-x-6' : 'translate-x-1'"
                                     ></span>
                                 </button>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right">
                                 <div class="flex items-center justify-end gap-1">
                                     <button
-                                        @click="openEdit(u)"
+                                        @click="openEdit(t)"
                                         class="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors"
                                         title="Edit"
                                     >
@@ -120,7 +122,7 @@
                                         </svg>
                                     </button>
                                     <button
-                                        @click="deleteUser(u.id)"
+                                        @click="deleteTax(t.id)"
                                         class="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
                                         title="Delete"
                                     >
@@ -136,16 +138,16 @@
             </table>
         </div>
 
-        {{-- Pagination --}}
+        
         <div class="flex items-center justify-between px-6 py-3 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5" x-show="pagination.total > 0">
             <div class="text-sm text-gray-600 dark:text-gray-400">
                 <span x-text="'Page ' + pagination.current_page + ' of ' + pagination.last_page"></span>
                 <span class="mx-1 text-gray-400 dark:text-gray-500">&middot;</span>
-                <span x-text="pagination.total + ' user' + (pagination.total !== 1 ? 's' : '')"></span>
+                <span x-text="pagination.total + ' tax' + (pagination.total !== 1 ? 'es' : '')"></span>
             </div>
             <div class="flex items-center gap-2">
                 <button
-                    @click="fetchUsers(pagination.current_page - 1)"
+                    @click="fetchTaxes(pagination.current_page - 1)"
                     :disabled="!pagination.prev_page_url"
                     class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 bg-white dark:bg-[#0f1535] hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
@@ -153,7 +155,7 @@
                     Prev
                 </button>
                 <button
-                    @click="fetchUsers(pagination.current_page + 1)"
+                    @click="fetchTaxes(pagination.current_page + 1)"
                     :disabled="!pagination.next_page_url"
                     class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 bg-white dark:bg-[#0f1535] hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
@@ -164,7 +166,7 @@
         </div>
     </div>
 
-    {{-- Modal --}}
+    
     <div
         x-show="showModal"
         x-cloak
@@ -181,7 +183,7 @@
             @click="showModal = false"
         ></div>
 
-        <div class="flex min-h-full items-center justify-center p-4">
+        <div class="flex flex flex-col h-full items-center justify-center p-4">
             <div
                 x-show="showModal"
                 x-transition
@@ -189,7 +191,7 @@
                 class="relative w-full max-w-lg bg-white dark:bg-[#1a1f3d] rounded-xl shadow-2xl border border-gray-200 dark:border-white/10"
             >
                 <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/10">
-                    <h3 id="modal-title" class="text-lg font-semibold text-gray-900 dark:text-white" x-text="editing ? 'Edit User' : 'Add User'"></h3>
+                    <h3 id="modal-title" class="text-lg font-semibold text-gray-900 dark:text-white" x-text="editing ? 'Edit Tax' : 'Add Tax'"></h3>
                     <button
                         @click="showModal = false"
                         class="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors"
@@ -201,119 +203,64 @@
                 </div>
 
                 <form @submit.prevent="save()" class="px-6 py-4 space-y-4">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                                First Name <span class="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                x-model="form.first_name"
-                                required
-                                placeholder="First name"
-                                class="w-full px-3 py-2 bg-white dark:bg-[#0f1535] border border-gray-300 dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors"
-                            />
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                                Last Name <span class="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                x-model="form.last_name"
-                                required
-                                placeholder="Last name"
-                                class="w-full px-3 py-2 bg-white dark:bg-[#0f1535] border border-gray-300 dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors"
-                            />
-                        </div>
-                    </div>
-
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                            Username <span class="text-red-500">*</span>
+                            Name <span class="text-red-500">*</span>
                         </label>
                         <input
                             type="text"
-                            x-model="form.username"
+                            x-model="form.name"
                             required
-                            placeholder="Username"
+                            placeholder="e.g. VAT, GST, Sales Tax"
                             class="w-full px-3 py-2 bg-white dark:bg-[#0f1535] border border-gray-300 dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors"
                         />
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                            Email <span class="text-red-500">*</span>
-                        </label>
-                        <input
-                            type="email"
-                            x-model="form.email"
-                            required
-                            placeholder="Email address"
-                            class="w-full px-3 py-2 bg-white dark:bg-[#0f1535] border border-gray-300 dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors"
-                        />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                            Password <span x-text="editing ? '' : '*'" class="text-red-500"></span>
+                            Rate <span class="text-red-500">*</span>
                         </label>
                         <div class="relative">
                             <input
-                                :type="showPwd ? 'text' : 'password'"
-                                x-model="form.password"
-                                :required="!editing"
-                                :placeholder="editing ? 'Leave blank to keep current' : 'Password'"
-                                class="w-full px-3 py-2 pr-10 bg-white dark:bg-[#0f1535] border border-gray-300 dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors"
+                                type="number"
+                                x-model="form.rate"
+                                required
+                                min="0"
+                                :step="form.is_fixed ? '0.01' : '0.1'"
+                                placeholder="0.00"
+                                class="w-full px-3 py-2 bg-white dark:bg-[#0f1535] border border-gray-300 dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors"
                             />
-                            <button type="button" @click="showPwd = !showPwd" class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600">
-                                <svg x-show="!showPwd" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                <svg x-show="showPwd" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"/></svg>
-                            </button>
+                            <span class="absolute inset-y-0 right-0 pr-3 flex items-center text-sm text-gray-500 dark:text-gray-400" x-text="form.is_fixed ? '$' : '%'"></span>
                         </div>
                     </div>
 
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                            Access Level
+                            Code
                         </label>
-                        <select
-                            x-model="form.access_level"
-                            class="w-full px-3 py-2 bg-white dark:bg-[#0f1535] border border-gray-300 dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors"
-                        >
-                            <template x-for="r in roles" :key="r.id">
-                                <option :value="r.access_level" x-text="r.name + ' (Lv' + r.access_level + ')'"></option>
-                            </template>
-                        </select>
+                        <input
+                            type="text"
+                            x-model="form.code"
+                            placeholder="e.g. VAT-20"
+                            class="w-full px-3 py-2 bg-white dark:bg-[#0f1535] border border-gray-300 dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 font-mono focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors"
+                        />
                     </div>
 
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                            Branch
-                        </label>
-                        <select
-                            x-model="form.branch_id"
-                            class="w-full px-3 py-2 bg-white dark:bg-[#0f1535] border border-gray-300 dark:border-white/10 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors"
+                    <div class="flex items-center gap-3 py-1">
+                        <button
+                            type="button"
+                            @click="form.is_fixed = !form.is_fixed"
+                            class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                            :class="form.is_fixed ? 'bg-blue-600 dark:bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'"
+                            :aria-checked="form.is_fixed"
+                            role="switch"
                         >
-                            <option value="">— All Branches —</option>
-                            <template x-for="b in branches" :key="b.id">
-                                <option :value="b.id" x-text="b.name + ' (' + (b.branch_code || 'No Code') + ')'"></option>
-                            </template>
-                        </select>
-                    </div>
-
-                    <div x-show="form.branch_id === ''">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                            Or assign to multiple branches
-                        </label>
-                        <div class="grid grid-cols-2 gap-1.5 max-h-32 overflow-y-auto border border-gray-200 dark:border-white/10 rounded-lg p-2">
-                            <template x-for="b in branches" :key="'mb' + b.id">
-                                <label class="flex items-center gap-1.5 text-xs cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 px-1.5 py-1 rounded">
-                                    <input type="checkbox" :value="b.id" :checked="form.branch_ids.includes(b.id)" @change="toggleBranch(b.id)" class="rounded">
-                                    <span x-text="b.branch_code || b.name" class="truncate"></span>
-                                </label>
-                            </template>
-                        </div>
+                            <span
+                                class="inline-block h-4 w-4 rounded-full bg-white shadow-sm transform transition-transform duration-200"
+                                :class="form.is_fixed ? 'translate-x-6' : 'translate-x-1'"
+                            ></span>
+                        </button>
+                        <span class="text-sm text-gray-700 dark:text-gray-300" x-text="form.is_fixed ? 'Fixed Amount' : 'Percentage'"></span>
                     </div>
 
                     <div class="flex items-center gap-3 py-1">
@@ -369,4 +316,5 @@
         </div>
     </div>
 </div>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH E:\POS Software\D Star Company\resources\views/taxes/index.blade.php ENDPATH**/ ?>

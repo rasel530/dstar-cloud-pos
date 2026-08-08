@@ -1,15 +1,13 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', 'Reports'); ?>
 
-@section('title', 'Reports')
-
-@push('styles')
+<?php $__env->startPush('styles'); ?>
 <style>
     .tab-active { border-bottom-color: #3b82f6; color: #3b82f6; }
     .dark .tab-active { color: #93c5fd; }
 </style>
-@endpush
+<?php $__env->stopPush(); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div x-data="reportsManager" class="flex flex-col h-full">
     <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 shrink-0">
         <div>
@@ -493,4 +491,5 @@
         </div>
     </div>
 </div>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH E:\POS Software\D Star Company\resources\views/reports/index.blade.php ENDPATH**/ ?>

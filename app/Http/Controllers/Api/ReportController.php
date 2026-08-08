@@ -25,9 +25,11 @@ class ReportController extends Controller
         $page = (int)($request->input('page', 1));
         $perPage = (int)($request->input('per_page', 25));
         $tenantId = auth()->user()->tenant_id;
+        $branchId = $request->header('X-Active-Branch');
 
         $baseQuery = function () use ($tenantId, $request) {
-            $q = \App\Models\PosOrder::with('customer')->where('tenant_id', $tenantId);
+            $q = \App\Models\PosOrder::with('customer')->where('tenant_id', $tenantId)
+                ;
             if ($request->filled('start_date') && $request->filled('end_date')) {
                 $q->whereBetween('created_at', [$request->start_date . ' 00:00:00', $request->end_date . ' 23:59:59']);
             }
@@ -450,6 +452,94 @@ class ReportController extends Controller
         }
     }
 
+    public function employeeSalesDetail(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'user_id'    => 'required|exists:users,id',
+            'start_date' => 'nullable|date',
+            'end_date'   => 'nullable|date',
+            'page'       => 'nullable|integer|min:1',
+            'per_page'   => 'nullable|integer|min:5|max:50',
+        ]);
+
+        $tenantId = auth()->user()->tenant_id;
+        $branchId = $request->header('X-Active-Branch');
+        $user = \App\Models\User::find($validated['user_id']);
+        $page = (int)($validated['page'] ?? 1);
+        $perPage = (int)($validated['per_page'] ?? 10);
+
+        $dateFilter = function ($q) use ($validated) {
+            if (!empty($validated['start_date']) && !empty($validated['end_date'])) {
+                $q->whereBetween('created_at', [$validated['start_date'] . ' 00:00:00', $validated['end_date'] . ' 23:59:59']);
+            }
+        };
+
+        $getBaseQuery = function () use ($tenantId, $user, $dateFilter) {
+            return \App\Models\PosOrder::where('tenant_id', $tenantId)
+                ->where('user_id', $user->id)
+                ->where('status', 'closed')
+                ->where($dateFilter);
+        };
+
+        $totalSales = (float) $getBaseQuery()->sum('total');
+        $orderCount = $getBaseQuery()->count();
+        $allOrderIds = $getBaseQuery()->pluck('id');
+        $itemCount = \App\Models\PosOrderItem::whereIn('pos_order_id', $allOrderIds)->sum('quantity');
+
+        $paginator = $getBaseQuery()->with(['posOrderItems.product'])->orderByDesc('created_at')->paginate($perPage, ['*'], 'page', $page);
+
+        $items = $paginator->map(function ($order) {
+            return [
+                'id'           => $order->id,
+                'number'       => $order->number,
+                'date'         => $order->created_at->format('Y-m-d H:i'),
+                'item_count'   => (int) $order->posOrderItems->sum('quantity'),
+                'discount'     => round((float) $order->discount, 2),
+                'tax'          => round((float) $order->tax_amount, 2),
+                'total'        => round((float) $order->total, 2),
+                'payment'      => $order->payment_method ?? 'cash',
+                'service_type' => (int) $order->service_type,
+                'table_number' => $order->table_number ?? '',
+            ];
+        });
+
+        $topProducts = \App\Models\PosOrderItem::whereIn('pos_order_id', $allOrderIds)
+            ->join('products', 'pos_order_items.product_id', '=', 'products.id')
+            ->selectRaw('products.name as product_name, SUM(pos_order_items.quantity) as total_qty, SUM(pos_order_items.quantity * pos_order_items.price) as total_amount')
+            ->groupBy('products.id', 'products.name')
+            ->orderByDesc('total_amount')
+            ->take(10)
+            ->get()
+            ->map(fn($p) => [
+                'product_name' => $p->product_name,
+                'total_qty'    => round((float) $p->total_qty, 2),
+                'total_amount' => round((float) $p->total_amount, 2),
+            ]);
+
+        return response()->json([
+            'data' => [
+                'employee' => [
+                    'name'  => trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: ($user->email ?? 'Unknown'),
+                    'email' => $user->email ?? '',
+                ],
+                'summary' => [
+                    'order_count'  => $orderCount,
+                    'total_sales'  => round($totalSales, 2),
+                    'item_count'   => (int) $itemCount,
+                    'avg_order'    => $orderCount > 0 ? round($totalSales / $orderCount, 2) : 0,
+                    'top_products' => $topProducts,
+                ],
+                'orders' => $items,
+                'pagination' => [
+                    'current_page' => $paginator->currentPage(),
+                    'last_page'    => $paginator->lastPage(),
+                    'per_page'     => $paginator->perPage(),
+                    'total'        => $paginator->total(),
+                ],
+            ]
+        ]);
+    }
+
     public function exportReport(Request $request): Response
     {
         $format = $request->query('format', 'csv');
@@ -494,6 +584,7 @@ class ReportController extends Controller
         ]);
 
         $tenantId = auth()->user()->tenant_id;
+        $branchId = $request->header('X-Active-Branch');
         $customer = \App\Models\Customer::find($validated['customer_id']);
         $page = (int)($validated['page'] ?? 1);
         $perPage = (int)($validated['per_page'] ?? 10);

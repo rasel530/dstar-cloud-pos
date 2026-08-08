@@ -15,6 +15,7 @@ class DashboardController extends Controller
     public function index(): JsonResponse
     {
         $tenantId = auth()->user()->tenant_id;
+        $branchId = $request->header('X-Active-Branch');
 
         $todaySales = Document::where('tenant_id', $tenantId)
             ->whereDate('date', today())

@@ -35,8 +35,8 @@ class StockController extends Controller
         if ($request->has('search')) {
             $search = $request->search;
             $query->whereHas('product', function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('code', 'like', "%{$search}%");
+                $q->where('name', 'ilike', "%{$search}%")
+                    ->orWhere('code', 'ilike', "%{$search}%");
             });
         }
 
@@ -292,7 +292,7 @@ class StockController extends Controller
     public function posSummary(Request $request)
     {
         $tenantId = auth()->user()->tenant_id;
-        $branchId = $request->header('X-Branch-Id');
+        $branchId = $request->header('X-Active-Branch');
         $productIds = $request->input('product_ids', []);
 
         $result = [];

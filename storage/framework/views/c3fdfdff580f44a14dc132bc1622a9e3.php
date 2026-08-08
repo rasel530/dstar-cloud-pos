@@ -1,8 +1,6 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', 'Settings'); ?>
 
-@section('title', 'Settings')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div x-data="settingsManager" x-init="init()" class="px-6">
 
     <div class="flex items-center justify-between py-4">
@@ -72,17 +70,17 @@
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Currency</label>
                     <select x-model="form.currency" class="w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1535] text-gray-900 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors">
-                        @foreach(config('business.currencies', []) as $code => $label)
-                        <option value="{{ $code }}">{{ $label }}</option>
-                        @endforeach
+                        <?php $__currentLoopData = config('business.currencies', []); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $code => $label): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($code); ?>"><?php echo e($label); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </select>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Timezone</label>
                     <select x-model="form.timezone" class="w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1535] text-gray-900 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors">
-                        @foreach(config('business.timezones', []) as $code => $label)
-                        <option value="{{ $code }}">{{ $label }}</option>
-                        @endforeach
+                        <?php $__currentLoopData = config('business.timezones', []); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $code => $label): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <option value="<?php echo e($code); ?>"><?php echo e($label); ?></option>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                     </select>
                 </div>
             </div>
@@ -364,9 +362,9 @@
     </div>
     </div>
 </div>
-@endsection
+<?php $__env->stopSection(); ?>
 
-@push('scripts')
+<?php $__env->startPush('scripts'); ?>
 <script>
     document.addEventListener('alpine:init', () => {
         Alpine.data('settingsManager', () => ({
@@ -502,4 +500,6 @@
         }));
     });
 </script>
-@endpush
+<?php $__env->stopPush(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH E:\POS Software\D Star Company\resources\views/settings/index.blade.php ENDPATH**/ ?>

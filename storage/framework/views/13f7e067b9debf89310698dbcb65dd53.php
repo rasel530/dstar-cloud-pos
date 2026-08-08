@@ -1,8 +1,6 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', 'Roles & Permissions'); ?>
 
-@section('title', 'Roles & Permissions')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div x-data="rolesManager" x-init="init()">
 
     <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 shrink-0">
@@ -53,7 +51,7 @@
         </template>
     </div>
 
-    {{-- Add/Edit Modal --}}
+    
     <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="showModal = false">
         <div class="fixed inset-0 bg-black/60"></div>
         <div class="relative bg-white dark:bg-[#1a1f3d] rounded-xl w-full max-w-lg border border-gray-200 dark:border-white/10 shadow-2xl" @click.stop>
@@ -136,4 +134,6 @@ document.addEventListener('alpine:init', () => {
     }));
 });
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH E:\POS Software\D Star Company\resources\views/roles/index.blade.php ENDPATH**/ ?>
