@@ -312,24 +312,24 @@ Alpine.data('layoutData', () => ({
             }
         } catch (e) { this.taxRate = this.posSettings.default_tax_rate || 0; this.taxIsFixed = false; }
     },
-    async loadProducts() {
+    async loadProducts(append = false) {
         try {
-            let url = '/api/products';
-            if (this.activeCategory) url += '?product_group_id=' + this.activeCategory;
+            if (!append) { this.productPage = 1; this.hasMoreProducts = false; }
+            let url = `/api/products?per_page=12&page=${this.productPage}`;
+            if (this.activeCategory) url += `&product_group_id=${this.activeCategory}`;
+            if (this.searchTerm) url += `&search=${encodeURIComponent(this.searchTerm)}`;
             const res = await window.POS.api(url);
-            this.products = Array.isArray(res?.data) ? res.data : (res?.data?.data || []);
+            const data = Array.isArray(res?.data) ? res.data : (res?.data?.data || []);
+            if (append) { this.products = [...this.products, ...data]; }
+            else { this.products = data; }
+            this.hasMoreProducts = data.length >= 12;
+            this.productPage++;
         } catch (e) { this.toastMsg('Failed to load products', 'error'); this.products = []; }
     },
-    async searchProducts() {
+    async loadMoreProducts() { if (this.hasMoreProducts) await this.loadProducts(true); },async searchProducts() {
         if (!this.searchTerm || this.searchTerm.length < 2) { await this.loadProducts(); return; }
-        try {
-            let url = '/api/products?search=' + encodeURIComponent(this.searchTerm);
-            if (this.activeCategory) url += '&product_group_id=' + this.activeCategory;
-            const data = await window.POS.api(url);
-            this.products = Array.isArray(data?.data) ? data.data : (data?.data?.data || []);
-        } catch (e) {}
-    },
-    async handleBarcodeSearch() {
+        await this.loadProducts(false);
+    },async handleBarcodeSearch() {
         const term = this.searchTerm.trim(); if (!term) return;
         try { const data = await window.POS.api('/api/products?search=' + encodeURIComponent(term)); const p = (data.data || [])[0]; if (p) { this.addToCart(p); this.searchTerm = ''; this.loadProducts(); } else this.toastMsg('Product not found', 'error'); } catch (e) { this.toastMsg('Product not found', 'error'); }
     },
