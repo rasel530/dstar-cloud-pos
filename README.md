@@ -87,6 +87,86 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 
 ---
 
+## Recent Updates & Bug Fixes
+
+### 1. RTL/LTR Toggle — Side Panel Positioning (Fixed)
+- **Problem:** When toggling to RTL mode, the left/right side panels swapped incorrectly and the right panel slid off-screen and vanished.
+- **Fix:**
+  - Removed the incorrect `[dir="rtl"] .flex-row { flex-direction: row-reverse }` rule — `flex-direction: row` already respects the RTL writing mode naturally.
+  - Added responsive translate resets (`lg:translate-x-0`, etc.) so the cart panel stays visible on desktop in RTL.
+  - Scoped `translate-x-full` / `-translate-x-full` panel slide overrides to mobile only (`@media max-width: 1023px`).
+  - Added comprehensive RTL overrides for padding (`pl-0..12`, `pr-0..12`), margins (`ml-0..8`, `mr-0..8`), and positions (`left-*`, `right-*`, negative variants).
+  - Added `left-3.5`, `right-4`, `-left-*`, `-right-*`, `left-1/2`, `right-1/2`, and rounded-corner overrides.
+
+### 2. Sidebar Blink / Shake on Navigation (Fixed)
+- **Problem:** The left sidebar blinked, shrank, and shook when clicking menu items.
+- **Fix:**
+  - Moved the `transition-[width,transform]` class into the Alpine `:class` array binding so it only applies after Alpine initializes (no pre-Alpine animation).
+  - Added static `w-56` so the sidebar renders at full width immediately.
+  - Used static responsive classes (`-translate-x-full lg:translate-x-0`) for the correct pre-Alpine state on mobile vs desktop.
+  - Added `x-cloak` with a desktop CSS override (`@media min-width: 1024px { aside[x-cloak] { display: flex !important } }`).
+  - Removed the duplicate `layoutData` definition from `app.js` that had conflicting resize handlers.
+
+### 3. Full Application Shake / Blink on Page Load (Fixed)
+- **Problem:** The entire app blinked when navigating between pages because `dir="rtl"` and the `dark` class were applied by Alpine *after* the first paint.
+- **Fix:** Added a blocking `<script>` in the `<head>` that reads `localStorage` and applies `dir` and `dark` class synchronously **before** the browser renders anything.
+
+### 4. Header Shake on Page Load (Fixed)
+- **Problem:** The header clock and user-info elements rendered empty then filled in, causing layout reflow.
+- **Fix:** Added `x-cloak` to the clock span and user info div so they stay hidden until Alpine initializes with the correct content.
+
+### 5. Modal / Button Flash on Page Load (Fixed)
+- **Problem:** The "Transfer Stock" modal, "Add Warehouse" modal, Add/Edit Product modal, and Upload Stock spinner/button flashed visibly for a split second before Alpine initialized.
+- **Fix:** Added `x-cloak` to all modals and upload button spans (`Uploading...`) that use `x-show`.
+
+### 6. Browser Compatibility (Fixed)
+- **Problem:** Tailwind CSS v4 uses `oklch()` colors which break on older browsers (Chrome < 111, Safari < 15.4, Firefox < 113). Also `appearance: textfield` lacked the `-webkit-` prefix for Safari.
+- **Fix:**
+  - Added `resources/css/browser-fallbacks.css` with an `@supports not (color: oklch(0 0 0))` block providing hex-based fallbacks for all 11 used Tailwind color families.
+  - Added `-webkit-appearance: textfield` for Safari number input spinners.
+
+### 7. Demo Products (Added)
+- **Problem:** Only a handful of demo products existed for testing.
+- **Fix:** Added a `DemoProductsSeeder` with 48 products across 9 product groups (5 new groups: Pastries, Tea, Snacks, Ice Cream, Bakery), each with full pricing, cost, MRP, units, colors, descriptions, and randomized stock quantities.
+
+### 8. Product Pagination & POS Product Loading (Fixed)
+- **Problem:** The Products page hardcoded 25 products/page and pagination never worked; the POS page only loaded 12 products.
+- **Fix:**
+  - `ProductController::index()` now respects the `per_page` query parameter (default 25).
+  - Fixed the Products page to read pagination metadata from the correct response path (`r?.data` instead of the non-existent `r?.meta`).
+  - POS page requests `per_page=200` and uses `current_page < last_page` for the Load More button.
+
+### 9. Product Card Color / Contrast (Fixed)
+- **Problem:** Product cards used arbitrary background colors with white text, causing unreadable cards on 40+ products.
+- **Fix:** Redesigned cards to use standard white/dark backgrounds with a thin product-color accent strip at the top. Text uses standard high-contrast colors, and stock status uses proper green/red indicators. Zero contrast issues remain.
+
+### 10. Stock Visibility in Single Company Mode (Fixed)
+- **Problem:** In single-company mode, demo products showed as out-of-stock / unsaleable because `posSummary` filtered warehouses and stocks by `tenant_id`, but the user's tenant didn't match the default warehouse's tenant.
+- **Fix:**
+  - `posSummary()` now uses `Warehouse::where('is_default', true)` without tenant filtering and queries stocks by `warehouse_id` only.
+  - Added a server-side `SystemModeService::isSingleMode()` guard so a wrong `X-Active-Branch` header can't accidentally switch the read path in single mode.
+  - `bulkUpdate()` and `findOrCreateStock()` no longer filter by `tenant_id` on lookup, preventing failed writes and duplicate stock records.
+
+### 11. Checkout / Refund Stock Atomicity (Fixed)
+- **Problem:** Checkout wrote to `stocks` and `branch_inventories` without a transaction (risk of inconsistency), used raw `save()` (race condition), and refund could skip branch-inventory restoration if the refund service threw.
+- **Fix:**
+  - Wrapped checkout stock writes in `DB::transaction()`.
+  - Replaced `$bi->stock -= $qty; $bi->save()` with version-locked `$bi->updateStock(-$qty)`.
+  - Restructured the refund flow: an `$alreadyRefunded` flag prevents re-refunding, branch inventory restoration uses `updateStock()` inside its own `DB::transaction()`, and order status is always updated to `refunded`.
+
+### 12. Refunded Order Receipt Button & Status (Fixed)
+- **Problem:** After an order was refunded, the Download Receipt button disappeared, and the receipt showed no refund indicator.
+- **Fix:**
+  - Download Receipt button now shows for both `closed` and `refunded` orders (desktop & mobile).
+  - Added a blue `refunded` status badge.
+  - The receipt now renders a **REFUNDED** dashed banner when the order status is `refunded`.
+
+### 13. Receipt Service Type (Dine-in / Takeaway) Conditional Display (Fixed)
+- **Problem:** The receipt always showed `Type: Dine-in` / `Type: Takeaway` even when those order types were disabled in Settings.
+- **Fix:** `ReceiptBuilder` now reads `dine_in_enabled`, `takeaway_enabled`, and `table_management_enabled` settings and hides the service-type line (and table number) when disabled.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
