@@ -227,12 +227,6 @@ npm run build
 php artisan serve --port=8000
 ```
 
-Default login after seeding:
-- **Email:** `admin@dstar.com`
-- **Password:** `admin123`
-
----
-
 ## Project Structure
 
 ```
