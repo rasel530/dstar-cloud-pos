@@ -155,7 +155,6 @@ class StockService
     {
         $stock = Stock::where('product_id', $productId)
             ->where('warehouse_id', $warehouseId)
-            ->where('tenant_id', $tenantId)
             ->lockForUpdate()
             ->first();
 

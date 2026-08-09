@@ -33,6 +33,7 @@ class ReceiptBuilder
         $documentNumber = htmlspecialchars($document['number'] ?? '');
         $documentDate = htmlspecialchars($document['date'] ?? date('Y-m-d H:i:s'));
         $documentType = htmlspecialchars($document['document_type']['name'] ?? $document['type'] ?? 'Receipt');
+        $orderStatus = $document['order_status'] ?? null;
 
         $subtotal = number_format($document['subtotal'] ?? 0, 2);
         $taxAmount = number_format($document['tax_amount'] ?? 0, 2);
@@ -102,11 +103,17 @@ class ReceiptBuilder
 
         $serviceType = (int)($document['service_type'] ?? 0);
         $tableNumber = htmlspecialchars($document['table_number'] ?? '');
+        $dineInEnabled = ($settings['dine_in_enabled'] ?? 'true') !== 'false';
+        $takeawayEnabled = ($settings['takeaway_enabled'] ?? 'true') !== 'false';
+        $tableMgmtEnabled = ($settings['table_management_enabled'] ?? 'true') !== 'false';
+
         $serviceLine = '';
-        if ($serviceType === 0) {
+        if ($serviceType === 0 && $dineInEnabled) {
             $serviceLine = '<p><strong>Type:</strong> Dine-in</p>';
-            if ($tableNumber) $serviceLine .= '<p><strong>Table:</strong> ' . $tableNumber . '</p>';
-        } elseif ($serviceType === 1) {
+            if ($tableNumber && $tableMgmtEnabled) {
+                $serviceLine .= '<p><strong>Table:</strong> ' . $tableNumber . '</p>';
+            }
+        } elseif ($serviceType === 1 && $takeawayEnabled) {
             $serviceLine = '<p><strong>Type:</strong> Takeaway</p>';
         }
 
@@ -189,6 +196,8 @@ class ReceiptBuilder
                 {$customerLine}
                 {$serviceLine}
             </div>
+
+            {$this->optionalRefundedBanner($orderStatus)}
 
             <table>
                 <thead>
@@ -293,5 +302,11 @@ class ReceiptBuilder
     {
         if (empty(trim($text))) return '';
         return '<p style="margin-bottom:4px;">' . htmlspecialchars($text) . '</p>';
+    }
+
+    private function optionalRefundedBanner(?string $orderStatus): string
+    {
+        if ($orderStatus !== 'refunded') return '';
+        return '<div style="text-align:center;padding:8px;margin:8px 0;border:2px dashed #000;font-size:16px;font-weight:bold;text-transform:uppercase;letter-spacing:3px;">REFUNDED</div>';
     }
 }

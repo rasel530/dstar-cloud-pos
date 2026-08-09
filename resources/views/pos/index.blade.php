@@ -37,7 +37,7 @@
                     <span class="hidden sm:inline">Import</span>
                 </button>
                 <input type="file" id="bulkFileInput" @change="handleFileUpload($event)" accept=".csv,.json" class="hidden">
-                <div x-show="uploading" class="absolute inset-0 flex items-center justify-center bg-gray-900/50 rounded-lg z-10">
+                <div x-show="uploading" x-cloak class="absolute inset-0 flex items-center justify-center bg-gray-900/50 rounded-lg z-10">
                     <svg class="animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                 </div>
             </div>
@@ -104,19 +104,27 @@
                     <button
                         @click="addToCart(product)"
                         :disabled="product.track_inventory && stockMap[product.id] && stockMap[product.id].current_stock <= 0"
-                        class="rounded-xl p-2 sm:p-3 lg:p-4 text-white text-center cursor-pointer hover:brightness-110 hover:scale-[1.02] active:scale-95 transition-all duration-150 shadow-md flex flex-col items-center justify-center gap-1 sm:gap-1.5 min-h-[72px] sm:min-h-[80px] lg:min-h-[90px] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:brightness-100 disabled:hover:scale-100"
-                        :style="'background-color: ' + colorForProduct(product)"
+                        class="rounded-xl overflow-hidden text-left cursor-pointer hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-150 flex flex-col min-h-[72px] sm:min-h-[80px] lg:min-h-[90px] bg-white dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/10 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:translate-y-0"
                     >
-                        <span class="font-semibold text-xs sm:text-sm leading-tight" x-text="product.name"></span>
-                        <span class="text-[10px] sm:text-xs opacity-80 font-mono tracking-tight" x-text="formatMoney(product.price)"></span>
-                        <span
-                            x-show="stockMap[product.id] && product.track_inventory"
-                            class="text-[10px] opacity-70"
-                            :class="stockMap[product.id]?.current_stock <= 0 ? 'text-red-200' : 'text-green-200'"
-                            x-text="stockMap[product.id]?.current_stock > 0 ? 'Stock: ' + stockMap[product.id].current_stock : 'Out of Stock'"
-                        ></span>
+                        <div class="h-1 shrink-0 w-full" :style="'background-color: ' + colorForProduct(product)"></div>
+                        <div class="flex-1 flex flex-col items-center justify-center gap-0.5 sm:gap-1 p-2 sm:p-3 lg:p-4">
+                            <span class="font-semibold text-xs sm:text-sm leading-tight text-gray-900 dark:text-white" x-text="product.name"></span>
+                            <span class="text-[10px] sm:text-xs font-mono tracking-tight text-gray-500 dark:text-white/60" x-text="formatMoney(product.price)"></span>
+                            <span
+                                x-show="stockMap[product.id] && product.track_inventory"
+                                class="text-[10px] font-medium"
+                                :class="stockMap[product.id]?.current_stock <= 0 ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'"
+                                x-text="stockMap[product.id]?.current_stock > 0 ? 'Stock: ' + stockMap[product.id].current_stock : 'Out of Stock'"
+                            ></span>
+                        </div>
                     </button>
                 </template>
+            </div>
+            <div x-show="hasMoreProducts" class="flex justify-center py-4">
+                <button @click="loadMoreProducts()" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors shadow-sm flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                    Load More Products
+                </button>
             </div>
         </div>
     </div>

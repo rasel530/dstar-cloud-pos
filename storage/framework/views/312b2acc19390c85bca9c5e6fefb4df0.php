@@ -6,6 +6,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        (function() {
+            var dir = localStorage.getItem('pos_dir');
+            if (dir) document.documentElement.dir = dir;
+            var theme = localStorage.getItem('theme');
+            if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
     <meta name="csrf-token" content="<?php echo e(csrf_token()); ?>">
     <meta name="access-level" content="<?php echo e(auth('sanctum')->check() ? auth('sanctum')->user()->access_level : 0); ?>">
     <meta name="currency-symbols" content="<?php echo e(json_encode(config('business.currency_symbols', []))); ?>">
@@ -20,7 +30,7 @@
 
 <div class="flex h-screen overflow-hidden">
 
-    <aside class="flex flex-col bg-[#0a0f28] text-white shrink-0 transition-all duration-300 fixed lg:relative inset-y-0 left-0 z-40" :class="sidebarOpen ? 'w-56 translate-x-0 pointer-events-auto' : 'w-56 -translate-x-full lg:w-16 lg:translate-x-0 pointer-events-none lg:pointer-events-auto'">
+    <aside class="flex flex-col bg-[#0a0f28] text-white shrink-0 w-56 -translate-x-full pointer-events-none fixed lg:relative inset-y-0 left-0 z-40 lg:translate-x-0 lg:pointer-events-auto" :class="[sidebarOpen ? 'translate-x-0 pointer-events-auto' : 'lg:w-16', 'transition-[width,transform] duration-300']">
         <div class="flex flex-col items-center justify-center h-20 px-2 border-b border-white/10 overflow-hidden">
             <template x-if="companyLogo">
                 <img :src="companyLogo" class="h-8 max-w-[100px] object-contain" alt="Logo">
@@ -147,9 +157,9 @@
                     <span class="text-xs font-medium text-red-400 bg-red-500/10 px-2 py-1 rounded">Unable to load branches. Please refresh.</span>
                 </template>
                 <button @click="rtlMode = !rtlMode; localStorage.setItem('pos_dir', rtlMode ? 'rtl' : 'ltr'); document.documentElement.dir = rtlMode ? 'rtl' : 'ltr'" class="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400" title="Toggle RTL/LTR"><svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12m-5.25 0l1.5-1.5m-1.5 1.5l1.5 1.5m10.5-5.25h.008v.008h-.008V13.5zm0 5.25h.008v.008h-.008V18.75z"/></svg></button>
-                <span class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap" x-text="currentTime" x-init="currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); setInterval(() => currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 1000)"></span>
+                <span x-cloak class="text-xs sm:text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap" x-text="currentTime" x-init="currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); setInterval(() => currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), 1000)"></span>
 
-                <div class="flex items-center gap-2" x-show="user">
+                <div class="flex items-center gap-2" x-cloak x-show="user">
                     <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-sm font-medium flex-shrink-0" x-text="(user?.first_name || user?.username || 'U').charAt(0)?.toUpperCase()"></div>
                     <span class="text-sm font-medium text-gray-700 dark:text-gray-300 hidden md:block" x-text="user?.first_name || user?.username || 'User'"></span>
                 </div>

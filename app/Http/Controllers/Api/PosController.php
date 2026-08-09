@@ -100,6 +100,7 @@ class PosController extends Controller
             "branch_id"     => $branchId,
             "number"        => $orderNumber,
             "service_type"  => $request->service_type ?? 0,
+            "table_number"  => $request->table_number ?? null,
             "status"        => "open",
             "total"         => $request->total ?? 0,
             "discount"      => $request->discount ?? 0,
@@ -272,39 +273,38 @@ class PosController extends Controller
             'updated_at' => now(),
         ]);
 
-        $warehouseId = $request->input('warehouse_id') ?: \App\Models\Warehouse::where('tenant_id', $user->tenant_id)->where('is_default', true)->value('id');
+        $warehouseId = $request->input('warehouse_id') ?: \App\Models\Warehouse::where('is_default', true)->value('id');
         $allowNegative = \App\Models\ApplicationSetting::where('tenant_id', $user->tenant_id)->where('key', 'allow_negative_stock')->value('value');
         $allowNegative = $allowNegative === 'true' || $allowNegative === '1';
         $branchId = $request->input('branch_id') ?: $request->header('X-Active-Branch');
 
         if ($warehouseId) {
             $stockService = new \App\Services\Inventory\StockService;
-            foreach ($order->posOrderItems as $item) {
-                $product = \App\Models\Product::find($item->product_id);
-                if (!$product || $product->is_service || !$product->track_inventory) continue;
-                $qty = (float) ($item->quantity ?? 1);
-                $bi = null;
-                try {
-                    if ($branchId) {
-                        $bi = \App\Models\BranchInventory::where('product_id', $item->product_id)->where('branch_id', $branchId)->first();
-                        $current = $bi ? (float) $bi->stock : 0;
-                        if (!$allowNegative && $current < $qty) {
-                            throw new \RuntimeException("Insufficient stock for '{$product->name}'. Available: {$current}");
+            \Illuminate\Support\Facades\DB::transaction(function () use ($order, $stockService, $warehouseId, $branchId, $user, $allowNegative, $orderId) {
+                foreach ($order->posOrderItems as $item) {
+                    $product = \App\Models\Product::find($item->product_id);
+                    if (!$product || $product->is_service || !$product->track_inventory) continue;
+                    $qty = (float) ($item->quantity ?? 1);
+                    try {
+                        if ($branchId) {
+                            $bi = \App\Models\BranchInventory::where('product_id', $item->product_id)->where('branch_id', $branchId)->first();
+                            $current = $bi ? (float) $bi->stock : 0;
+                            if (!$allowNegative && $current < $qty) {
+                                throw new \RuntimeException("Insufficient stock for '{$product->name}'. Available: {$current}");
+                            }
                         }
-                    }
-                    $stockService->decrement($item->product_id, $warehouseId, $qty, $user->id, $user->tenant_id, 'sale', $orderId);
+                        $stockService->decrement($item->product_id, $warehouseId, $qty, $user->id, $user->tenant_id, 'sale', $orderId);
 
-                    if ($branchId) {
-                        $bi = \App\Models\BranchInventory::where('product_id', $item->product_id)->where('branch_id', $branchId)->first();
-                        if ($bi) { $bi->stock -= $qty; $bi->save(); }
-                        else { \App\Models\BranchInventory::create(['tenant_id' => $user->tenant_id, 'product_id' => $item->product_id, 'branch_id' => $branchId, 'stock' => -$qty]); }
-                    }
-                } catch (\RuntimeException $e) {
-                    if (!$allowNegative) {
-                        return response()->json(['message' => $e->getMessage()], 422);
+                        if ($branchId) {
+                            $bi = \App\Models\BranchInventory::where('product_id', $item->product_id)->where('branch_id', $branchId)->first();
+                            if ($bi) { $bi->updateStock(-$qty); }
+                            else { \App\Models\BranchInventory::create(['tenant_id' => $user->tenant_id, 'product_id' => $item->product_id, 'branch_id' => $branchId, 'stock' => -$qty]); }
+                        }
+                    } catch (\RuntimeException $e) {
+                        if (!$allowNegative) { throw $e; }
                     }
                 }
-            }
+            });
         }
 
         $order->status = 'closed';
@@ -352,32 +352,44 @@ class PosController extends Controller
             ->where('tenant_id', $user->tenant_id)
             ->first();
 
+        $alreadyRefunded = false;
         if ($doc) {
             try {
                 $checkoutService = app(\App\Services\Pos\CheckoutService::class);
                 $checkoutService->processRefund($doc->id, $user->id, $reason);
             } catch (\InvalidArgumentException $e) {
-                if ($order->status !== 'refunded') {
-                    $order->update(['status' => 'refunded', 'updated_at' => now()]);
-                }
-                return response()->json(['message' => 'Order refunded.', 'data' => $order]);
+                $alreadyRefunded = true;
             }
         }
 
-        $branchId = $order->branch_id;
-        if ($branchId) {
-            $warehouseId = \App\Models\Warehouse::where('tenant_id', $user->tenant_id)->where('is_default', true)->value('id');
-            foreach ($order->posOrderItems as $item) {
-                $product = $item->product;
-                if (!$product || $product->is_service || !$product->track_inventory) continue;
-                $bi = \App\Models\BranchInventory::where('product_id', $item->product_id)->where('branch_id', $branchId)->first();
-                if ($bi) { $bi->stock += (float) ($item->quantity ?? 1); $bi->save(); }
-                if ($bi && $warehouseId) {
-                    try {
-                        $stockService = new \App\Services\Inventory\StockService;
-                        $stockService->decrement($item->product_id, $warehouseId, (float) ($item->quantity ?? 1), $user->id, $user->tenant_id, 'refund_correction', $orderId);
-                    } catch (\Exception $e) {}
-                }
+        if (! $alreadyRefunded) {
+            $branchId = $order->branch_id;
+            if ($branchId) {
+                $warehouseId = \App\Models\Warehouse::where('is_default', true)->value('id');
+                $stockService = new \App\Services\Inventory\StockService;
+                \Illuminate\Support\Facades\DB::transaction(function () use ($order, $branchId, $warehouseId, $stockService, $user, $orderId) {
+                    foreach ($order->posOrderItems as $item) {
+                        $product = $item->product;
+                        if (!$product || $product->is_service || !$product->track_inventory) continue;
+                        $qty = (float) ($item->quantity ?? 1);
+
+                        $bi = \App\Models\BranchInventory::where('product_id', $item->product_id)->where('branch_id', $branchId)->first();
+                        if ($bi) {
+                            $bi->updateStock($qty);
+                        } else {
+                            \App\Models\BranchInventory::create([
+                                'tenant_id' => $user->tenant_id,
+                                'product_id' => $item->product_id,
+                                'branch_id' => $branchId,
+                                'stock' => $qty,
+                            ]);
+                        }
+
+                        if ($warehouseId) {
+                            $stockService->decrement($item->product_id, $warehouseId, $qty, $user->id, $user->tenant_id, 'refund_correction', $orderId);
+                        }
+                    }
+                });
             }
         }
 
@@ -488,6 +500,7 @@ class PosController extends Controller
             'payments' => [],
             'service_type' => (int) ($order->service_type ?? 0),
             'table_number' => $order->table_number ?? '',
+            'order_status' => $order->status,
         ];
 
         return [
@@ -514,6 +527,7 @@ class PosController extends Controller
             'receipt_header' => $settings['receipt_header'] ?? '',
             'receipt_footer' => $settings['receipt_footer'] ?? 'Thank you for your purchase!',
             'logo' => $settings['logo'] ?? '',
+            'order_status' => $order->status,
             'receipt_html' => (new \App\Services\Printing\ReceiptBuilder)->build($receiptOrder, $company, $settings),
         ];
     }

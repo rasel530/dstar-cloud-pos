@@ -292,7 +292,13 @@ class StockController extends Controller
     public function posSummary(Request $request)
     {
         $tenantId = auth()->user()->tenant_id;
-        $branchId = $request->header('X-Active-Branch');
+
+        // In single company mode, always use warehouse stock (stocks table).
+        // Never use branch_inventories even if X-Active-Branch header is accidentally sent.
+        $branchId = \App\Services\SystemModeService::isSingleMode()
+            ? null
+            : $request->header('X-Active-Branch');
+
         $productIds = $request->input('product_ids', []);
 
         $result = [];
@@ -312,10 +318,10 @@ class StockController extends Controller
             return response()->json(['data' => $result]);
         }
 
-        $warehouseId = \App\Models\Warehouse::where('tenant_id', $tenantId)->where('is_default', true)->value('id');
+        $warehouseId = \App\Models\Warehouse::where('is_default', true)->value('id');
         if (!$warehouseId) { return response()->json(['data' => $result]); }
 
-        $query = Stock::where('tenant_id', $tenantId)->where('warehouse_id', $warehouseId);
+        $query = Stock::where('warehouse_id', $warehouseId);
         if (!empty($productIds)) { $query->whereIn('product_id', $productIds); }
         $items = $query->get();
         foreach ($items as $stock) {
@@ -332,7 +338,7 @@ public function bulkUpdate(Request $request): JsonResponse
 {
     $request->validate(['items' => 'required|array|min:1', 'items.*.product_code' => 'required|string', 'items.*.quantity' => 'required|numeric|min:0']);
     $tenantId = auth()->user()->tenant_id;
-    $warehouseId = $request->input('warehouse_id') ?: \App\Models\Warehouse::where('tenant_id', $tenantId)->where('is_default', true)->value('id');
+        $warehouseId = $request->input('warehouse_id') ?: \App\Models\Warehouse::where('is_default', true)->value('id');
     $branchCode = $request->input('branch_code');
     $branchId = null;
 

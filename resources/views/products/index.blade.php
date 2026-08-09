@@ -14,14 +14,14 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 Add Product
             </button>
-            <button @click="showTransferModal = true" x-show="$store.sys.isMulti()" class="bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-2">
+            <button @click="showTransferModal = true" x-cloak x-show="$store.sys.isMulti()" class="bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
                 Transfer Stock
             </button>
             <button @click="$refs.stockFile.click()" :disabled="uploadingStock" class="bg-green-500 hover:bg-green-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-2 disabled:opacity-50">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                 <span x-show="!uploadingStock">Upload Stock</span>
-                <span x-show="uploadingStock">Uploading...</span>
+                <span x-cloak x-show="uploadingStock">Uploading...</span>
             </button>
             <input type="file" x-ref="stockFile" @change="handleStockUpload" accept=".csv" class="hidden"/>
         </div>
@@ -123,7 +123,7 @@
     </div>
 
     {{-- Add/Edit Product Modal --}}
-    <div x-show="showModal" class="fixed inset-0 z-50 flex items-start justify-center pt-10" @click.self="showModal = false">
+    <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-start justify-center pt-10" @click.self="showModal = false">
         <div class="fixed inset-0 bg-black/60"></div>
         <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[85vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
             <div class="sticky top-0 bg-white dark:bg-gray-800 px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between z-10 rounded-t-xl">
@@ -174,7 +174,7 @@
     </div>
 
     {{-- Transfer Stock Modal --}}
-    <div x-show="showTransferModal" class="fixed inset-0 z-50 flex items-center justify-center" @click.self="showTransferModal = false">
+    <div x-show="showTransferModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center" @click.self="showTransferModal = false">
         <div class="fixed inset-0 bg-black/50"></div>
         <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md p-6 border border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between mb-4">

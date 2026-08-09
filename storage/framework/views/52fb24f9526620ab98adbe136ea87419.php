@@ -70,6 +70,7 @@
                                     x-text="order.status"
                                     :class="{
                                         'bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full text-xs font-medium capitalize': order.status === 'closed',
+                                        'bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full text-xs font-medium capitalize': order.status === 'refunded',
                                         'bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full text-xs font-medium capitalize': order.status === 'open' || order.status === 'pending',
                                         'bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full text-xs font-medium capitalize': order.status === 'cancelled',
                                     }"
@@ -86,7 +87,7 @@
                                     <button x-show="order.status === 'closed'" @click="refundOrder(order)" class="p-2 sm:p-1.5 rounded-md text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors" title="Refund Order">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l-4-4m0 0l4-4m-4 4h11a4 4 0 010 8h-1"/></svg>
                                     </button>
-                                    <button x-show="order.status === 'closed'" @click="downloadOrderReceipt(order)" class="p-2 sm:p-1.5 rounded-md text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors" title="Download Receipt">
+                                    <button x-show="order.status === 'closed' || order.status === 'refunded'" @click="downloadOrderReceipt(order)" class="p-2 sm:p-1.5 rounded-md text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors" title="Download Receipt">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
                                     </button>
                                 </div>
@@ -106,6 +107,7 @@
                                     x-text="order.status"
                                     :class="{
                                         'bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full text-xs font-medium capitalize': order.status === 'closed',
+                                        'bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full text-xs font-medium capitalize': order.status === 'refunded',
                                         'bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full text-xs font-medium capitalize': order.status === 'open' || order.status === 'pending',
                                         'bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full text-xs font-medium capitalize': order.status === 'cancelled',
                                     }"
@@ -131,7 +133,7 @@
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l-4-4m0 0l4-4m-4 4h11a4 4 0 010 8h-1"/></svg>
                                 Refund
                             </button>
-                            <button x-show="order.status === 'closed'" @click="downloadOrderReceipt(order)" class="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-indigo-500 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors">
+                            <button x-show="order.status === 'closed' || order.status === 'refunded'" @click="downloadOrderReceipt(order)" class="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-indigo-500 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
                                 Receipt
                             </button>

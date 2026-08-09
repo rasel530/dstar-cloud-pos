@@ -78,37 +78,7 @@ window.POS = {
     },
 };
 
-// --- Layout Component ---
-Alpine.data('layoutData', () => ({
-    sidebarOpen: false,
-    sidebarExpanded: true,
-    sidebarLocked: false,
-    currentTime: '',
-    user: null,
-    init() {
-        this.updateClock();
-        setInterval(() => this.updateClock(), 1000);
-        if (window.innerWidth >= 1024) { this.sidebarExpanded = true; this.sidebarLocked = true; }
-        window.addEventListener('resize', () => {
-            if (window.innerWidth >= 1024) { this.sidebarExpanded = true; this.sidebarLocked = true; this.sidebarOpen = false; }
-            else { this.sidebarLocked = false; }
-        });
-        this.fetchUser();
-    },
-    updateClock() {
-        const now = new Date();
-        this.currentTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
-            + ' \u00B7 ' + now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    },
-    async fetchUser() {
-        try {
-            const t = localStorage.getItem('auth_token');
-            if (!t) return;
-            const r = await fetch('/api/auth/me', { headers: { Authorization: 'Bearer ' + t, Accept: 'application/json' } });
-            if (r.ok) { const d = await r.json(); this.user = d.data; }
-        } catch (e) { /* ignore */ }
-    },
-}));
+// Layout component is defined inline in layouts/app.blade.php
 
 // --- POS Cart Component ---
   Alpine.data('posCart', () => ({
@@ -124,7 +94,7 @@ Alpine.data('layoutData', () => ({
     showReceipt: false, receiptData: null, receiptApiUrl: null,
     showAuthRedirect: false, uploading: false, existingOrderId: null, promoDiscount: 0, orderTotal: null,
     showQuickCustomerForm: false, quickCustomerPhone: '', quickCustomerName: '', quickCustomerSaving: false,
-    stockMap: {}, allowNegativeStock: false,
+    stockMap: {}, allowNegativeStock: false, productPage: 1, hasMoreProducts: false,
     get hasBranch() { return !!(localStorage.getItem('active_branch_id')) || (localStorage.getItem('system_mode') === 'single'); },
     posSettings: {
         grid_columns: 4, grid_rows: 4, default_tax_rate: 10, rounding_rule: 'none',
@@ -315,14 +285,15 @@ Alpine.data('layoutData', () => ({
     async loadProducts(append = false) {
         try {
             if (!append) { this.productPage = 1; this.hasMoreProducts = false; }
-            let url = `/api/products?per_page=12&page=${this.productPage}`;
+            let url = `/api/products?per_page=200&page=${this.productPage}`;
             if (this.activeCategory) url += `&product_group_id=${this.activeCategory}`;
             if (this.searchTerm) url += `&search=${encodeURIComponent(this.searchTerm)}`;
             const res = await window.POS.api(url);
-            const data = Array.isArray(res?.data) ? res.data : (res?.data?.data || []);
+            const meta = res?.data;
+            const data = Array.isArray(meta?.data) ? meta.data : [];
             if (append) { this.products = [...this.products, ...data]; }
             else { this.products = data; }
-            this.hasMoreProducts = data.length >= 12;
+            this.hasMoreProducts = data.length > 0 && (meta?.current_page || 0) < (meta?.last_page || 0);
             this.productPage++;
         } catch (e) { this.toastMsg('Failed to load products', 'error'); this.products = []; }
     },
@@ -532,6 +503,7 @@ Alpine.data('layoutData', () => ({
     formatMoney(amount) { return window.POS.formatCurrency(amount); },
     truncate(str, len) { if (!str) return ''; return str.length > len ? str.substring(0, len) + '\u2026' : str; },
     colorForProduct(product) { const colors = ['#3b82f6','#8b5cf6','#06b6d4','#f59e0b','#10b981','#ef4444','#ec4899','#6366f1','#14b8a6','#f97316']; const c = product?.color; if (c && c.startsWith('#')) return c; let hash = 0; const str = product?.name || ''; for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash); return colors[Math.abs(hash) % colors.length]; },
+    textColorForProduct(product) { const bg = this.colorForProduct(product); if (!bg || !bg.startsWith('#')) return '#ffffff'; const r = parseInt(bg.slice(1,3), 16); const g = parseInt(bg.slice(3,5), 16); const b = parseInt(bg.slice(5,7), 16); const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255; return lum > 0.60 ? '#111827' : '#ffffff'; },
     showToast(msg) { this.toastMsg(msg, 'success'); },
     toastMsg(message, type = 'success') { this.toast = { show: true, message, type }; clearTimeout(this._t); const duration = (this.posSettings.notification_duration || 3) * 1000; this._t = setTimeout(() => { this.toast.show = false; }, duration); },
     toastPositionClass() {
@@ -666,7 +638,7 @@ Alpine.data('productsManager', () => ({
     },
     async fetchProducts(page = 1) {
         this.loading = true;
-        try { const r = await window.POS.api('/api/products?page=' + page + (this.search ? '&search=' + this.search : '')); this.products = r?.data?.data || r?.data || []; this.pagination = r?.meta || r?.data?.meta || { current_page: 1, last_page: 1, total: this.products.length }; } catch (e) { this.products = []; this.pagination = { current_page: 1, last_page: 1, total: 0 }; } finally { this.loading = false; }
+        try { const r = await window.POS.api('/api/products?page=' + page + (this.search ? '&search=' + this.search : '')); this.products = r?.data?.data || r?.data || []; this.pagination = r?.data || { current_page: 1, last_page: 1, total: this.products.length, prev_page_url: null, next_page_url: null }; } catch (e) { this.products = []; this.pagination = { current_page: 1, last_page: 1, total: 0 }; } finally { this.loading = false; }
     },
     openAdd() { this.editing = false; this.form = { name: '', code: '', price: 0, cost: 0, product_group_id: null, measurement_unit: '', is_enabled: true, track_inventory: true, is_global: true, stock_qty: 0, branch_stocks: {} }; this.showModal = true; },
     openEdit(p) { this.editing = true; this.form = { ...p, stock_qty: p.stock || 0, branch_stocks: {}, is_global: p.is_global !== false }; if (p.branch_stocks) { p.branch_stocks.forEach(b => { this.form.branch_stocks[b.branch_id] = b.stock; }); } this.showModal = true; },

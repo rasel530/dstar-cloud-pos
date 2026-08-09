@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@import "./browser-fallbacks.css";
+
 :root {
     --accent: #3b82f6;
 }
@@ -15,6 +17,11 @@ body {
 }
 
 [x-cloak] { display: none !important; }
+
+/* Keep sidebar visible on desktop even with x-cloak */
+@media (min-width: 1024px) {
+    aside[x-cloak] { display: flex !important; }
+}
 
 svg { max-width: 100%; height: auto; flex-shrink: 0; }
 

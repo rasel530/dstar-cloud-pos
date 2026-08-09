@@ -29,6 +29,7 @@ class PosOrder extends Model
         'payment_method',
         'tax_amount',
         'service_type',
+        'table_number',
         'status',
     ];
 

@@ -30,7 +30,8 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->orderBy('name')->paginate(25);
+        $perPage = $request->filled('per_page') ? (int) $request->per_page : 25;
+        $products = $query->orderBy('name')->paginate($perPage);
 
         return response()->json(['data' => $products]);
     }
