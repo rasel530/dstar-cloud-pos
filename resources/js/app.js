@@ -32,6 +32,10 @@ Alpine.store('currency', {
 });
 
 
+// --- Global Screen Store ---
+Alpine.store('screen', { width: window.innerWidth });
+window.addEventListener('resize', () => { Alpine.store('screen').width = window.innerWidth; });
+
 // --- POS API Helper ---
 window.POS = {
     token() {
@@ -94,7 +98,9 @@ window.POS = {
     showReceipt: false, receiptData: null, receiptApiUrl: null,
     showAuthRedirect: false, uploading: false, existingOrderId: null, promoDiscount: 0, orderTotal: null,
     showQuickCustomerForm: false, quickCustomerPhone: '', quickCustomerName: '', quickCustomerSaving: false,
-    stockMap: {}, allowNegativeStock: false, productPage: 1, hasMoreProducts: false,
+    showShortcutsHelp: false,
+    stockMap: {}, allowNegativeStock: false, productPage: 1, hasMoreProducts: false, _scanning: false,
+    _productCache: {}, _promoCache: { ts: 0, data: 0 },
     get hasBranch() { return !!(localStorage.getItem('active_branch_id')) || (localStorage.getItem('system_mode') === 'single'); },
     posSettings: {
         grid_columns: 4, grid_rows: 4, default_tax_rate: 10, rounding_rule: 'none',
@@ -152,7 +158,7 @@ window.POS = {
     },
 
     get gridStyle() {
-        const w = this.screenWidth;
+        const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
         if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
         if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
@@ -163,13 +169,15 @@ window.POS = {
         const token = window.POS.token();
         if (!token) { this.showAuthRedirect = true; return; }
         await this.loadPosSettings();
-        this.loadCategories();
-        await this.loadProducts();
-        await this.loadFiscalItems();
         this.posSettings._uiReady = true;
-        await this.loadTaxRate();
-        await this.loadDefaultCustomer();
-        await this.loadStockSummary();
+        await Promise.all([
+            this.loadProducts(),
+            this.loadCategories(),
+            this.loadFiscalItems(),
+            this.loadTaxRate(),
+            this.loadDefaultCustomer(),
+            this.loadStockSummary(),
+        ]);
         window.addEventListener('branch-changed', () => {
             this.items = [];
             this.discountValue = 0;
@@ -182,6 +190,17 @@ window.POS = {
         const params = new URLSearchParams(window.location.search);
         const orderId = params.get('order');
         if (orderId) { await this.loadOrder(orderId); }
+        this._kbHandler = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+            if (e.key === 'F1') { e.preventDefault(); this.openPayment('cash'); }
+            else if (e.key === 'F2') { e.preventDefault(); this.openPayment('card'); }
+            else if (e.key === 'F3') { e.preventDefault(); this.openPayment('check'); }
+            else if (e.key === 'F4') { e.preventDefault(); this.newSale(); }
+            else if (e.key === 'F8') { e.preventDefault(); this.$refs.receiptFrame?.contentWindow?.print(); }
+            else if (e.key === 'Escape' && this.showPayment) { e.preventDefault(); this.showPayment = false; }
+            else if (e.key === '?' && e.shiftKey) { e.preventDefault(); this.showShortcutsHelp = !this.showShortcutsHelp; }
+        };
+        window.addEventListener('keydown', this._kbHandler);
     },
     async loadPosSettings() {
         try {
@@ -301,8 +320,10 @@ window.POS = {
         if (!this.searchTerm || this.searchTerm.length < 2) { await this.loadProducts(); return; }
         await this.loadProducts(false);
     },async handleBarcodeSearch() {
-        const term = this.searchTerm.trim(); if (!term) return;
-        try { const data = await window.POS.api('/api/products?search=' + encodeURIComponent(term)); const p = (data.data || [])[0]; if (p) { this.addToCart(p); this.searchTerm = ''; this.loadProducts(); } else this.toastMsg('Product not found', 'error'); } catch (e) { this.toastMsg('Product not found', 'error'); }
+        if (this._scanning) return; const term = this.searchTerm.trim(); if (!term) return;
+        this._scanning = true;
+        try { const data = await window.POS.api('/api/products?search=' + encodeURIComponent(term)); const p = (data.data || [])[0]; if (p) { this.addToCart(p); this.searchTerm = ''; } else this.toastMsg('Product not found', 'error'); } catch (e) { this.toastMsg('Product not found', 'error'); }
+        finally { this._scanning = false; }
     },
     async handleFileUpload(event) {
         const file = event.target.files[0]; if (!file) return;
@@ -401,6 +422,8 @@ window.POS = {
     newSale() { if (this.items.length && !confirm('Clear order?')) return; this.items = []; this.discountType = 'percent'; this.discountValue = 0; this.promoDiscount = 0; this.selectedCustomer = null; this.orderTotal = null; this.existingOrderId = null; },
     openPayment(type) { if (!this.items.length) return; this.loadDefaultStocks().then(() => { this.paymentType = type; this.tenderAmount = this.grandTotal; this.showPayment = true; }); },
     async calcPromotionDiscounts() {
+        const now = Date.now();
+        if (now - this._promoCache.ts < 10000 && !this.items.length) return this._promoCache.data;
         let totalPromoDiscount = 0;
         try {
             const token = window.POS.token();
@@ -435,6 +458,7 @@ window.POS = {
                 }
             }
         } catch (e) { /* ignore promo fetch errors */ }
+        this._promoCache = { ts: now, data: totalPromoDiscount };
         return totalPromoDiscount;
     },
     async refreshPromoDiscounts() {
@@ -528,31 +552,55 @@ Alpine.data('pillScroller', () => ({
         this.checkOverflow();
         this._observer = new MutationObserver(() => this.checkOverflow());
         this._observer.observe(track, { childList: true, subtree: true });
+        this._dirObserver = new MutationObserver(() => this.checkOverflow());
+        this._dirObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['dir'] });
+    },
+
+    isRtl() {
+        return (document.documentElement.dir || '').toLowerCase() === 'rtl';
     },
 
     checkOverflow() {
         const el = this.$refs.pillTrack;
         if (!el) { this.canScrollLeft = false; this.canScrollRight = false; return; }
         const t = 4;
-        this.canScrollLeft = el.scrollLeft > t;
-        this.canScrollRight = el.scrollLeft < (el.scrollWidth - el.clientWidth - t);
+        const max = el.scrollWidth - el.clientWidth;
+        if (this.isRtl()) {
+            this.canScrollRight = el.scrollLeft > -max + t;
+            this.canScrollLeft = el.scrollLeft < -t;
+        } else {
+            this.canScrollLeft = el.scrollLeft > t;
+            this.canScrollRight = el.scrollLeft < max - t;
+        }
     },
 
     scrollLeft() {
         const el = this.$refs.pillTrack;
-        if (el) el.scrollBy({ left: -el.clientWidth * 0.6, behavior: 'smooth' });
+        if (!el) return;
+        const amount = el.clientWidth * 0.6;
+        if (this.isRtl()) {
+            el.scrollBy({ left: amount, behavior: 'smooth' });
+        } else {
+            el.scrollBy({ left: -amount, behavior: 'smooth' });
+        }
     },
 
     scrollRight() {
         const el = this.$refs.pillTrack;
-        if (el) el.scrollBy({ left: el.clientWidth * 0.6, behavior: 'smooth' });
+        if (!el) return;
+        const amount = el.clientWidth * 0.6;
+        if (this.isRtl()) {
+            el.scrollBy({ left: -amount, behavior: 'smooth' });
+        } else {
+            el.scrollBy({ left: amount, behavior: 'smooth' });
+        }
     },
 }));// --- Dashboard Component ---
 Alpine.data('dashboard', () => ({
     data: null, loading: true,
     get maxRevenue() { if (!this.data?.revenue_chart?.length) return 1; return Math.max(...this.data.revenue_chart.map(d => d.value), 1); },
     get gridStyle() {
-        const w = this.screenWidth;
+        const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
         if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
         if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
@@ -573,7 +621,7 @@ Alpine.data('productsManager', () => ({
     showTransferModal: false, transferring: false, transferForm: { product_code: '', quantity: 1, from_branch: '', to_branch: '' }, transferMessage: '', transferError: false,
     form: { name: '', code: '', plu: '', price: 0, cost: 0, product_group_id: null, measurement_unit: '', is_enabled: true, track_inventory: true, is_global: true, stock_qty: 0, branch_stocks: {} },
     get gridStyle() {
-        const w = this.screenWidth;
+        const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
         if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
         if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
@@ -708,7 +756,7 @@ Alpine.data('customersManager', () => ({
     toast: { show: false, message: '', type: 'success' },
     form: { name: '', email: '', phone_number: '', code: '', is_enabled: true },
     get gridStyle() {
-        const w = this.screenWidth;
+        const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
         if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
         if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
@@ -741,7 +789,7 @@ Alpine.data('ordersList', () => ({
     orders: [], loading: true, statusFilter: 'all', searchQuery: '',
     currentPage: 1, totalPages: 1, totalOrders: 0,
     get gridStyle() {
-        const w = this.screenWidth;
+        const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
         if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
         if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
@@ -818,7 +866,7 @@ Alpine.data('reportsManager', () => ({
         return Math.max(...this.tabData.chart_data.map(d => d.value), 1);
     },
     get gridStyle() {
-        const w = this.screenWidth;
+        const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
         if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
         if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
@@ -876,7 +924,7 @@ Alpine.data('usersManager', () => ({
     error: '',
     form: { first_name: '', last_name: '', username: '', email: '', password: '', access_level: 0, is_enabled: true, branch_id: '', branch_ids: [] },
     get gridStyle() {
-        const w = this.screenWidth;
+        const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
         if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
         if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
@@ -927,7 +975,7 @@ Alpine.data('taxesManager', () => ({
     showModal: false, editing: false, saving: false,
     form: { name: '', rate: 10, code: '', is_fixed: false, is_enabled: true },
     get gridStyle() {
-        const w = this.screenWidth;
+        const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
         if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
         if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
@@ -959,7 +1007,7 @@ Alpine.data('promotionsManager', () => ({
     showModal: false, editing: false, saving: false,
     form: { name: '', start_date: '', end_date: '', days_of_week: 127, is_enabled: true },
     get gridStyle() {
-        const w = this.screenWidth;
+        const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
         if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
         if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
@@ -991,7 +1039,7 @@ Alpine.data('loyaltyManager', () => ({
     showModal: false, points: 0, selectedCard: null, transactionType: 'earn',
     showAddCard: false, newCard: { customer_id: '', card_number: '' },
     get gridStyle() {
-        const w = this.screenWidth;
+        const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
         if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
         if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
@@ -1032,7 +1080,7 @@ Alpine.data('printersManager', () => ({
     showModal: false, editing: false, saving: false,
     form: { printer_name: '', paper_width: 32, header: '', footer: '', feed_lines: 0, cut_paper: true, open_cash_drawer: true, printer_type: 0, number_of_copies: 1 },
     get gridStyle() {
-        const w = this.screenWidth;
+        const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
         if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
         if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
@@ -1065,7 +1113,7 @@ Alpine.data('branchesManager', () => ({
     uniqueBusinessTypes: [],
     form: { name: '', branch_code: '', business_type: 'Retail', address: '', phone: '', is_headquarters: false },
     get gridStyle() {
-        const w = this.screenWidth;
+        const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
         if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
         if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
@@ -1099,7 +1147,7 @@ Alpine.data('inventoryManager', () => ({
     warehouseForm: { name: '', is_default: false },
     allProducts: [], addProductId: '', addProductQty: 1,
     get gridStyle() {
-        const w = this.screenWidth;
+        const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
         if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
         if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
@@ -1221,7 +1269,7 @@ Alpine.data('activityManager', () => ({
     logs: [], loading: true, pagination: {},
     filterModule: '', filterDateFrom: '', filterDateTo: '',
     get gridStyle() {
-        const w = this.screenWidth;
+        const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
         if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
         if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;

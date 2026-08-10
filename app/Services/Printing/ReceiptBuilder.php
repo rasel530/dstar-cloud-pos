@@ -309,4 +309,97 @@ class ReceiptBuilder
         if ($orderStatus !== 'refunded') return '';
         return '<div style="text-align:center;padding:8px;margin:8px 0;border:2px dashed #000;font-size:16px;font-weight:bold;text-transform:uppercase;letter-spacing:3px;">REFUNDED</div>';
     }
+
+    /**
+     * Build a plain-text receipt suitable for ESC/POS thermal printers.
+     * Uses the same data format as build().
+     */
+    public function buildText(array $document, array $company, array $settings): string
+    {
+        $items = $document['items'] ?? [];
+        $w = ($settings['paper_width'] ?? '80') === '58' ? 32 : 42;
+        $d = str_repeat('-', $w);
+
+        $companyName = $company['name'] ?? $settings['company_name'] ?? 'Company';
+        $address = $company['address'] ?? $settings['company_address'] ?? '';
+        $phone = $company['phone'] ?? $settings['company_phone'] ?? '';
+
+        $orderNum = $document['number'] ?? '';
+        $orderDate = $document['date'] ?? date('Y-m-d H:i:s');
+        $cashier = $document['cashier'] ?? '';
+        $customer = $document['customer'] ?? 'Walk-in Customer';
+        $paymentMethod = $document['payment_method'] ?? 'cash';
+        $orderStatus = $document['order_status'] ?? null;
+
+        $subtotal = number_format($document['subtotal'] ?? 0, 2);
+        $tax = number_format($document['tax_amount'] ?? 0, 2);
+        $discount = number_format($document['discount'] ?? 0, 2);
+        $total = number_format($document['grand_total'] ?? $document['total'] ?? 0, 2);
+        $paid = number_format($document['paid_amount'] ?? 0, 2);
+        $change = number_format($document['change_amount'] ?? 0, 2);
+        $currency = $settings['currency_symbol'] ?? '$';
+        $header = $settings['receipt_header'] ?? '';
+        $footer = $settings['receipt_footer'] ?? 'Thank you!';
+        $serviceType = (int)($document['service_type'] ?? 0);
+        $tableNumber = $document['table_number'] ?? '';
+
+        $out = '';
+        $out .= str_repeat('=', $w) . "\n";
+        $out .= $this->center($companyName, $w) . "\n";
+        if ($address) $out .= $this->center($address, $w) . "\n";
+        if ($phone) $out .= $this->center($phone, $w) . "\n";
+        $out .= str_repeat('=', $w) . "\n";
+        if ($header) $out .= $this->center($header, $w) . "\n";
+
+        $out .= sprintf("Date: %s\n", $orderDate);
+        $out .= sprintf("Order: %s\n", $orderNum);
+        if ($cashier) $out .= sprintf("Cashier: %s\n", $cashier);
+        if ($customer) $out .= sprintf("Customer: %s\n", $customer);
+        if ($orderStatus === 'refunded') $out .= "*** REFUNDED ***\n";
+
+        if ($serviceType === 0 && ($settings['dine_in_enabled'] ?? 'true') !== 'false') {
+            $out .= "Type: Dine-in\n";
+            if ($tableNumber) $out .= "Table: {$tableNumber}\n";
+        } elseif ($serviceType === 1 && ($settings['takeaway_enabled'] ?? 'true') !== 'false') {
+            $out .= "Type: Takeaway\n";
+        }
+
+        $out .= $d . "\n";
+        $out .= sprintf("%-*s %4s %7s %8s\n", $w - 22, 'Item', 'Qty', 'Price', 'Total');
+        $out .= $d . "\n";
+
+        foreach ($items as $item) {
+            $name = $item['product_name'] ?? $item['name'] ?? 'Item';
+            $qty = number_format($item['quantity'] ?? 0, 2);
+            $price = number_format($item['price'] ?? 0, 2);
+            $lineTotal = number_format(($item['quantity'] ?? 0) * ($item['price'] ?? 0), 2);
+            $nameLen = $w - 22;
+            if (mb_strlen($name) > $nameLen) $name = mb_substr($name, 0, $nameLen - 2) . '..';
+            $out .= sprintf("%-{$nameLen}s %4s %7s %8s\n", $name, $qty, $price, $lineTotal);
+        }
+
+        $out .= $d . "\n";
+        $out .= sprintf("%-*s %8s %s\n", $w - 10, 'SUBTOTAL:', $currency, $subtotal);
+        if ((float)$tax > 0) $out .= sprintf("%-*s %8s %s\n", $w - 10, 'TAX:', $currency, $tax);
+        if ((float)$discount > 0) $out .= sprintf("%-*s %8s %s\n", $w - 10, 'DISCOUNT:', "-{$currency}", $discount);
+        $out .= sprintf("%-*s %8s %s\n", $w - 10, 'GRAND TOTAL:', $currency, $total);
+        $out .= $d . "\n";
+        $out .= sprintf("%-*s %8s %s\n", $w - 10, 'PAID:', $currency, $paid);
+        if ((float)$change > 0) $out .= sprintf("%-*s %8s %s\n", $w - 10, 'CHANGE:', $currency, $change);
+        $out .= $d . "\n";
+        $out .= sprintf("Payment: %s\n", strtoupper($paymentMethod));
+        $out .= str_repeat('=', $w) . "\n";
+        $out .= $this->center($footer, $w) . "\n";
+        $out .= str_repeat('=', $w) . "\n\n\n\n";
+
+        return $out;
+    }
+
+    private function center(string $text, int $width): string
+    {
+        $len = mb_strwidth($text);
+        if ($len >= $width) return $text;
+        $pad = intdiv($width - $len, 2);
+        return str_repeat(' ', $pad) . $text;
+    }
 }

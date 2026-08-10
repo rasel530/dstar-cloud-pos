@@ -12,7 +12,10 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 - **Order Types** -- Dine-in, Takeaway, and Table Management (all toggleable from Settings)
 - **Customer Selection** -- search existing customers or create walk-in customers inline
 - **Payment Processing** -- Cash, Card, and Check payment methods
-- **Receipt Generation** -- printable receipts with configurable header/footer
+- **Barcode Scanning** -- scan barcode + Enter auto-adds product to cart (fast checkout flow)
+- **Automated Receipt Printing** -- plain-text ESC/POS receipts auto-printed to thermal printers on checkout (fault-tolerant, never blocks the order)
+- **Keyboard Shortcuts** -- `F1` Cash, `F2` Card, `F3` Check, `F4` New Sale, `F8` Print, `Esc` Close, `Shift+?` Shortcut help (with in-app help modal)
+- **Receipt Generation** -- printable HTML receipts + thermal text receipts with configurable header/footer
 - **Order Loading** -- load and edit existing orders
 - **Virtual Keyboard** -- on-screen keyboard for touch devices
 
@@ -164,6 +167,53 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 ### 13. Receipt Service Type (Dine-in / Takeaway) Conditional Display (Fixed)
 - **Problem:** The receipt always showed `Type: Dine-in` / `Type: Takeaway` even when those order types were disabled in Settings.
 - **Fix:** `ReceiptBuilder` now reads `dine_in_enabled`, `takeaway_enabled`, and `table_management_enabled` settings and hides the service-type line (and table number) when disabled.
+
+### 14. Order Creation 500 Error — Missing `table_number` Column (Fixed)
+- **Problem:** Creating any order returned `500 Internal Server Error` with `SQLSTATE[42703]: Undefined column: column "table_number" of relation "pos_orders" does not exist`. The frontend sent `table_number`, but the database column never existed.
+- **Fix:** Added a migration `add_table_number_to_pos_orders_table` that adds a nullable `table_number` column, and added it to the `PosOrder` model `$fillable`.
+
+### 15. Dine-in / Takeaway / Table Management Strict Visibility (Fixed)
+- **Problem:** Even when Admin/Superadmin disabled these features in Settings, they still appeared on the POS page.
+- **Fix:**
+  - Changed POS visibility conditions from `posSettings.xxx_enabled !== false` to `posSettings.xxx_enabled === true` — a missing/failed settings load now hides the feature instead of showing it (safe default).
+  - Added `x-cloak` to the order-type section to prevent a pre-Alpine flash.
+  - The settings API is read-only for all authenticated users, so the POS page can always load these toggles.
+
+### 16. Mobile Sidebar Menu Items Not Clickable (Fixed)
+- **Problem:** On mobile, the left sidebar menu items didn't respond to clicks — the sidebar had `pointer-events-none` in static classes and Tailwind's `pointer-events-none` rule won the CSS cascade over the open-state `pointer-events-auto`.
+- **Fix:** Changed the sidebar open state to use `!pointer-events-auto` (Tailwind `!important` variant) so it reliably overrides the static `pointer-events-none` when the menu is open. Works in both LTR and RTL.
+
+### 17. Category Pills Scroll Arrows — RTL Support (Fixed)
+- **Problem:** On mobile, the product-group pills scroll arrows didn't work in RTL mode (and the left arrow never appeared). The scroll logic was LTR-only: in RTL, `scrollLeft` goes `0 → negative`, so positive `scrollBy` was clamped and `canScrollLeft = scrollLeft > 4` was never true.
+- **Fix:** Made `pillScroller` RTL-aware:
+  - `isRtl()` helper reads `document.documentElement.dir`.
+  - `checkOverflow()` uses inverted thresholds in RTL.
+  - `scrollLeft()` / `scrollRight()` reverse the scroll direction in RTL.
+  - Added a `MutationObserver` on the `dir` attribute so arrow visibility re-evaluates instantly when RTL/LTR is toggled.
+
+### 18. Company Logo Not Visible for Cashier Role (Fixed)
+- **Problem:** Cashier (and other low-access-level) users didn't see the company logo in the sidebar; only managers/admins did.
+- **Fix:** `GET /api/settings` and `GET /api/settings/{key}` were moved out of the `access.level:5` middleware group into the shared authenticated group, so all logged-in users can read settings (logo, company name, POS config). `POST /api/settings` (update) remains restricted to manager+.
+
+### 19. Header Shows Full User Name, Responsive (Fixed)
+- **Problem:** The header showed only the first name and hid the name entirely on mobile.
+- **Fix:** The header now renders the full name (`first_name + last_name`), is visible on all screen sizes, and truncates gracefully with responsive max-widths (`max-w-[100px] sm:max-w-[140px] md:max-w-[180px] lg:max-w-[220px]`).
+
+### 20. POS Performance & UX Optimizations (Implemented)
+- **Parallel init loading** — `posCart.init()` now loads products, categories, fiscal items, tax rate, default customer, and stock summary in parallel via `Promise.all` (after settings resolve). Cut initial load from ~7 sequential API calls to ~2.
+- **Keyboard shortcuts** — `F1` (Cash), `F2` (Card), `F3` (Check), `F4` (New Sale), `F8` (Print Receipt), `Esc` (Close Payment), `Shift+?` (Shortcuts Help). A `⌨` icon button and `Shift+?` open a help modal listing all shortcuts. Shortcuts are ignored while typing in any input field.
+- **Fixed `screenWidth` bug** — `this.screenWidth` was undefined in all 14 components, breaking responsive grid breakpoints. Replaced with a global `Alpine.store('screen')` + single resize listener.
+- **Removed redundant API call** — barcode scan no longer reloads the full product list after adding an item.
+- **Promo discount cache** — promo discounts are cached for 10 seconds instead of re-fetching on every cart add.
+- **Scanning race guard** — a `_scanning` flag prevents overlapping barcode-search requests during rapid scans.
+
+### 21. Automated Receipt Printing — Thermal Printer Integration (Implemented)
+- **Problem:** `PrintJobDispatcher` (ESC/POS thermal printing via local print proxy) existed but was only wired to the test-print UI, not to checkout. Receipts were only printable via the browser dialog.
+- **Fix:**
+  - Added `ReceiptBuilder::buildText()` — generates a plain-text ESC/POS-ready receipt (42/32 column layout for 80mm/58mm paper) alongside the existing HTML receipt.
+  - Added `dispatchAutoPrint()` in `PosController::checkout()` — after an order is completed, the receipt is sent to the configured thermal printer via `PrintJobDispatcher`.
+  - Printing is fully fault-tolerant: if no printer is configured, the proxy is offline, or printing throws, the order still completes and the receipt still shows on screen (failures are logged as warnings only).
+  - Added `F8` keyboard shortcut to print the on-screen receipt.
 
 ---
 

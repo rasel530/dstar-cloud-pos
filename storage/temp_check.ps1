@@ -1,1 +1,0 @@
-php -r "<?php require 'vendor/autoload.php'; $app = require 'bootstrap/app.php'; $app->make('Illuminate\Contracts\Console\Kernel')->bootstrap(); $users = DB::table('users')->get(); foreach($users as $u) { echo $u->email.' | disabled='.($u->is_enabled ? 'false' : 'true').PHP_EOL; }"

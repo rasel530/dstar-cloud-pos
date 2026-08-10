@@ -13,7 +13,7 @@ class PrintJobDispatcher
     public function __construct()
     {
         $this->proxyUrl = config('printers.proxy_url', 'http://localhost:9999');
-        $this->proxyToken = config('printers.proxy_token', 'dstar-print-proxy-2026');
+        $this->proxyToken = config('printers.proxy_token', '');
     }
 
     /**

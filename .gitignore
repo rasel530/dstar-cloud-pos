@@ -13,11 +13,17 @@
 /.zed
 /auth.json
 /node_modules
+/print-proxy/node_modules
+/print-proxy/start
+/print-proxy/Microsoft Print to PDF
 /public/build
 /public/hot
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/framework/views/*.php
+/storage/temp_*
+/tmp.ps1
 /vendor
 Homestead.json
 Homestead.yaml

@@ -106,6 +106,8 @@
 @media (max-width: 1023px) {
     [dir="rtl"] .translate-x-full { --tw-translate-x: -100%; }
     [dir="rtl"] .-translate-x-full { --tw-translate-x: 100%; }
+    /* Sidebar open state must override the RTL hidden translate when open */
+    [dir="rtl"] aside.translate-x-0 { --tw-translate-x: 0; }
 }
 
 [dir="rtl"] [x-transition\:enter-start][x-transition\:enter\:start*="translate-x"] {

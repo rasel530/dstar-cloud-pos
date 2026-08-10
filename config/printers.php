@@ -18,5 +18,5 @@ return [
         'bar',
     ],
     'proxy_url' => env('PRINT_PROXY_URL', 'http://localhost:9999'),
-    'proxy_token' => env('PRINT_PROXY_TOKEN', 'dstar-print-proxy-2026'),
+    'proxy_token' => env('PRINT_PROXY_TOKEN', ''),
 ];

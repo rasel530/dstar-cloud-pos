@@ -7,7 +7,7 @@ const os = require('os');
 
 const app = express();
 const PORT = process.env.PORT || 9999;
-const AUTH_TOKEN = process.env.PROXY_TOKEN || 'dstar-print-proxy-2026';
+const AUTH_TOKEN = process.env.PROXY_TOKEN;
 
 // Middleware
 app.use(bodyParser.json({ limit: '5mb' }));

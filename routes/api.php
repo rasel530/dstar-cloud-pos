@@ -37,6 +37,10 @@ Route::middleware(['auth:sanctum', 'user.enabled', 'throttle:api', 'track.activi
     Route::get('auth/me', [AuthController::class, 'me']);
     Route::put('auth/change-pin', [AuthController::class, 'changePin']);
 
+    // Settings (read-only for all authenticated users — needed for logo/company/POS settings)
+    Route::get('settings', [SettingsController::class, 'index']);
+    Route::get('settings/{key}', [SettingsController::class, 'getByKey']);
+
     // Dashboard
     Route::get('dashboard', [DashboardController::class, 'index']);
 
@@ -149,10 +153,8 @@ Route::middleware(['auth:sanctum', 'user.enabled', 'throttle:api', 'track.activi
         Route::apiResource('printers', PrinterController::class);
         Route::post('printers/{printer}/test', [PrinterController::class, 'testPrint']);
 
-        // Settings
-        Route::get('settings', [SettingsController::class, 'index']);
+        // Settings (update only — manager+)
         Route::post('settings', [SettingsController::class, 'update']);
-        Route::get('settings/{key}', [SettingsController::class, 'getByKey']);
 
         // Activity Logs
         Route::get('activity', [\App\Http\Controllers\Api\ActivityController::class, 'index'])

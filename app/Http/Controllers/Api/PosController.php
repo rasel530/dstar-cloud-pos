@@ -320,6 +320,9 @@ class PosController extends Controller
 
         $receipt = $this->buildReceipt($order, $doc);
 
+        // Auto-print to physical thermal printer if configured
+        $this->dispatchAutoPrint($order, $receipt);
+
         return response()->json(["data" => [
             "document" => $doc,
             "order" => $order,
@@ -529,7 +532,30 @@ class PosController extends Controller
             'logo' => $settings['logo'] ?? '',
             'order_status' => $order->status,
             'receipt_html' => (new \App\Services\Printing\ReceiptBuilder)->build($receiptOrder, $company, $settings),
+            'receipt_text' => (new \App\Services\Printing\ReceiptBuilder)->buildText($receiptOrder, $company, $settings),
         ];
+    }
+
+    /**
+     * Attempt to auto-print the receipt to the configured thermal printer.
+     * Never throws — print failure is non-critical; the order still succeeds.
+     */
+    private function dispatchAutoPrint(PosOrder $order, array $receipt): void
+    {
+        try {
+            $printer = \App\Models\PosPrinterSetting::where('tenant_id', $order->tenant_id)->first();
+            if (!$printer || empty($printer->printer_name)) return;
+
+            $receiptText = $receipt['receipt_text'] ?? '';
+            if (empty($receiptText)) return;
+
+            $dispatcher = new \App\Services\Printing\PrintJobDispatcher;
+            $dispatcher->dispatch($printer->printer_name, $receiptText, $order->tenant_id);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Auto-print failed for order '.$order->number, [
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }
 

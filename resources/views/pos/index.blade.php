@@ -36,6 +36,9 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
                     <span class="hidden sm:inline">Import</span>
                 </button>
+                <button @click="showShortcutsHelp = !showShortcutsHelp" title="Keyboard shortcuts (Shift+?)" class="shrink-0 px-3 py-2.5 rounded-lg bg-gray-100 dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-500/50 transition text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7.5V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v10.5A2.25 2.25 0 006 18.75h5.25M15 7.5h1.875c1.035 0 1.875.84 1.875 1.875V10.5M15 7.5v2.25m0 0H12m3 1.5v3.75a2.25 2.25 0 002.25 2.25h1.875M12 12h3v3.75M12 12v3h3"/></svg>
+                </button>
                 <input type="file" id="bulkFileInput" @change="handleFileUpload($event)" accept=".csv,.json" class="hidden">
                 <div x-show="uploading" x-cloak class="absolute inset-0 flex items-center justify-center bg-gray-900/50 rounded-lg z-10">
                     <svg class="animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
@@ -153,18 +156,18 @@
                 class="bg-blue-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold"
             ></span>
         </div>
-        {{-- Order Type & Customer --}}
-        <div class="px-3 py-2 border-b border-gray-100 dark:border-white/10 space-y-2 shrink-0">
-            <div x-show="posSettings._settingsReady" class="space-y-2">
-            <div class="flex gap-1.5">
-                <button @click="serviceType = 0" x-show="posSettings.dine_in_enabled !== false"
-                    :class="serviceType === 0 ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/60'"
-                    class="flex-1 py-1.5 rounded text-xs font-medium transition-colors">Dine-in</button>
-                <button @click="serviceType = 1" x-show="posSettings.takeaway_enabled !== false"
-                    :class="serviceType === 1 ? 'bg-amber-500 text-white' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/60'"
-                    class="flex-1 py-1.5 rounded text-xs font-medium transition-colors">Takeaway</button>
-            </div>
-            <div x-show="serviceType === 0 && posSettings.table_management_enabled !== false" class="flex items-center gap-2">
+         {{-- Order Type & Customer --}}
+         <div class="px-3 py-2 border-b border-gray-100 dark:border-white/10 space-y-2 shrink-0">
+             <div x-show="posSettings._settingsReady" x-cloak class="space-y-2">
+             <div class="flex gap-1.5">
+                 <button @click="serviceType = 0" x-show="posSettings.dine_in_enabled === true"
+                     :class="serviceType === 0 ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/60'"
+                     class="flex-1 py-1.5 rounded text-xs font-medium transition-colors">Dine-in</button>
+                 <button @click="serviceType = 1" x-show="posSettings.takeaway_enabled === true"
+                     :class="serviceType === 1 ? 'bg-amber-500 text-white' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/60'"
+                     class="flex-1 py-1.5 rounded text-xs font-medium transition-colors">Takeaway</button>
+             </div>
+             <div x-show="serviceType === 0 && posSettings.table_management_enabled === true" class="flex items-center gap-2">
                 <span class="text-xs text-gray-400 dark:text-white/50 shrink-0">Table:</span>
                 <input type="text" x-model="tableNumber" placeholder="e.g. A5"
                     class="flex-1 h-7 text-xs rounded border border-gray-200 dark:border-white/15 bg-gray-50 dark:bg-white/10 text-gray-800 dark:text-white/90 px-2 focus:outline-none focus:ring-1 focus:ring-blue-500/50">
@@ -391,5 +394,46 @@
         class="fixed px-6 py-3 rounded-lg text-white text-sm font-semibold shadow-xl z-50 pointer-events-none"
         :class="[toast.type === 'error' ? 'bg-red-500' : 'bg-emerald-500', toastPositionClass()]"
     ></div>
+
+    {{-- Keyboard Shortcuts Help Modal --}}
+    <div x-show="showShortcutsHelp" x-cloak @click.self="showShortcutsHelp = false" class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm mx-4" @click.stop>
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Keyboard Shortcuts</h3>
+                <button @click="showShortcutsHelp = false" class="text-gray-400 hover:text-gray-600 dark:hover:text-white text-xl leading-none">&times;</button>
+            </div>
+            <div class="space-y-2 text-sm">
+                <div class="flex items-center justify-between py-1.5 px-3 bg-gray-50 dark:bg-white/5 rounded-lg">
+                    <span class="text-gray-600 dark:text-gray-300">Cash Payment</span>
+                    <kbd class="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono font-bold text-gray-700 dark:text-gray-200">F1</kbd>
+                </div>
+                <div class="flex items-center justify-between py-1.5 px-3 bg-gray-50 dark:bg-white/5 rounded-lg">
+                    <span class="text-gray-600 dark:text-gray-300">Card Payment</span>
+                    <kbd class="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono font-bold text-gray-700 dark:text-gray-200">F2</kbd>
+                </div>
+                <div class="flex items-center justify-between py-1.5 px-3 bg-gray-50 dark:bg-white/5 rounded-lg">
+                    <span class="text-gray-600 dark:text-gray-300">Check Payment</span>
+                    <kbd class="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono font-bold text-gray-700 dark:text-gray-200">F3</kbd>
+                </div>
+                <div class="flex items-center justify-between py-1.5 px-3 bg-gray-50 dark:bg-white/5 rounded-lg">
+                    <span class="text-gray-600 dark:text-gray-300">New Sale / Clear</span>
+                    <kbd class="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono font-bold text-gray-700 dark:text-gray-200">F4</kbd>
+                </div>
+                <div class="flex items-center justify-between py-1.5 px-3 bg-gray-50 dark:bg-white/5 rounded-lg">
+                    <span class="text-gray-600 dark:text-gray-300">Print Receipt</span>
+                    <kbd class="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono font-bold text-gray-700 dark:text-gray-200">F8</kbd>
+                </div>
+                <div class="flex items-center justify-between py-1.5 px-3 bg-gray-50 dark:bg-white/5 rounded-lg">
+                    <span class="text-gray-600 dark:text-gray-300">Close Payment</span>
+                    <kbd class="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono font-bold text-gray-700 dark:text-gray-200">Esc</kbd>
+                </div>
+                <div class="flex items-center justify-between py-1.5 px-3 bg-gray-50 dark:bg-white/5 rounded-lg">
+                    <span class="text-gray-600 dark:text-gray-300">Toggle This Help</span>
+                    <kbd class="px-2 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs font-mono font-bold text-gray-700 dark:text-gray-200">Shift + ?</kbd>
+                </div>
+            </div>
+            <p class="mt-4 text-xs text-gray-400 dark:text-gray-500 text-center">Shortcuts work when no input field is focused</p>
+        </div>
+    </div>
 </div>
 @endsection
