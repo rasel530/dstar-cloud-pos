@@ -1,6 +1,6 @@
 <?php
 return [
-    'app_name' => 'D Star Company',
+    'app_name' => 'POS System',
     'sign_in' => 'Sign In',
     'email' => 'Email Address',
     'password' => 'Password',

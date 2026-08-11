@@ -69,8 +69,11 @@ class PrintJobDispatcher
      */
     public function testPrint(string $printerName): array
     {
+        $settings = \App\Models\ApplicationSetting::where('tenant_id', auth()->user()?->tenant_id)->pluck('value', 'key');
+        $companyName = $settings['company_name'] ?? config('app.name', 'POS System');
+
         $testContent = "=== TEST PRINT ===\n"
-            . "D Star Company POS\n"
+            . "$companyName\n"
             . "Printer: {$printerName}\n"
             . "Date: " . now()->format('Y-m-d H:i:s') . "\n"
             . "----------------------------\n"

@@ -17,7 +17,7 @@ class UserController extends Controller
             ->with('branches:id,name,branch_code')
             ->orderBy('first_name')
             ->paginate(25)
-            ->through(fn ($user) => $user->makeHidden(['password']));
+            ->through(fn ($user) => $user->makeHidden(['password'])->setAttribute('pin_set', !is_null($user->pin_code)));
 
         return response()->json(['data' => $users]);
     }
@@ -25,17 +25,18 @@ class UserController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'first_name'   => 'required|string|max:255',
-            'last_name'    => 'required|string|max:255',
-            'username'     => 'required|string|max:255|unique:users,username,NULL,id,deleted_at,NULL',
-            'email'        => 'required|email|unique:users,email,NULL,id,deleted_at,NULL',
-            'password'     => 'required|string|min:8',
-            'access_level' => 'sometimes|integer|min:0|max:99',
-            'is_enabled'   => 'sometimes|boolean',
-            'pin_code'     => 'nullable|string|max:6',
-            'branch_id'    => 'nullable|exists:tenants,id',
-            'branch_ids'   => 'nullable|array',
-            'branch_ids.*' => 'exists:tenants,id',
+            'first_name'      => 'required|string|max:255',
+            'last_name'       => 'required|string|max:255',
+            'username'        => 'required|string|max:255|unique:users,username,NULL,id,deleted_at,NULL',
+            'employee_number' => 'nullable|integer|min:1|max:65535|unique:users,employee_number,NULL,id,tenant_id,' . auth()->user()->tenant_id,
+            'email'           => 'required|email|unique:users,email,NULL,id,deleted_at,NULL',
+            'password'        => 'required|string|min:8',
+            'access_level'    => 'sometimes|integer|min:0|max:99',
+            'is_enabled'      => 'sometimes|boolean',
+            'pin_code'        => 'nullable|string|size:4|regex:/^[0-9]{4}$/',
+            'branch_id'       => 'nullable|exists:tenants,id',
+            'branch_ids'      => 'nullable|array',
+            'branch_ids.*'    => 'exists:tenants,id',
         ]);
 
         $validated['tenant_id'] = auth()->user()->tenant_id;
@@ -66,17 +67,18 @@ class UserController extends Controller
             ->findOrFail($id);
 
         $validated = $request->validate([
-            'first_name'   => 'sometimes|string|max:255',
-            'last_name'    => 'sometimes|string|max:255',
-            'username'     => 'sometimes|string|max:255|unique:users,username,' . $id . ',id,deleted_at,NULL',
-            'email'        => 'sometimes|email|unique:users,email,' . $id . ',id,deleted_at,NULL',
-            'password'     => 'sometimes|string|min:8',
-            'access_level' => 'sometimes|integer|min:0|max:99',
-            'is_enabled'   => 'sometimes|boolean',
-            'pin_code'     => 'nullable|string|max:6',
-            'branch_id'    => 'nullable|exists:tenants,id',
-            'branch_ids'   => 'nullable|array',
-            'branch_ids.*' => 'exists:tenants,id',
+            'first_name'      => 'sometimes|string|max:255',
+            'last_name'       => 'sometimes|string|max:255',
+            'username'        => 'sometimes|string|max:255|unique:users,username,' . $id . ',id,deleted_at,NULL',
+            'employee_number' => 'nullable|integer|min:1|max:65535|unique:users,employee_number,' . $id . ',id,tenant_id,' . auth()->user()->tenant_id,
+            'email'           => 'sometimes|email|unique:users,email,' . $id . ',id,deleted_at,NULL',
+            'password'        => 'sometimes|string|min:8',
+            'access_level'    => 'sometimes|integer|min:0|max:99',
+            'is_enabled'      => 'sometimes|boolean',
+            'pin_code'        => 'nullable|string|size:4|regex:/^[0-9]{4}$/',
+            'branch_id'       => 'nullable|exists:tenants,id',
+            'branch_ids'      => 'nullable|array',
+            'branch_ids.*'    => 'exists:tenants,id',
         ]);
 
         if (isset($validated['password'])) {

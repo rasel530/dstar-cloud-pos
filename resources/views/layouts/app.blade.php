@@ -23,7 +23,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Dashboard') - {{ $companyName ?: config('app.name', 'Aronium Lite') }}</title>
+    <title>@yield('title', 'Dashboard') - {{ $companyName ?: config('app.name', 'POS') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans antialiased" x-data="layoutData" x-init="init()">
@@ -38,7 +38,7 @@
             <template x-if="!companyLogo">
                 <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm flex-shrink-0 ring-2 ring-white/20">{{ Str::substr(config('app.name', 'AL'), 0, 1) }}</div>
             </template>
-            <span class="mt-1.5 text-xs font-semibold text-white/80 whitespace-nowrap truncate max-w-full" x-show="sidebarOpen" x-cloak x-text="companyName || '{{ config('app.name', 'Aronium Lite') }}'"></span>
+            <span class="mt-1.5 text-xs font-semibold text-white/80 whitespace-nowrap truncate max-w-full" x-show="sidebarOpen" x-cloak x-text="companyName || '{{ config('app.name', 'POS System') }}'"></span>
         </div>
 
         <nav class="flex-1 py-4 space-y-1 px-2 overflow-y-auto">

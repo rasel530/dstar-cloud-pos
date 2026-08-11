@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 
 // Auth
 Route::view('/login', 'auth.login')->name('login');
+Route::view('/setup-pin', 'auth.setup-pin')->name('setup-pin');
 Route::post('/logout', function () { session()->flush(); return redirect('/login'); })->name('logout');
 
 // POS

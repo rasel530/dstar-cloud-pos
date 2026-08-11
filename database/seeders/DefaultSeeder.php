@@ -109,6 +109,22 @@ class DefaultSeeder extends Seeder
         }
         DB::table('products')->insert($productRows);
 
+        // Seed default application settings
+        $defaultSettings = [
+            ['key' => 'company_name', 'value' => 'My Store'],
+            ['key' => 'currency', 'value' => 'USD'],
+            ['key' => 'timezone', 'value' => 'UTC'],
+            ['key' => 'grid_columns', 'value' => '4'],
+            ['key' => 'grid_rows', 'value' => '4'],
+        ];
+
+        foreach ($defaultSettings as $setting) {
+            DB::table('application_settings')->updateOrInsert(
+                ['tenant_id' => $tenantId, 'key' => $setting['key']],
+                ['id' => Str::uuid()->toString(), 'value' => $setting['value'], 'created_at' => now(), 'updated_at' => now()]
+            );
+        }
+
         echo "Default tenant, admin user (admin@dstar.com / admin123), walk-in customer & warehouse created.\n";
         echo "Tax (10%), 3 product groups & 20 demo products created.\n";
     }

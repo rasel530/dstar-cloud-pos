@@ -922,7 +922,7 @@ Alpine.data('usersManager', () => ({
     users: [], loading: true, pagination: {}, roles: [], branches: [], currentUserId: null,
     showModal: false, editing: false, saving: false, editId: null, showPwd: false, uploadingStock: false,
     error: '',
-    form: { first_name: '', last_name: '', username: '', email: '', password: '', access_level: 0, is_enabled: true, branch_id: '', branch_ids: [] },
+    form: { first_name: '', last_name: '', username: '', employee_number: '', email: '', password: '', pin_code: '', access_level: 0, is_enabled: true, branch_id: '', branch_ids: [] },
     get gridStyle() {
         const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
@@ -946,14 +946,16 @@ Alpine.data('usersManager', () => ({
         this.loading = true;
         try { const r = await window.POS.api('/api/users?page=' + page + '&per_page=15'); this.users = r.data?.data || r.data || []; this.pagination = r.meta || r.data?.meta || { current_page: 1, last_page: 1, total: 0, per_page: 15 }; } catch (e) { this.users = []; } finally { this.loading = false; }
     },
-    openAdd() { this.editing = false; this.editId = null; this.error = ''; this.showPwd = false; this.form = { first_name: '', last_name: '', username: '', email: '', password: '', access_level: 0, is_enabled: true, branch_id: '', branch_ids: [] }; this.showModal = true; },
-    openEdit(u) { this.editing = true; this.editId = u.id; this.error = ''; this.showPwd = false; this.form = { first_name: u.first_name || '', last_name: u.last_name || '', username: u.username || '', email: u.email || '', password: '', access_level: u.access_level ?? 0, is_enabled: u.is_enabled ?? true, branch_id: u.branch_id || '', branch_ids: u.branches ? u.branches.map(b => b.id) : [] }; this.showModal = true; },
+    openAdd() { this.editing = false; this.editId = null; this.error = ''; this.showPwd = false; this.form = { first_name: '', last_name: '', username: '', employee_number: '', email: '', password: '', pin_code: '', access_level: 0, is_enabled: true, branch_id: '', branch_ids: [] }; this.showModal = true; },
+    openEdit(u) { this.editing = true; this.editId = u.id; this.error = ''; this.showPwd = false; this.form = { first_name: u.first_name || '', last_name: u.last_name || '', username: u.username || '', employee_number: u.employee_number || '', email: u.email || '', password: '', pin_code: '', access_level: u.access_level ?? 0, is_enabled: u.is_enabled ?? true, branch_id: u.branch_id || '', branch_ids: u.branches ? u.branches.map(b => b.id) : [] }; this.showModal = true; },
     async save() {
         this.saving = true; this.error = '';
         try {
             const method = this.editing ? 'PUT' : 'POST', url = this.editing ? '/api/users/' + this.editId : '/api/users';
             const payload = { first_name: this.form.first_name, last_name: this.form.last_name, username: this.form.username, email: this.form.email, access_level: parseInt(this.form.access_level), is_enabled: this.form.is_enabled, branch_id: this.form.branch_id || null, branch_ids: this.form.branch_ids };
+            if (this.form.employee_number) payload.employee_number = parseInt(this.form.employee_number);
             if (this.form.password) payload.password = this.form.password;
+            if (this.form.pin_code && this.form.pin_code.length === 4) payload.pin_code = this.form.pin_code;
             await window.POS.api(url, { method, body: JSON.stringify(payload) });
             this.showModal = false; this.fetchUsers();
         } catch (e) { this.error = e.message; } finally { this.saving = false; }

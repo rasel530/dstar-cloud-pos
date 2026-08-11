@@ -226,7 +226,7 @@ class ReceiptBuilder
             <div class="footer">
                 <p>{$footerText}</p>
                 <p>{$extraFooter}</p>
-                <p>Powered by DStar POS</p>
+                <p>Powered by {{ $companyName }}</p>
             </div>
 
             {$qrCode}

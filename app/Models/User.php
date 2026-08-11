@@ -28,11 +28,14 @@ class User extends Authenticatable
         'first_name',
         'last_name',
         'username',
+        'employee_number',
         'email',
         'password',
         'access_level',
         'is_enabled',
         'pin_code',
+        'pin_attempts',
+        'pin_locked_until',
         'last_login_at',
     ];
 
@@ -48,6 +51,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password'          => 'hashed',
             'pin_code'          => 'hashed',
+            'pin_attempts'      => 'integer',
+            'pin_locked_until'  => 'datetime',
             'access_level'      => 'integer',
             'is_enabled'        => 'boolean',
             'last_login_at'     => 'datetime',

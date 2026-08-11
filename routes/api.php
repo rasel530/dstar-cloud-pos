@@ -27,7 +27,8 @@ use App\Http\Controllers\Api\{
 
 // ---- Public Routes ----
 Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
-Route::post('auth/pin-login', [AuthController::class, 'pinLogin'])->middleware('throttle:login');
+Route::post('auth/pin-login', [AuthController::class, 'pinLogin'])->middleware('throttle:pin');
+Route::post('auth/employee-pin-login', [AuthController::class, 'employeePinLogin'])->middleware('throttle:pin');
 
 // ---- Authenticated Routes ----
 Route::middleware(['auth:sanctum', 'user.enabled', 'throttle:api', 'track.activity'])->group(function () {
@@ -35,7 +36,9 @@ Route::middleware(['auth:sanctum', 'user.enabled', 'throttle:api', 'track.activi
     // Auth
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('auth/me', [AuthController::class, 'me']);
+    Route::post('auth/setup-pin', [AuthController::class, 'setupPin']);
     Route::put('auth/change-pin', [AuthController::class, 'changePin']);
+    Route::post('auth/users/{userId}/reset-pin', [AuthController::class, 'resetPin'])->middleware('access.level:5');
 
     // Settings (read-only for all authenticated users — needed for logo/company/POS settings)
     Route::get('settings', [SettingsController::class, 'index']);
