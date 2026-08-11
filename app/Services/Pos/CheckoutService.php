@@ -233,7 +233,13 @@ class CheckoutService
             ->first();
 
         if (!$stock) {
-            throw new RuntimeException("Stock record not found for product {$productId} in warehouse {$warehouseId}.");
+            $stock = Stock::create([
+                'tenant_id' => $tenantId,
+                'product_id' => $productId,
+                'warehouse_id' => $warehouseId,
+                'quantity' => 0,
+                'version' => 0,
+            ]);
         }
 
         if ((float) $stock->quantity < $quantity) {
@@ -277,7 +283,13 @@ class CheckoutService
             ->first();
 
         if (!$stock) {
-            throw new RuntimeException("Stock record not found for product {$productId} in warehouse {$warehouseId}.");
+            $stock = Stock::create([
+                'tenant_id' => $tenantId,
+                'product_id' => $productId,
+                'warehouse_id' => $warehouseId,
+                'quantity' => 0,
+                'version' => 0,
+            ]);
         }
 
         $previousQuantity = (float) $stock->quantity;

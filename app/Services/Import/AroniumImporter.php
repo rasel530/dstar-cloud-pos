@@ -265,8 +265,7 @@ class AroniumImporter
             DB::table('barcodes')->insert([
                 'id' => (string) Str::uuid(),
                 'product_id' => $newProductId,
-                'tenant_id' => $this->tenantId,
-                'barcode' => $barcode,
+                'value' => $barcode,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);

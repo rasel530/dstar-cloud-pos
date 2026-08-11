@@ -25,7 +25,8 @@
                     <input
                         type="text"
                         x-model="searchTerm"
-                        @input.debounce.300ms="searchProducts()"
+                        @input="smartSearch()"
+                        @paste="onPaste()"
                         @keydown.enter.prevent="handleBarcodeSearch()"
                         placeholder="Search product, code or scan barcode..."
                         autofocus

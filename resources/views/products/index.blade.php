@@ -48,6 +48,7 @@
                             <tr class="border-b border-gray-100 dark:border-white/5">
                                 <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase tracking-wider px-6 py-3">Name</th>
                                 <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase tracking-wider px-6 py-3">Code</th>
+                                <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase tracking-wider px-6 py-3">Barcode</th>
                                 <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase tracking-wider px-6 py-3">Price</th>
                                 <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase tracking-wider px-6 py-3">Cost</th>
                                 <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase tracking-wider px-6 py-3">Stock</th>
@@ -65,6 +66,15 @@
                                     </td>
                                     <td class="px-6 py-3">
                                         <code class="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/50 font-mono" x-text="p.code || '\u2014'"></code>
+                                    </td>
+                                    <td class="px-6 py-3">
+                                        <template x-if="p.barcodes && p.barcodes.length > 0">
+                                            <div class="flex flex-col gap-1">
+                                                <svg x-barcode="p.barcodes?.[0]?.value" class="h-8 max-w-[120px]"></svg>
+                                                <span class="text-[10px] font-mono text-gray-500 dark:text-gray-400" x-text="p.barcodes?.[0]?.value"></span>
+                                            </div>
+                                        </template>
+                                        <span x-show="!p.barcodes || p.barcodes.length === 0" class="text-xs text-gray-400">--</span>
                                     </td>
                                     <td class="px-6 py-3 text-right font-mono text-xs text-gray-700 dark:text-gray-300" x-text="formatMoney(p.price)"></td>
                                     <td class="px-6 py-3 text-right font-mono text-xs text-gray-500 dark:text-gray-400" x-text="formatMoney(p.cost)"></td>
@@ -135,6 +145,12 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Code / SKU</label><input type="text" x-model="form.code" placeholder="e.g. PROD001" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
                     <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">PLU</label><input type="text" x-model="form.plu" placeholder="e.g. 1001" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"></div>
+                </div>
+                <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Barcode</label>
+                    <div class="flex gap-2">
+                        <input type="text" x-model="form.barcode" placeholder="Enter or scan barcode..." class="flex-1 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button type="button" @click="generateBarcode()" :disabled="genLoading" class="px-3 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap" x-text="genLoading ? 'Generating...' : 'Generate'"></button>
+                    </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Price *</label><input type="number" x-model="form.price" step="0.01" min="0" required placeholder="0.00" class="w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"></div>

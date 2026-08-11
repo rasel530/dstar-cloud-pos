@@ -40,6 +40,14 @@
             <svg class="w-4 h-4 inline-block mr-1.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
             System
         </button>
+        <button @click="activeTab = 'payment-methods'" :class="activeTab === 'payment-methods' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-slate-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 -mb-[1px] transition-colors">
+            <svg class="w-4 h-4 inline-block mr-1.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></svg>
+            Payment Methods
+        </button>
+        <button @click="activeTab = 'barcode'" :class="activeTab === 'barcode' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-slate-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 -mb-[1px] transition-colors">
+            <svg class="w-4 h-4 inline-block mr-1.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zm0 9.75c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zm9.75-9.75c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5zm0 9.75c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5z"/></svg>
+            Barcode
+        </button>
     </div>
 
     <div class="flex-1 overflow-auto">
@@ -349,23 +357,122 @@
         </div>
     </div>
 
-    <div class="flex items-center justify-between bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 px-6 py-4">
-        <div>
-            <p x-show="saveStatus === 'saved'" class="text-sm text-emerald-600 dark:text-emerald-400 font-medium">Settings saved successfully</p>
-            <p x-show="saveStatus === 'error'" class="text-sm text-red-600 dark:text-red-400 font-medium">Failed to save settings</p>
+        {{-- ==================== BARCODE SETTINGS TAB ==================== --}}
+        <div x-show="activeTab === 'barcode'" x-cloak>
+            <div class="bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-6 space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Default Barcode Type</label>
+                    <select x-model="barcode.default_type" class="w-full max-w-xs px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
+                        <option value="CODE_128">CODE-128 (Recommended)</option>
+                        <option value="EAN_13">EAN-13</option>
+                        <option value="UPC_A">UPC-A</option>
+                    </select>
+                </div>
+                <div class="space-y-3">
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" x-model="barcode.auto_generate" class="rounded border-gray-300">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Auto-generate barcode when creating a product</span>
+                    </label>
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" x-model="barcode.show_product_name" class="rounded border-gray-300">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Show product name on label</span>
+                    </label>
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" x-model="barcode.show_price" class="rounded border-gray-300">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Show price on label</span>
+                    </label>
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" x-model="barcode.show_sku" class="rounded border-gray-300">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Show SKU on label</span>
+                    </label>
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" x-model="barcode.show_company_name" class="rounded border-gray-300">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Show company name on label</span>
+                    </label>
+                </div>
+            </div>
         </div>
-        <button @click="saveSettings()" :disabled="saving" class="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-lg transition-colors shadow-sm">
-            <span x-show="!saving">Save Settings</span>
-            <span x-show="saving" class="flex items-center gap-2">
-                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
-                Saving...
-            </span>
-        </button>
-    </div>
-    </div>
-</div>
-@endsection
 
+        {{-- ==================== PAYMENT METHODS TAB ==================== --}}
+        <div x-show="activeTab === 'payment-methods'" x-cloak>
+            <div class="bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Payment Methods</h3>
+                    <button @click="openPaymentForm()" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">Add Payment Method</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 dark:bg-gray-700/50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Name</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Code</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Key</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Quick Pay</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Enabled</th>
+                                <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                            <template x-for="pt in paymentTypes" :key="pt.id">
+                                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                                    <td class="px-4 py-3 font-medium text-gray-900 dark:text-white" x-text="pt.name"></td>
+                                    <td class="px-4 py-3 font-mono text-xs text-gray-500" x-text="pt.code || '—'"></td>
+                                    <td class="px-4 py-3 font-mono text-xs text-gray-500" x-text="pt.shortcut_key || '—'"></td>
+                                    <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-xs font-medium" :class="pt.is_quick_payment ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'" x-text="pt.is_quick_payment ? 'Yes' : 'No'"></span></td>
+                                    <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-xs font-medium" :class="pt.is_enabled ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-500'" x-text="pt.is_enabled ? 'Active' : 'Disabled'"></span></td>
+                                    <td class="px-4 py-3 text-right space-x-2">
+                                        <button @click="editPaymentType(pt)" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Edit</button>
+                                        <button @click="deletePaymentType(pt.id)" class="text-red-600 hover:text-red-800 text-xs font-medium">Delete</button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {{-- Payment Method Form Modal --}}
+            <div x-show="showPaymentForm" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showPaymentForm=false">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm mx-4">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white" x-text="paymentEditing ? 'Edit Payment Method' : 'Add Payment Method'"></h3>
+                        <button @click="showPaymentForm=false" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
+                            <input type="text" x-model="paymentForm.name" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Code</label>
+                            <input type="text" x-model="paymentForm.code" placeholder="e.g. cash, card" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Shortcut Key</label>
+                            <input type="text" x-model="paymentForm.shortcut_key" placeholder="e.g. F1, 1" maxlength="10" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                <input type="checkbox" x-model="paymentForm.is_quick_payment" class="rounded border-gray-300">
+                                Quick Payment
+                            </label>
+                            <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                                <input type="checkbox" x-model="paymentForm.is_enabled" class="rounded border-gray-300">
+                                Enabled
+                            </label>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+                        <button @click="showPaymentForm=false" class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg">Cancel</button>
+                        <button @click="savePaymentType()" :disabled="paymentSaving" class="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50" x-text="paymentSaving ? 'Saving...' : 'Save'"></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <div x-show="activeTab !== 'payment-methods' && activeTab !== 'barcode'" class="flex items-center justify-between bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 px-6 py-4">
+
+@endsection
 @push('scripts')
 <script>
     document.addEventListener('alpine:init', () => {
@@ -373,6 +480,18 @@
             activeTab: 'general',
             saving: false,
             saveStatus: null,
+
+            // Payment methods
+            paymentTypes: [],
+            showPaymentForm: false,
+            paymentForm: { name: '', code: '', shortcut_key: '', is_quick_payment: true, is_enabled: true },
+            paymentEditing: false,
+            paymentEditId: null,
+            paymentSaving: false,
+
+            // Barcode settings
+            barcode: { default_type: 'CODE_128', auto_generate: true, show_product_name: true, show_price: true, show_sku: false, show_company_name: true },
+
             form: {
                 company_name: '',
                 company_address: '',
@@ -406,6 +525,7 @@
 
             async init() {
                 await this.loadSettings();
+                this.fetchPaymentTypes();
             },
 
             async loadSettings() {
@@ -472,6 +592,8 @@
                         });
                         Alpine.store('currency').code = this.form.currency;
                         Alpine.store('currency').symbol = symbol;
+                        localStorage.setItem('pos_currency_code', this.form.currency);
+                        localStorage.setItem('pos_currency_symbol', symbol);
                     }
                     const modeChanged = this.form.system_mode !== this.form._initialSystemMode;
                     this.form._initialSystemMode = this.form.system_mode || 'multi_branch';
@@ -497,6 +619,57 @@
                     this.form.logo = e.target.result;
                 };
                 reader.readAsDataURL(file);
+            },
+
+            // Payment Methods CRUD
+            async fetchPaymentTypes() {
+                try {
+                    const d = await window.POS.api('/api/payment-types/all');
+                    this.paymentTypes = d.data || [];
+                } catch(e) { this.paymentTypes = []; }
+            },
+
+            openPaymentForm() {
+                this.paymentEditing = false;
+                this.paymentEditId = null;
+                this.paymentForm = { name: '', code: '', shortcut_key: '', is_quick_payment: true, is_enabled: true };
+                this.showPaymentForm = true;
+            },
+
+            editPaymentType(pt) {
+                this.paymentEditing = true;
+                this.paymentEditId = pt.id;
+                this.paymentForm = {
+                    name: pt.name || '',
+                    code: pt.code || '',
+                    shortcut_key: pt.shortcut_key || '',
+                    is_quick_payment: pt.is_quick_payment ?? true,
+                    is_enabled: pt.is_enabled ?? true,
+                };
+                this.showPaymentForm = true;
+            },
+
+            async savePaymentType() {
+                this.paymentSaving = true;
+                try {
+                    const method = this.paymentEditing ? 'PUT' : 'POST';
+                    const url = this.paymentEditing ? '/api/payment-types/' + this.paymentEditId : '/api/payment-types';
+                    await window.POS.api(url, {
+                        method,
+                        body: JSON.stringify(this.paymentForm),
+                    });
+                    this.showPaymentForm = false;
+                    this.fetchPaymentTypes();
+                } catch(e) { alert(e.message); }
+                finally { this.paymentSaving = false; }
+            },
+
+            async deletePaymentType(id) {
+                if(!confirm('Delete this payment method?')) return;
+                try {
+                    await window.POS.api('/api/payment-types/' + id, { method: 'DELETE' });
+                    this.fetchPaymentTypes();
+                } catch(e) { alert(e.message); }
             },
 
         }));

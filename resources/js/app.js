@@ -1,8 +1,27 @@
 import './bootstrap';
 import Alpine from 'alpinejs';
+import JsBarcode from 'jsbarcode';
 import '../css/app.css';
 import '../css/rtl.css';
 import POS_SOUNDS from './sounds.js';
+
+// --- Custom Alpine barcode directive ---
+Alpine.directive('barcode', (el, { expression }, { evaluate }) => {
+    const val = evaluate(expression);
+    if (val) {
+        try {
+            JsBarcode(el, val, {
+                format: 'CODE128',
+                width: 1.5,
+                height: 30,
+                displayValue: false,
+                margin: 2,
+                background: el.closest('.dark') ? '#1f2937' : '#ffffff',
+                lineColor: el.closest('.dark') ? '#e5e7eb' : '#000000',
+            });
+        } catch(e) {}
+    }
+});
 
 // --- Global Theme Store --- accessible from any Alpine scope via $store.theme
 Alpine.store('theme', {
@@ -26,15 +45,159 @@ Alpine.store('theme', {
 
 // --- Global Currency Store ---
 Alpine.store('currency', {
-    code: 'USD',
-    symbol: '$',
-    decimalPlaces: 2,
+    code: localStorage.getItem('pos_currency_code') || 'USD',
+    symbol: localStorage.getItem('pos_currency_symbol') || '$',
+    decimalPlaces: parseInt(localStorage.getItem('pos_currency_decimals')) || 2,
 });
 
 
 // --- Global Screen Store ---
 Alpine.store('screen', { width: window.innerWidth });
 window.addEventListener('resize', () => { Alpine.store('screen').width = window.innerWidth; });
+
+// --- Global System Store ---
+Alpine.store('sys', {
+    mode: localStorage.getItem('system_mode') || 'multi_branch',
+    isSingle() { return this.mode === 'single'; },
+    isMulti() { return this.mode !== 'single'; }
+});
+
+// --- Layout Data Component ---
+Alpine.data('layoutData', () => ({
+    rtlMode: localStorage.getItem('pos_dir') === 'rtl',
+    sidebarOpen: window.innerWidth >= 1024,
+    currentTime: '',
+    user: null,
+    branches: [],
+    activeBranch: '',
+    currentBranchId: '',
+    companyLogo: null,
+    companyName: '',
+    systemMode: localStorage.getItem('system_mode') || 'multi_branch',
+
+    init() {
+        document.documentElement.dir = this.rtlMode ? 'rtl' : 'ltr';
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+            fetch('/api/auth/me', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                }
+            })
+            .then(res => res.ok ? res.json() : Promise.reject(res))
+            .then(data => {
+                this.user = data.data || data;
+                if (this.user.access_level !== undefined) localStorage.setItem('access_level', this.user.access_level);
+                if (this.user.system_mode !== undefined) {
+                    this.systemMode = this.user.system_mode;
+                    localStorage.setItem('system_mode', this.user.system_mode);
+                    Alpine.store('sys').mode = this.user.system_mode;
+                }
+            })
+            .catch(() => {});
+
+            this.fetchBranches();
+            window.POS.loadCurrencySettings();
+            this.loadCompanyInfo();
+        }
+
+        window.addEventListener('resize', () => {
+            this.sidebarOpen = window.innerWidth >= 1024;
+        });
+    },
+
+    async loadCompanyInfo() {
+        try {
+            const data = await window.POS.api('/api/settings');
+            if (data?.data) {
+                if (data.data.logo) this.companyLogo = data.data.logo;
+                if (data.data.company_name) this.companyName = data.data.company_name;
+            }
+        } catch (e) { /* ignore */ }
+    },
+
+    async fetchBranches() {
+        const token = localStorage.getItem('auth_token');
+        if (!token) return;
+        let allBranches = [];
+        try {
+            const res = await fetch('/api/branches', {
+                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                allBranches = data.data || data;
+                const userLevel = parseInt(localStorage.getItem('access_level') || '0');
+                if (userLevel >= 9) {
+                    this.branches = allBranches;
+                } else {
+                    await this.fetchMyBranches(allBranches, token);
+                }
+                if (this.branches.length === 1) {
+                    const bid = this.branches[0].id;
+                    this.activeBranch = bid;
+                    this.currentBranchId = bid;
+                    localStorage.setItem('active_branch_id', bid);
+                    fetch('/api/branches/' + bid + '/switch', {
+                        method: 'POST',
+                        headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
+                    }).catch(() => {});
+                } else {
+                    const savedBranchId = localStorage.getItem('active_branch_id');
+                    if (savedBranchId && this.branches.some(b => b.id == savedBranchId)) {
+                        this.activeBranch = savedBranchId;
+                        this.currentBranchId = savedBranchId;
+                    }
+                }
+            }
+        } catch (e) { this.branches = allBranches; }
+    },
+
+    async fetchMyBranches(allBranches, token) {
+        try {
+            const res = await fetch('/api/auth/me', {
+                headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+            });
+            if (res.ok) {
+                const udata = await res.json();
+                const user = udata.data || udata;
+                if (user.branches && user.branches.length > 0) {
+                    const myIds = user.branches.map(b => b.id);
+                    this.branches = allBranches.filter(b => myIds.includes(b.id));
+                } else if (user.branch_id) {
+                    this.branches = allBranches.filter(b => b.id == user.branch_id);
+                } else {
+                    this.branches = allBranches;
+                }
+            } else {
+                this.branches = allBranches;
+            }
+        } catch (e) { this.branches = allBranches; }
+    },
+
+    switchBranch(branchId) {
+        if (!branchId) {
+            localStorage.removeItem('active_branch_id');
+            this.currentBranchId = '';
+            this.activeBranch = '';
+            window.dispatchEvent(new CustomEvent('branch-changed'));
+            return;
+        }
+        this.currentBranchId = branchId;
+        localStorage.setItem('active_branch_id', branchId);
+        this.activeBranch = branchId;
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+            fetch('/api/branches/' + branchId + '/switch', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
+            }).finally(() => {
+                window.location.reload();
+            });
+        }
+    }
+}));
 
 // --- POS API Helper ---
 window.POS = {
@@ -77,6 +240,8 @@ window.POS = {
                 const symbol = symbols[code] || settings.currency_symbol || '$';
                 Alpine.store('currency').code = code;
                 Alpine.store('currency').symbol = symbol;
+                localStorage.setItem('pos_currency_code', code);
+                localStorage.setItem('pos_currency_symbol', symbol);
             }
         } catch (e) { /* use defaults */ }
     },
@@ -94,6 +259,7 @@ window.POS = {
     showCustomerSearch: false, customerSearch: '', searchedCustomers: [],
     discountType: 'percent', discountValue: 0,
     showPayment: false, paymentType: 'cash', tenderAmount: null, changeAmount: 0,
+    quickPaymentTypes: [],
     processingPayment: false, toast: { show: false, message: '', type: 'success' },
     showReceipt: false, receiptData: null, receiptApiUrl: null,
     showAuthRedirect: false, uploading: false, existingOrderId: null, promoDiscount: 0, orderTotal: null,
@@ -305,7 +471,7 @@ window.POS = {
         try {
             if (!append) { this.productPage = 1; this.hasMoreProducts = false; }
             let url = `/api/products?per_page=200&page=${this.productPage}`;
-            if (this.activeCategory) url += `&product_group_id=${this.activeCategory}`;
+            if (this.activeCategory && !this.searchTerm) url += `&product_group_id=${this.activeCategory}`;
             if (this.searchTerm) url += `&search=${encodeURIComponent(this.searchTerm)}`;
             const res = await window.POS.api(url);
             const meta = res?.data;
@@ -316,13 +482,40 @@ window.POS = {
             this.productPage++;
         } catch (e) { this.toastMsg('Failed to load products', 'error'); this.products = []; }
     },
-    async loadMoreProducts() { if (this.hasMoreProducts) await this.loadProducts(true); },async searchProducts() {
+    async loadMoreProducts() { if (this.hasMoreProducts) await this.loadProducts(true); },
+    _searchTimer: null,
+    onPaste() {
+        clearTimeout(this._searchTimer);
+        this._searchTimer = setTimeout(() => {
+            const term = this.searchTerm?.trim();
+            if (term && term.length >= 2) {
+                this.searchBarcode(term);
+            }
+        }, 50);
+    },
+    async searchBarcode(term) {
+        if (this._scanning) return;
+        this._scanning = true;
+        try {
+            const res = await window.POS.api('/api/products?search=' + encodeURIComponent(term));
+            const items = Array.isArray(res?.data?.data) ? res.data.data : [];
+            this.products = items;
+        } catch(e) { this.products = []; }
+        finally { this._scanning = false; }
+    },
+    smartSearch() {
+        clearTimeout(this._searchTimer);
+        const isBarcode = /^\d{5,}$/.test(this.searchTerm.trim());
+        const delay = isBarcode ? 50 : 300;
+        this._searchTimer = setTimeout(() => this.searchProducts(), delay);
+    },
+    async searchProducts() {
         if (!this.searchTerm || this.searchTerm.length < 2) { await this.loadProducts(); return; }
         await this.loadProducts(false);
     },async handleBarcodeSearch() {
         if (this._scanning) return; const term = this.searchTerm.trim(); if (!term) return;
         this._scanning = true;
-        try { const data = await window.POS.api('/api/products?search=' + encodeURIComponent(term)); const p = (data.data || [])[0]; if (p) { this.addToCart(p); this.searchTerm = ''; } else this.toastMsg('Product not found', 'error'); } catch (e) { this.toastMsg('Product not found', 'error'); }
+        try { const data = await window.POS.api('/api/products?search=' + encodeURIComponent(term)); const items = Array.isArray(data?.data?.data) ? data.data.data : []; const p = items[0]; if (p) { this.addToCart(p); this.searchTerm = ''; } else this.toastMsg('Product not found', 'error'); } catch (e) { this.toastMsg('Product not found', 'error'); }
         finally { this._scanning = false; }
     },
     async handleFileUpload(event) {
@@ -420,10 +613,10 @@ window.POS = {
             if (this.posSettings.sound_effects) POS_SOUNDS.removeItem(); this.refreshPromoDiscounts(); },
     updateQty(idx, qty) { if (qty < 1) return; this.items[idx].qty = qty; this.refreshPromoDiscounts(); },
     newSale() { if (this.items.length && !confirm('Clear order?')) return; this.items = []; this.discountType = 'percent'; this.discountValue = 0; this.promoDiscount = 0; this.selectedCustomer = null; this.orderTotal = null; this.existingOrderId = null; },
-    openPayment(type) { if (!this.items.length) return; this.loadDefaultStocks().then(() => { this.paymentType = type; this.tenderAmount = this.grandTotal; this.showPayment = true; }); },
+    openPayment(type) { if (!this.items.length) return; this.paymentType = type; this.tenderAmount = this.grandTotal; this.showPayment = true; },
     async calcPromotionDiscounts() {
         const now = Date.now();
-        if (now - this._promoCache.ts < 10000 && !this.items.length) return this._promoCache.data;
+        if (now - this._promoCache.ts < 10000) return this._promoCache.data;
         let totalPromoDiscount = 0;
         try {
             const token = window.POS.token();
@@ -507,7 +700,16 @@ window.POS = {
             } else {
                 this.toastMsg('Sale completed!', 'success');
             }
-            if (this.posSettings.sound_effects) POS_SOUNDS.paymentComplete(); this.showPayment = false; this.items = []; this.discountType = 'percent'; this.discountValue = 0; this.promoDiscount = 0; this.existingOrderId = null; this.orderTotal = null;
+            if (this.posSettings.sound_effects) POS_SOUNDS.paymentComplete();
+            // Update local stock counts instantly
+            this.items.forEach(i => {
+                const s = this.stockMap[i.product_id];
+                if (s) {
+                    s.quantity = Math.max(0, (parseFloat(s.quantity) || 0) - (i.qty || 1));
+                    s.available_stock = s.quantity;
+                }
+            });
+            this.showPayment = false; this.items = []; this.discountType = 'percent'; this.discountValue = 0; this.promoDiscount = 0; this.existingOrderId = null; this.orderTotal = null;
         } catch (e) { this.toastMsg('Payment failed', 'error');
             if (this.posSettings.sound_effects) POS_SOUNDS.error(); } finally { this.processingPayment = false; }
     },
@@ -619,7 +821,8 @@ Alpine.data('productsManager', () => ({
     showNewGroup: false, newGroupName: '', uploadingStock: false, toast: { show: false, message: '', type: 'success' },
     measurementUnits: [], showNewUnit: false, newUnitName: '', newUnitKey: '',
     showTransferModal: false, transferring: false, transferForm: { product_code: '', quantity: 1, from_branch: '', to_branch: '' }, transferMessage: '', transferError: false,
-    form: { name: '', code: '', plu: '', price: 0, cost: 0, product_group_id: null, measurement_unit: '', is_enabled: true, track_inventory: true, is_global: true, stock_qty: 0, branch_stocks: {} },
+    form: { name: '', code: '', plu: '', price: 0, cost: 0, product_group_id: null, measurement_unit: '', is_enabled: true, track_inventory: true, is_global: true, stock_qty: 0, branch_stocks: {}, barcode: '', barcode_type: 'CODE_128' },
+    genLoading: false,
     get gridStyle() {
         const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
@@ -688,14 +891,27 @@ Alpine.data('productsManager', () => ({
         this.loading = true;
         try { const r = await window.POS.api('/api/products?page=' + page + (this.search ? '&search=' + this.search : '')); this.products = r?.data?.data || r?.data || []; this.pagination = r?.data || { current_page: 1, last_page: 1, total: this.products.length, prev_page_url: null, next_page_url: null }; } catch (e) { this.products = []; this.pagination = { current_page: 1, last_page: 1, total: 0 }; } finally { this.loading = false; }
     },
-    openAdd() { this.editing = false; this.form = { name: '', code: '', price: 0, cost: 0, product_group_id: null, measurement_unit: '', is_enabled: true, track_inventory: true, is_global: true, stock_qty: 0, branch_stocks: {} }; this.showModal = true; },
-    openEdit(p) { this.editing = true; this.form = { ...p, stock_qty: p.stock || 0, branch_stocks: {}, is_global: p.is_global !== false }; if (p.branch_stocks) { p.branch_stocks.forEach(b => { this.form.branch_stocks[b.branch_id] = b.stock; }); } this.showModal = true; },
+    async generateBarcode() {
+        this.genLoading = true;
+        try {
+            const d = await window.POS.api('/api/barcodes/generate', {
+                method: 'POST',
+                body: JSON.stringify({ product_id: this.form.id || undefined, barcode_type: this.form.barcode_type || 'CODE_128' }),
+            });
+            if (d?.data?.value) {
+                this.form.barcode = d.data.value;
+            }
+        } catch(e) { /* ignore errors - barcode might have been generated already */ }
+        finally { this.genLoading = false; }
+    },
+    openAdd() { this.editing = false; this.form = { name: '', code: '', price: 0, cost: 0, product_group_id: null, measurement_unit: '', is_enabled: true, track_inventory: true, is_global: true, stock_qty: 0, branch_stocks: {}, barcode: '', barcode_type: 'CODE_128' }; this.showModal = true; },
+    openEdit(p) { this.editing = true; const primaryBarcode = p.barcodes?.find(b => b.is_primary) || p.barcodes?.[0]; this.form = { ...p, stock_qty: p.stock || 0, branch_stocks: {}, is_global: p.is_global !== false, barcode: primaryBarcode?.value || '', barcode_type: primaryBarcode?.barcode_type || 'CODE_128' }; if (p.branch_stocks) { p.branch_stocks.forEach(b => { this.form.branch_stocks[b.branch_id] = b.stock; }); } this.showModal = true; },
     async save() {
         this.saving = true;
         try {
             const method = this.editing ? 'PUT' : 'POST';
             const url = this.editing ? '/api/products/' + this.form.id : '/api/products';
-            const payload = { name: this.form.name, code: this.form.code, price: this.form.price, cost: this.form.cost, product_group_id: this.form.product_group_id, plu: this.form.plu, measurement_unit: this.form.measurement_unit, is_enabled: this.form.is_enabled, track_inventory: this.form.track_inventory, is_global: this.form.is_global };
+            const payload = { name: this.form.name, code: this.form.code, price: this.form.price, cost: this.form.cost, product_group_id: this.form.product_group_id, plu: this.form.plu, measurement_unit: this.form.measurement_unit, is_enabled: this.form.is_enabled, track_inventory: this.form.track_inventory, is_global: this.form.is_global, barcode: this.form.barcode, barcode_type: this.form.barcode_type };
             const res = await window.POS.api(url, { method, body: JSON.stringify(payload) });
             const productId = this.editing ? this.form.id : (res?.data?.id || res?.id);
             if (this.form.track_inventory && productId) {
@@ -1291,6 +1507,649 @@ Alpine.data('activityManager', () => ({
             this.pagination = r?.data?.meta || r?.meta || { current_page: 1, last_page: 1 };
         } catch(e) { this.logs = []; }
         finally { this.loading = false; }
+    },
+}));
+
+// --- Purchases Manager ---
+Alpine.data('purchasesManager', () => ({
+    activeTab: 'report-dashboard',
+    // Suppliers
+    suppliers: [], suppliersLoading: false, supplierSearch: '', supplierForm: {name:'',code:'',phone_number:'',email:'',tax_number:'',city:'',address:'',is_enabled:true},
+    showSupplierModal: false, supplierEditing: false, supplierEditId: null, supplierError: '', supplierSaving: false,
+    // Purchases
+    purchases: [], purchasesLoading: false, purchasesPage: {}, purchaseSearch: '', purchaseStatusFilter: '',
+    showPurchaseModal: false, purchaseSaving: false, purchaseError: '',
+    purchaseForm: {supplier_id:'',warehouse_id:'',purchase_date:new Date().toISOString().split('T')[0],reference_number:'',discount:0,discount_type:0,shipping_cost:0,status:'pending',items:[{product_id:'',quantity:1,unit_cost:0,tax_id:null,discount:0,discount_type:0}]},
+    supplierList: [], productList: [], warehouseList: [],
+    // Returns
+    returns: [], returnsLoading: false, showReturnModal: false, returnSaving: false,
+    returnError: '', returnForm: {purchase_id:'',return_date:new Date().toISOString().split('T')[0],reason:''},
+    returnablePurchases: [], returnItems: [],
+    // Receive
+    showReceiveModal: false, receiveItems: [], receivePurchaseId: null, receiveSaving: false, receiveError: '',
+    // Reports
+    reportData: {}, reportSuppliers: [], reportSuppliersLoading: false,
+    reportProducts: [], reportProductsLoading: false,
+    reportMonthly: [], reportMonthlyLoading: false,
+    reportOutstanding: [], reportOutstandingLoading: false,
+
+    get purchaseSubtotal() {
+        return this.purchaseForm.items.reduce((s,i) => s + ((i.quantity||0) * (i.unit_cost||0)), 0);
+    },
+    get purchaseGrandTotal() {
+        let sub = this.purchaseSubtotal;
+        let disc = this.purchaseForm.discount || 0;
+        if (this.purchaseForm.discount_type == 0) disc = sub * disc / 100;
+        return Math.max(0, sub - disc + (this.purchaseForm.shipping_cost||0));
+    },
+
+    async init() {
+        await Promise.all([this.fetchSuppliers(), this.fetchSupplierList(), this.fetchProductList(), this.fetchWarehouseList()]);
+    },
+
+    switchTab(tab) {
+        this.activeTab = tab;
+        if (tab === 'purchases') { this.fetchPurchases(); this.fetchSupplierList(); this.fetchProductList(); }
+        if (tab === 'returns') this.fetchReturns();
+        if (tab === 'report-dashboard') this.fetchReportSummary();
+        if (tab === 'report-suppliers') this.fetchReportBySupplier();
+        if (tab === 'report-products') this.fetchReportByProduct();
+        if (tab === 'report-monthly') this.fetchReportMonthly();
+        if (tab === 'report-outstanding') this.fetchReportOutstanding();
+    },
+
+    // --- SUPPLIERS ---
+    async fetchSuppliers() {
+        this.suppliersLoading = true;
+        try { const params = new URLSearchParams(); if (this.supplierSearch) params.set('search', this.supplierSearch); const res = await fetch('/api/suppliers?'+params.toString(),{headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json'}}); const d = await res.json(); this.suppliers = d.data?.data || d.data || []; } catch(e) { this.suppliers = []; } finally { this.suppliersLoading = false; }
+    },
+    openSupplierForm(s) {
+        this.supplierError = ''; this.showSupplierModal = true;
+        if (s) { this.supplierEditing = true; this.supplierEditId = s.id; this.supplierForm = {name: s.name||'', code: s.code||'', phone_number: s.phone_number||'', email: s.email||'', tax_number: s.tax_number||'', city: s.city||'', address: s.address||'', is_enabled: s.is_enabled!==false}; }
+        else { this.supplierEditing = false; this.supplierEditId = null; this.supplierForm = {name:'', code:'', phone_number:'', email:'', tax_number:'', city:'', address:'', is_enabled:true}; }
+    },
+    editSupplier(s) { this.openSupplierForm(s); },
+    async saveSupplier() {
+        this.supplierSaving = true; this.supplierError = '';
+        try {
+            const m = this.supplierEditing ? 'PUT' : 'POST';
+            const u = this.supplierEditing ? '/api/suppliers/' + this.supplierEditId : '/api/suppliers';
+            const payload = {...this.supplierForm};
+            if (!this.supplierEditing) delete payload.code;
+            const res = await fetch(u,{method:m,headers:{'Content-Type':'application/json','Accept':'application/json','Authorization':`Bearer ${localStorage.getItem('auth_token')}`, 'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').getAttribute('content')},body:JSON.stringify(payload)});
+            if (!res.ok) { const e = await res.json(); throw new Error(e.message||'Failed'); }
+            this.showSupplierModal = false; this.fetchSuppliers(); this.fetchSupplierList();
+        } catch(e) { this.supplierError = e.message; } finally { this.supplierSaving = false; }
+    },
+    async deleteSupplier(id) { if(!confirm('Delete?'))return; try { const res = await fetch('/api/suppliers/'+id,{method:'DELETE',headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').getAttribute('content')}}); if(!res.ok){const e=await res.json();throw new Error(e.message||'Failed');} this.fetchSuppliers(); this.fetchSupplierList(); } catch(e) { alert(e.message); } },
+    async fetchSupplierList() {
+        try { const res = await fetch('/api/suppliers/quick-list',{headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json'}}); const d = await res.json(); this.supplierList = d.data || []; } catch(e) { this.supplierList = []; }
+    },
+    async fetchProductList() {
+        try { const res = await fetch('/api/products?per_page=200',{headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json'}}); const d = await res.json(); this.productList = d.data?.data || d.data || []; } catch(e) { this.productList = []; }
+    },
+    async fetchWarehouseList() {
+        try { const res = await fetch('/api/warehouses',{headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json'}}); const d = await res.json(); this.warehouseList = d.data?.data || d.data || []; } catch(e) { this.warehouseList = []; }
+    },
+
+    // --- PURCHASES ---
+    async fetchPurchases(page = 1) {
+        this.purchasesLoading = true;
+        try {
+            const params = new URLSearchParams({page, per_page: 20});
+            if (this.purchaseSearch) params.set('search', this.purchaseSearch);
+            if (this.purchaseStatusFilter) params.set('status', this.purchaseStatusFilter);
+            const res = await fetch('/api/purchases?'+params.toString(),{headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json'}});
+            const d = await res.json();
+            this.purchases = d.data || [];
+            this.purchasesPage = { current_page: d.current_page || 1, last_page: d.last_page || 1 };
+        } catch(e) { this.purchases = []; } finally { this.purchasesLoading = false; }
+    },
+    openPurchaseForm() {
+        this.purchaseError = '';
+        this.purchaseForm = {supplier_id:'',warehouse_id:'',purchase_date:new Date().toISOString().split('T')[0],reference_number:'',discount:0,discount_type:0,shipping_cost:0,status:'pending',items:[{product_id:'',quantity:1,unit_cost:0,tax_id:null,discount:0,discount_type:0}]};
+        this.showPurchaseModal = true;
+    },
+    onPurchaseItemProductChange(i) {
+        const item = this.purchaseForm.items[i];
+        const product = this.productList.find(p => p.id === item.product_id);
+        if (product && product.cost) item.unit_cost = parseFloat(product.cost);
+        this.calcPurchaseTotals();
+    },
+    calcPurchaseTotals() { /* getters recalculate automatically */ },
+    async savePurchase() {
+        this.purchaseSaving = true; this.purchaseError = '';
+        try {
+            const validItems = this.purchaseForm.items.filter(i => i.product_id && i.quantity > 0);
+            if (validItems.length === 0) { this.purchaseError = 'Add at least one item'; this.purchaseSaving = false; return; }
+            const payload = {...this.purchaseForm, items: validItems};
+            const res = await fetch('/api/purchases',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').getAttribute('content')},body:JSON.stringify(payload)});
+            if (!res.ok) { const e = await res.json(); throw new Error(e.message||'Failed'); }
+            this.showPurchaseModal = false; this.fetchPurchases();
+        } catch(e) { this.purchaseError = e.message; } finally { this.purchaseSaving = false; }
+    },
+    viewPurchase(po) { alert('Purchase #' + po.purchase_number + '\nSupplier: ' + (po.supplier?.name||'N/A') + '\nTotal: ' + (Alpine.store('currency')?.symbol || '$') + Number(po.grand_total).toFixed(2)); },
+    async receivePurchase(po) {
+        this.receiveItems = [];
+        try {
+            const res = await fetch('/api/purchases/'+po.id,{headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json'}});
+            const d = await res.json();
+            const purchase = d.data || d;
+            const items = purchase.items || [];
+            this.receiveItems = items.map(i => ({...i, receive_qty: Math.max(0, Number(i.quantity || 0) - Number(i.received_quantity || 0))}));
+            this.receivePurchaseId = po.id; this.receiveError = ''; this.showReceiveModal = true;
+        } catch(e) { alert(e.message || 'Failed to load purchase details'); }
+    },
+    async confirmReceive() {
+        this.receiveSaving = true; this.receiveError = '';
+        try {
+            const items = this.receiveItems.filter(i => i.receive_qty > 0).map(i => ({item_id: i.id, quantity: i.receive_qty}));
+            if (items.length === 0) { this.receiveError = 'Enter quantities to receive'; this.receiveSaving = false; return; }
+            const res = await fetch('/api/purchases/'+this.receivePurchaseId+'/receive',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').getAttribute('content')},body:JSON.stringify({items})});
+            if (!res.ok) { const e = await res.json(); throw new Error(e.message||'Failed'); }
+            this.showReceiveModal = false; this.fetchPurchases();
+        } catch(e) { this.receiveError = e.message; } finally { this.receiveSaving = false; }
+    },
+    async cancelPurchase(id) { if(!confirm('Cancel this purchase?'))return; try { const res = await fetch('/api/purchases/'+id,{method:'DELETE',headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').getAttribute('content')}}); if(!res.ok){const e=await res.json();throw new Error(e.message||'Failed');} this.fetchPurchases(); } catch(e) { alert(e.message); } },
+    async markPaid(id) { if(!confirm('Mark this purchase as fully paid?'))return; try { const res = await fetch('/api/purchases/'+id+'/mark-paid',{method:'POST',headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').getAttribute('content')}}); if(!res.ok){const e=await res.json();throw new Error(e.message||'Failed');} this.fetchPurchases(); } catch(e) { alert(e.message); } },
+    // --- RETURNS ---
+    async openReturnForm() {
+        this.showPurchaseModal = false; this.showReceiveModal = false;
+        this.returnError = ''; this.returnForm = {purchase_id:'',return_date:new Date().toISOString().split('T')[0],reason:''};
+        this.returnItems = [];
+        try {
+            const res = await fetch('/api/purchases?per_page=50&status=received',{headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json'}});
+            const d = await res.json();
+            const all = d.data || [];
+            const res2 = await fetch('/api/purchases?per_page=50&status=partially_received',{headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json'}});
+            const d2 = await res2.json();
+            this.returnablePurchases = [...all, ...(d2.data || [])];
+        } catch(e) { this.returnablePurchases = []; }
+        this.showReturnModal = true;
+    },
+    async loadReturnItems() {
+        if (!this.returnForm.purchase_id) { this.returnItems = []; return; }
+        try {
+            const res = await fetch('/api/purchases/'+this.returnForm.purchase_id,{headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json'}});
+            const d = await res.json();
+            const p = d.data || d;
+            this.returnItems = (p.items || []).filter(i => Number(i.received_quantity) > 0).map(i => ({...i, return_qty: 0}));
+        } catch(e) { this.returnItems = []; }
+    },
+    async saveReturn() {
+        if (!this.returnForm.purchase_id) { this.returnError = 'Select a purchase'; return; }
+        const itemsToReturn = this.returnItems.filter(i => i.return_qty > 0).map(i => ({purchase_item_id:i.id,product_id:i.product_id,quantity:i.return_qty,unit_cost:i.unit_cost}));
+        if (itemsToReturn.length === 0) { this.returnError = 'Enter return quantities'; return; }
+        this.returnSaving = true; this.returnError = '';
+        try {
+            const res = await fetch('/api/purchase-returns',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json','Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').getAttribute('content')},body:JSON.stringify({purchase_id:this.returnForm.purchase_id,return_date:this.returnForm.return_date,reason:this.returnForm.reason,items:itemsToReturn})});
+            if (!res.ok) { const e = await res.json(); throw new Error(e.message||'Failed'); }
+            this.showReturnModal = false; this.fetchPurchases(); this.fetchReturns();
+        } catch(e) { this.returnError = e.message; } finally { this.returnSaving = false; }
+    },
+    async fetchReturns() { this.returnsLoading = true; try { const res = await fetch('/api/purchase-returns',{headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json'}}); const d = await res.json(); this.returns = d.data?.data || d.data || []; } catch(e) { this.returns = []; } finally { this.returnsLoading = false; } },
+
+    // --- REPORTS ---
+    async fetchReportSummary() { try { const res = await fetch('/api/reports/purchases/summary',{headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json'}}); const d = await res.json(); this.reportData = d.data || d; } catch(e) { this.reportData = {}; } },
+    async fetchReportBySupplier() { this.reportSuppliersLoading = true; try { const res = await fetch('/api/reports/purchases/by-supplier',{headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json'}}); const d = await res.json(); this.reportSuppliers = d.data || []; } catch(e) { this.reportSuppliers = []; } finally { this.reportSuppliersLoading = false; } },
+    async fetchReportByProduct() { this.reportProductsLoading = true; try { const res = await fetch('/api/reports/purchases/by-product',{headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json'}}); const d = await res.json(); this.reportProducts = d.data || []; } catch(e) { this.reportProducts = []; } finally { this.reportProductsLoading = false; } },
+    async fetchReportMonthly() { this.reportMonthlyLoading = true; try { const res = await fetch('/api/reports/purchases/monthly',{headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json'}}); const d = await res.json(); this.reportMonthly = d.data || []; } catch(e) { this.reportMonthly = []; } finally { this.reportMonthlyLoading = false; } },
+    async fetchReportOutstanding() { this.reportOutstandingLoading = true; try { const res = await fetch('/api/reports/purchases/outstanding-payments',{headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json'}}); const d = await res.json(); this.reportOutstanding = d.data || []; } catch(e) { this.reportOutstanding = []; } finally { this.reportOutstandingLoading = false; } },
+}));
+
+// --- Income & Expenses Manager ---
+Alpine.data('incomeExpensesManager', () => ({
+    activeTab: 'dashboard',
+    showEntryModal: false, showCategoryModal: false,
+    editing: false, editId: null, entrySaving: false, entryError: '',
+    categoryEditing: false, categoryEditId: null, categorySaving: false, categoryError: '',
+    syncing: false,
+
+    // Sync modal
+    showSyncModal: false, syncDateFrom: '', syncDateTo: '', syncError: '',
+
+    // Dashboard
+    dashboard: { total_income: 0, total_expense: 0, total_count: 0, top_income_categories: [], top_expense_categories: [], recent_entries: [] },
+    monthlyData: [], chartLoading: false, chartMax: 1,
+
+    // Entries
+    entries: [], entriesLoading: false, entriesPage: { current_page: 1, last_page: 1 },
+    filterSearch: '', filterCategoryId: '', filterDateFrom: '', filterDateTo: '',
+
+    // Categories
+    categories: { income: [], expense: [] },
+
+    // Payment methods
+    paymentMethods: [],
+
+    // Reports
+    reportDateFrom: '', reportDateTo: '',
+    reportData: { summary: {}, top_income_categories: [], top_expense_categories: [] },
+
+    // Forms
+    entryForm: { type: 'expense', category_id: '', amount: '', description: '', payment_method: '', date: new Date().toISOString().split('T')[0] },
+    categoryForm: { type: 'income', name: '', color: '#10b981' },
+
+    async init() {
+        await this.fetchCategories();
+        this.fetchPaymentTypes();
+        this.fetchDashboard();
+        this.fetchMonthlyChart();
+    },
+
+    switchTab(tab) {
+        this.activeTab = tab;
+        if (tab === 'dashboard') { this.fetchDashboard(); this.fetchMonthlyChart(); }
+        if (tab === 'income') { this.filterDateFrom = ''; this.filterDateTo = ''; this.filterCategoryId = ''; this.fetchEntries('income'); }
+        if (tab === 'expenses') { this.filterDateFrom = ''; this.filterDateTo = ''; this.filterCategoryId = ''; this.fetchEntries('expense'); }
+        if (tab === 'categories') { this.fetchCategories(); }
+        if (tab === 'reports') { this.fetchReports(); }
+    },
+
+    async fetchDashboard() {
+        try {
+            const d = await window.POS.api('/api/reports/income-expenses/summary?' + new URLSearchParams({
+                date_from: this.reportDateFrom || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+                date_to: this.reportDateTo || new Date().toISOString().split('T')[0],
+            }));
+            this.dashboard = d.data || d;
+        } catch(e) { /* ignore */ }
+    },
+
+    async fetchMonthlyChart() {
+        this.chartLoading = true;
+        try {
+            const d = await window.POS.api('/api/reports/income-expenses/monthly?year=' + new Date().getFullYear());
+            const data = d.data || [];
+            const months = [];
+            for (let m = 1; m <= 12; m++) {
+                const found = data.find(x => x.month === new Date().getFullYear() + '-' + String(m).padStart(2,'0'));
+                months.push(found || { month: new Date().getFullYear() + '-' + String(m).padStart(2,'0'), income_total: 0, expense_total: 0 });
+            }
+        this.monthlyData = months;
+        this.chartMax = Math.max(1, ...months.map(m => Number(m.income_total || 0) + Number(m.expense_total || 0)));
+        } catch(e) { this.monthlyData = []; }
+        finally { this.chartLoading = false; }
+    },
+
+    async fetchEntries(tab) {
+        const type = tab || (this.activeTab === 'income' ? 'income' : 'expense');
+        this.entriesLoading = true;
+        try {
+            const params = new URLSearchParams();
+            params.set('type', type);
+            params.set('per_page', '20');
+            params.set('page', String(this.entriesPage.current_page));
+            if (this.filterSearch) params.set('search', this.filterSearch);
+            if (this.filterCategoryId) params.set('category_id', this.filterCategoryId);
+            if (this.filterDateFrom) params.set('date_from', this.filterDateFrom);
+            if (this.filterDateTo) params.set('date_to', this.filterDateTo);
+            const d = await window.POS.api('/api/income-expenses?' + params);
+            this.entries = d.data || [];
+            this.entriesPage = { current_page: d.current_page || 1, last_page: d.last_page || 1 };
+        } catch(e) { this.entries = []; }
+        finally { this.entriesLoading = false; }
+    },
+
+    async fetchCategories() {
+        try {
+            const inc = await window.POS.api('/api/income-expense-categories?type=income');
+            const exp = await window.POS.api('/api/income-expense-categories?type=expense');
+            this.categories.income = inc.data || [];
+            this.categories.expense = exp.data || [];
+        } catch(e) { this.categories = { income: [], expense: [] }; }
+    },
+
+    async fetchPaymentTypes() {
+        try {
+            const d = await window.POS.api('/api/payment-types/all');
+            this.paymentMethods = d.data || [];
+        } catch(e) { this.paymentMethods = []; }
+    },
+
+    async fetchReports() {
+        try {
+            const params = new URLSearchParams();
+            if (this.reportDateFrom) params.set('date_from', this.reportDateFrom);
+            if (this.reportDateTo) params.set('date_to', this.reportDateTo);
+            const d = await window.POS.api('/api/reports/income-expenses/summary?' + params);
+            this.reportData = d.data || d;
+        } catch(e) { this.reportData = {}; }
+    },
+
+    // Entry CRUD
+    openForm(type) {
+        this.editing = false;
+        this.editId = null;
+        this.entryError = '';
+        this.entryForm = { type: type, category_id: '', amount: '', description: '', payment_method: '', date: new Date().toISOString().split('T')[0] };
+        this.showEntryModal = true;
+    },
+
+    editEntry(e) {
+        this.editing = true;
+        this.editId = e.id;
+        this.entryError = '';
+        this.entryForm = {
+            type: e.type,
+            category_id: e.category_id || '',
+            amount: e.amount || '',
+            description: e.description || '',
+            payment_method: e.payment_method || '',
+            date: e.date || new Date().toISOString().split('T')[0],
+        };
+        this.showEntryModal = true;
+    },
+
+    async saveEntry() {
+        this.entrySaving = true; this.entryError = '';
+        try {
+            const method = this.editing ? 'PUT' : 'POST';
+            const url = this.editing ? '/api/income-expenses/' + this.editId : '/api/income-expenses';
+            await window.POS.api(url, {
+                method,
+                body: JSON.stringify(this.entryForm),
+            });
+            this.showEntryModal = false;
+            this.fetchEntries(this.entryForm.type);
+            if (this.activeTab === 'dashboard') { this.fetchDashboard(); this.fetchMonthlyChart(); }
+        } catch(e) { this.entryError = e.message; }
+        finally { this.entrySaving = false; }
+    },
+
+    async deleteEntry(id) {
+        if(!confirm('Delete this entry?')) return;
+        try {
+            await window.POS.api('/api/income-expenses/' + id, { method: 'DELETE' });
+            this.fetchEntries();
+            if (this.activeTab === 'dashboard') { this.fetchDashboard(); this.fetchMonthlyChart(); }
+        } catch(e) { alert(e.message); }
+    },
+
+    // Category CRUD
+    openCategoryForm(type) {
+        this.categoryEditing = false;
+        this.categoryEditId = null;
+        this.categoryError = '';
+        this.categoryForm = { type: type, name: '', color: type === 'income' ? '#10b981' : '#ef4444' };
+        this.showCategoryModal = true;
+    },
+
+    editCategory(c) {
+        this.categoryEditing = true;
+        this.categoryEditId = c.id;
+        this.categoryError = '';
+        this.categoryForm = { type: c.type, name: c.name, color: c.color || '#6b7280' };
+        this.showCategoryModal = true;
+    },
+
+    async saveCategory() {
+        this.categorySaving = true; this.categoryError = '';
+        try {
+            const method = this.categoryEditing ? 'PUT' : 'POST';
+            const url = this.categoryEditing ? '/api/income-expense-categories/' + this.categoryEditId : '/api/income-expense-categories';
+            await window.POS.api(url, {
+                method,
+                body: JSON.stringify(this.categoryForm),
+            });
+            this.showCategoryModal = false;
+            this.fetchCategories();
+        } catch(e) { this.categoryError = e.message; }
+        finally { this.categorySaving = false; }
+    },
+
+    async deleteCategory(id) {
+        if(!confirm('Delete this category?')) return;
+        try {
+            await window.POS.api('/api/income-expense-categories/' + id, { method: 'DELETE' });
+            this.fetchCategories();
+        } catch(e) { alert(e.message); }
+    },
+
+    // POS Sync
+    async syncPosSales() {
+        this.syncing = true; this.syncError = '';
+        try {
+            const d = await window.POS.api('/api/income-expenses/sync-pos-sales', {
+                method: 'POST',
+                body: JSON.stringify({
+                    date_from: this.syncDateFrom || undefined,
+                    date_to: this.syncDateTo || undefined,
+                }),
+            });
+            alert(d.message || 'Sync completed');
+            this.showSyncModal = false;
+            this.fetchEntries('income');
+            this.fetchDashboard();
+            this.fetchMonthlyChart();
+        } catch(e) { alert(e.message); }
+        finally { this.syncing = false; }
+    },
+}));
+
+// --- Barcode Manager ---
+Alpine.data('barcodeManager', () => ({
+    barcodes: [], loading: false, page: { current_page: 1, last_page: 1 },
+    search: '', filterType: '', filterStatus: 'all',
+    products: [],
+
+    showGenerateModal: false, showManualModal: false,
+    editing: false, editId: null, saving: false, genSaving: false,
+    printLoading: false,
+    selectedIds: new Set(),
+    get allSelected() { return this.barcodes.length > 0 && this.barcodes.every(b => this.selectedIds.has(b.id)); },
+    genResult: null, genError: '', formError: '',
+
+    genForm: { product_id: '', barcode_type: 'CODE_128' },
+    form: { product_id: '', value: '', barcode_type: 'CODE_128', is_primary: true },
+    existingBarcode: '',
+
+    async init() {
+        await this.fetchBarcodes();
+        await this.fetchProducts();
+    },
+
+    async fetchBarcodes(p) {
+        this.loading = true;
+        try {
+            const params = new URLSearchParams();
+            params.set('per_page', '25');
+            params.set('page', p || this.page.current_page);
+            if (this.search) params.set('search', this.search);
+            if (this.filterType) params.set('barcode_type', this.filterType);
+            if (this.filterStatus !== 'all') params.set('is_enabled', this.filterStatus);
+            const d = await window.POS.api('/api/barcodes?' + params);
+            this.barcodes = d.data || [];
+            this.page = { current_page: d.current_page || 1, last_page: d.last_page || 1 };
+        } catch(e) { this.barcodes = []; }
+        finally { this.loading = false; }
+    },
+
+    async fetchProducts() {
+        try {
+            const d = await window.POS.api('/api/products?per_page=200&include_barcodes=1');
+            this.products = d.data?.data || d.data || [];
+        } catch(e) { this.products = []; }
+    },
+
+    openGenerateModal() { this.showGenerateModal = true; this.genResult = null; this.genError = ''; this.genForm = { product_id: '', barcode_type: 'CODE_128' }; },
+
+    async generateBarcode() {
+        if (!this.genForm.product_id) { this.genError = 'Please select a product.'; return; }
+        this.genSaving = true; this.genError = ''; this.genResult = null;
+        try {
+            const d = await window.POS.api('/api/barcodes/generate', { method: 'POST', body: JSON.stringify(this.genForm) });
+            this.genResult = d.data?.value;
+            this.fetchBarcodes();
+        } catch(e) { this.genError = e.message; }
+        finally { this.genSaving = false; }
+    },
+
+    openManualModal() {
+        this.editing = false; this.editId = null; this.formError = '';
+        this.form = { product_id: '', value: '', barcode_type: 'CODE_128', is_primary: true };
+        this.existingBarcode = '';
+        this.showManualModal = true;
+    },
+
+    onProductSelect() {
+        if (!this.form.product_id || this.editing) return;
+        const product = this.products.find(p => p.id === this.form.product_id);
+        if (product) {
+            this.populateProductBarcode(product);
+            return;
+        }
+        this.fetchProductBarcode(this.form.product_id);
+    },
+
+    populateProductBarcode(product) {
+        if (!product) return;
+        const primary = product.barcodes?.find(b => b.is_primary) || product.barcodes?.[0];
+        if (primary?.value) {
+            this.form.value = primary.value;
+            this.form.barcode_type = primary.barcode_type || 'CODE_128';
+            this.existingBarcode = primary.value;
+        } else {
+            this.form.value = '';
+            this.existingBarcode = '';
+        }
+    },
+
+    _fetchCounter: 0,
+    async fetchProductBarcode(id) {
+        if (!id) return;
+        this._fetchCounter++;
+        const reqId = this._fetchCounter;
+        this.existingBarcode = '';
+        this.form.value = '';
+        try {
+            const d = await window.POS.api('/api/products/' + id);
+            if (reqId === this._fetchCounter && this.form.product_id === id) {
+                const product = d?.data;
+                const primary = product?.barcodes?.find(b => b.is_primary) || product?.barcodes?.[0];
+                if (primary?.value) {
+                    this.form.value = primary.value;
+                    this.form.barcode_type = primary.barcode_type || 'CODE_128';
+                    this.existingBarcode = primary.value;
+                } else {
+                    this.existingBarcode = '';
+                    this.form.value = '';
+                }
+            }
+        } catch(e) { this.existingBarcode = ''; }
+    },
+
+    async generateNewBarcode() {
+        if (!this.form.product_id) return;
+        this.genSaving = true;
+        try {
+            const d = await window.POS.api('/api/barcodes/generate', {
+                method: 'POST',
+                body: JSON.stringify({ product_id: this.form.product_id, barcode_type: this.form.barcode_type }),
+            });
+            if (d?.data?.value) {
+                this.fetchBarcodes();
+                this.showManualModal = false;
+            }
+        } catch(e) { this.formError = e.message; }
+        finally { this.genSaving = false; }
+    },
+
+    editBarcode(b) {
+        this.editing = true; this.editId = b.id; this.formError = '';
+        this.form = { product_id: b.product_id || '', value: b.value || '', barcode_type: b.barcode_type || 'CODE_128', is_primary: b.is_primary || false };
+        this.showManualModal = true;
+    },
+
+    async saveBarcode() {
+        if (!this.form.product_id || !this.form.value.trim()) { this.formError = 'Product and barcode value are required.'; return; }
+        this.saving = true; this.formError = '';
+        try {
+            const method = this.editing ? 'PUT' : 'POST';
+            const url = this.editing ? '/api/barcodes/' + this.editId : '/api/barcodes';
+            await window.POS.api(url, { method, body: JSON.stringify(this.form) });
+            this.showManualModal = false;
+            this.fetchBarcodes();
+        } catch(e) { this.formError = e.message; }
+        finally { this.saving = false; }
+    },
+
+    async toggleStatus(id, currentEnabled) {
+        try {
+            await window.POS.api('/api/barcodes/' + id, {
+                method: 'PUT',
+                body: JSON.stringify({ is_enabled: !currentEnabled }),
+            });
+            this.fetchBarcodes();
+        } catch(e) { alert(e.message); }
+    },
+
+    async deleteBarcode(id) {
+        this.toggleStatus(id, true);
+    },
+
+    copyBarcode(value, btn) {
+        try {
+            const input = document.createElement('textarea');
+            input.value = value;
+            input.style.position = 'fixed';
+            input.style.opacity = '0';
+            document.body.appendChild(input);
+            input.select();
+            input.setSelectionRange(0, 99999);
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            if (btn) {
+                const orig = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.classList.add('text-green-600');
+                setTimeout(() => { btn.textContent = orig; btn.classList.remove('text-green-600'); }, 1500);
+            }
+        } catch(e) {
+            navigator.clipboard?.writeText(value).catch(() => {});
+        }
+    },
+
+    toggleSelect(id) {
+        if (this.selectedIds.has(id)) this.selectedIds.delete(id);
+        else this.selectedIds.add(id);
+    },
+
+    toggleAll() {
+        if (this.allSelected) { this.selectedIds.clear(); }
+        else { this.barcodes.forEach(b => this.selectedIds.add(b.id)); }
+    },
+
+    get printItems() {
+        return this.barcodes.filter(b => this.selectedIds.has(b.id));
+    },
+
+    showPrintModal: false, printLabelSize: 'medium', printSending: false,
+
+    openPrintModal() {
+        if (this.selectedIds.size === 0) return;
+        this.showPrintModal = true;
+        this.printSending = false;
+    },
+
+    async sendPrintJob() {
+        const ids = Array.from(this.selectedIds);
+        if (!ids.length) return;
+        this.printSending = true;
+        try {
+            const d = await window.POS.api('/api/barcodes/print', {
+                method: 'POST',
+                body: JSON.stringify({ ids, label_size: this.printLabelSize }),
+            });
+            alert('Print job sent: ' + (d?.data?.label_count || 0) + ' labels completed.');
+            this.showPrintModal = false;
+            this.selectedIds.clear();
+        } catch(e) { alert(e.message); }
+        finally { this.printSending = false; }
+    },
+
+    async printBarcodes() {
+        this.openPrintModal();
     },
 }));
 

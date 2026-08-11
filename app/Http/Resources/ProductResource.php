@@ -22,7 +22,7 @@ class ProductResource extends JsonResource
                 ];
             }),
             'barcodes' => $this->whenLoaded('barcodes', function () {
-                return $this->barcodes->pluck('barcode')->toArray();
+                return $this->barcodes->map(fn($b) => ['id' => $b->id, 'value' => $b->value, 'is_primary' => $b->is_primary])->toArray();
             }),
             'taxes' => $this->whenLoaded('taxes', function () {
                 return $this->taxes->map(function ($tax) {

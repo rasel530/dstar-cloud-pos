@@ -10,6 +10,15 @@ use App\Http\Controllers\Api\{
     DocumentController,
     PaymentController,
     StockController,
+    SupplierController,
+    PurchaseController,
+    PurchaseReturnController,
+    PurchaseReportController,
+    IncomeExpenseController,
+    IncomeExpenseCategoryController,
+    IncomeExpenseReportController,
+    BarcodeController,
+    PaymentTypeController,
     WarehouseController,
     UserController,
     PriceListController,
@@ -95,7 +104,47 @@ Route::middleware(['auth:sanctum', 'user.enabled', 'throttle:api', 'track.activi
     // Warehouses
     Route::apiResource('warehouses', WarehouseController::class);
 
-    // Taxes
+        // Purchases
+        Route::get('purchases/next-number', [PurchaseController::class, 'nextNumber']);
+        Route::post('purchases/{purchase}/receive', [PurchaseController::class, 'receive']);
+        Route::post('purchases/{purchase}/mark-paid', [PurchaseController::class, 'markPaid']);
+        Route::apiResource('purchases', PurchaseController::class);
+        Route::apiResource('purchase-returns', PurchaseReturnController::class)->only(['index', 'store', 'show']);
+        Route::get('suppliers/quick-list', [SupplierController::class, 'quickList']);
+        Route::apiResource('suppliers', SupplierController::class);
+
+        // Purchase Reports
+        Route::prefix('reports/purchases')->group(function () {
+            Route::get('summary', [PurchaseReportController::class, 'summary']);
+            Route::get('by-supplier', [PurchaseReportController::class, 'bySupplier']);
+            Route::get('by-product', [PurchaseReportController::class, 'byProduct']);
+            Route::get('monthly', [PurchaseReportController::class, 'monthly']);
+            Route::get('outstanding-payments', [PurchaseReportController::class, 'outstandingPayments']);
+        });
+
+        // Income & Expenses
+        Route::get('payment-types/quick-list', [PaymentTypeController::class, 'index']);
+        Route::get('payment-types/all', [PaymentTypeController::class, 'all']);
+        Route::apiResource('payment-types', PaymentTypeController::class)->except(['index']);
+        Route::post('income-expenses/sync-pos-sales', [IncomeExpenseController::class, 'syncPosSales']);
+        Route::apiResource('income-expenses', IncomeExpenseController::class);
+        Route::apiResource('income-expense-categories', IncomeExpenseCategoryController::class);
+
+        // Barcodes
+        Route::get('barcodes/products-without', [BarcodeController::class, 'productsWithoutBarcode']);
+        Route::post('barcodes/generate', [BarcodeController::class, 'generate']);
+        Route::get('barcodes/scan', [BarcodeController::class, 'scan']);
+        Route::post('barcodes/print', [BarcodeController::class, 'print']);
+        Route::apiResource('barcodes', BarcodeController::class);
+
+        // Income & Expense Reports
+        Route::prefix('reports/income-expenses')->group(function () {
+            Route::get('summary', [IncomeExpenseReportController::class, 'summary']);
+            Route::get('by-category', [IncomeExpenseReportController::class, 'byCategory']);
+            Route::get('monthly', [IncomeExpenseReportController::class, 'monthly']);
+        });
+
+        // Taxes
     Route::apiResource('taxes', TaxController::class);
 
     // Pricing

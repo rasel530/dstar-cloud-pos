@@ -54,6 +54,7 @@ class PosController extends Controller
     {
         $o = PosOrder::where('id', $id)
             ->where('tenant_id', auth()->user()->tenant_id)
+            ->with('customer')
             ->first();
         if (! $o) {
             return response()->json(["message" => "Order not found"], 404);
@@ -356,11 +357,11 @@ class PosController extends Controller
             ->first();
 
         $alreadyRefunded = false;
-        if ($doc) {
+            if ($doc) {
             try {
                 $checkoutService = app(\App\Services\Pos\CheckoutService::class);
                 $checkoutService->processRefund($doc->id, $user->id, $reason);
-            } catch (\InvalidArgumentException $e) {
+            } catch (\InvalidArgumentException|\RuntimeException $e) {
                 $alreadyRefunded = true;
             }
         }
@@ -368,9 +369,7 @@ class PosController extends Controller
         if (! $alreadyRefunded) {
             $branchId = $order->branch_id;
             if ($branchId) {
-                $warehouseId = \App\Models\Warehouse::where('is_default', true)->value('id');
-                $stockService = new \App\Services\Inventory\StockService;
-                \Illuminate\Support\Facades\DB::transaction(function () use ($order, $branchId, $warehouseId, $stockService, $user, $orderId) {
+                \Illuminate\Support\Facades\DB::transaction(function () use ($order, $branchId, $user) {
                     foreach ($order->posOrderItems as $item) {
                         $product = $item->product;
                         if (!$product || $product->is_service || !$product->track_inventory) continue;
@@ -386,10 +385,6 @@ class PosController extends Controller
                                 'branch_id' => $branchId,
                                 'stock' => $qty,
                             ]);
-                        }
-
-                        if ($warehouseId) {
-                            $stockService->decrement($item->product_id, $warehouseId, $qty, $user->id, $user->tenant_id, 'refund_correction', $orderId);
                         }
                     }
                 });

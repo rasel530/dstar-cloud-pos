@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Barcode;
 use App\Models\Product;
 use Illuminate\Http\Request;
 
@@ -55,6 +56,16 @@ class ProductController extends Controller
             $data['tenant_id'] = auth()->user()->tenant_id;
             $product = Product::create($data);
 
+            if ($request->filled('barcode')) {
+                Barcode::create([
+                    'product_id' => $product->id,
+                    'value' => $request->barcode,
+                    'barcode_type' => $request->barcode_type ?? 'CODE_128',
+                    'is_primary' => true,
+                ]);
+            }
+
+            $product->load('barcodes');
             return response()->json(['data' => $product], 201);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to create product'], 500);
@@ -93,6 +104,21 @@ class ProductController extends Controller
         try {
             $product->update($request->all());
 
+            if ($request->filled('barcode')) {
+                $existing = Barcode::where('product_id', $product->id)->where('is_primary', true)->first();
+                if ($existing && $existing->value !== $request->barcode) {
+                    $existing->update(['value' => $request->barcode, 'barcode_type' => $request->barcode_type ?? 'CODE_128']);
+                } elseif (!$existing) {
+                    Barcode::create([
+                        'product_id' => $product->id,
+                        'value' => $request->barcode,
+                        'barcode_type' => $request->barcode_type ?? 'CODE_128',
+                        'is_primary' => true,
+                    ]);
+                }
+            }
+
+            $product->load('barcodes');
             return response()->json(['data' => $product], 200);
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to update product'], 500);

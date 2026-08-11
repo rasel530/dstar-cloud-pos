@@ -26,6 +26,9 @@ Route::view('/settings', 'settings.index')->name('web.settings.index');
 Route::view('/branches', 'branches.index')->name('web.branches.index');
 Route::view('/roles', 'roles.index')->name('web.roles.index');
 Route::view('/warehouses', 'warehouses.index')->name('web.warehouses.index');
+Route::view('/purchases', 'purchases.index')->name('web.purchases.index');
+Route::view('/income-expenses', 'income-expenses.index')->name('web.income-expenses.index');
+Route::view('/barcodes', 'barcodes.index')->name('web.barcodes.index');
 Route::view('/activity', 'activity.index')->name('web.activity.index');
 
 // Redirect root to login

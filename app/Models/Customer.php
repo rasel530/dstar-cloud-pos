@@ -85,4 +85,14 @@ class Customer extends Model
     {
         return $this->hasMany(StockControl::class);
     }
+
+    public function purchases()
+    {
+        return $this->hasMany(\App\Models\Purchase::class, 'supplier_id');
+    }
+
+    public function purchaseReturns()
+    {
+        return $this->hasMany(\App\Models\PurchaseReturn::class, 'supplier_id');
+    }
 }

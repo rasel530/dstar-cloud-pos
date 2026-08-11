@@ -127,5 +127,36 @@ class DefaultSeeder extends Seeder
 
         echo "Default tenant, admin user (admin@dstar.com / admin123), walk-in customer & warehouse created.\n";
         echo "Tax (10%), 3 product groups & 20 demo products created.\n";
+
+        // Seed default income/expense categories
+        $categories = [
+            ['name' => 'Sales Revenue', 'type' => 'income', 'color' => '#10b981', 'rank' => 1],
+            ['name' => 'Service Income', 'type' => 'income', 'color' => '#3b82f6', 'rank' => 2],
+            ['name' => 'Interest Income', 'type' => 'income', 'color' => '#8b5cf6', 'rank' => 3],
+            ['name' => 'Other Income', 'type' => 'income', 'color' => '#f59e0b', 'rank' => 4],
+            ['name' => 'Rent & Utilities', 'type' => 'expense', 'color' => '#ef4444', 'rank' => 1],
+            ['name' => 'Salaries & Wages', 'type' => 'expense', 'color' => '#f97316', 'rank' => 2],
+            ['name' => 'Supplies & Materials', 'type' => 'expense', 'color' => '#06b6d4', 'rank' => 3],
+            ['name' => 'Marketing', 'type' => 'expense', 'color' => '#ec4899', 'rank' => 4],
+            ['name' => 'Maintenance', 'type' => 'expense', 'color' => '#6366f1', 'rank' => 5],
+            ['name' => 'Travel & Transport', 'type' => 'expense', 'color' => '#14b8a6', 'rank' => 6],
+            ['name' => 'Taxes & Licenses', 'type' => 'expense', 'color' => '#78716c', 'rank' => 7],
+            ['name' => 'Other Expenses', 'type' => 'expense', 'color' => '#6b7280', 'rank' => 8],
+        ];
+
+        foreach ($categories as $cat) {
+            DB::table('income_expense_categories')->insert([
+                'id' => Str::uuid()->toString(),
+                'tenant_id' => $tenantId,
+                'name' => $cat['name'],
+                'type' => $cat['type'],
+                'color' => $cat['color'],
+                'rank' => $cat['rank'],
+                'is_enabled' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+        echo "12 Income & Expense categories seeded.\n";
     }
 }

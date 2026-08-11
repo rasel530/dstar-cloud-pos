@@ -16,11 +16,14 @@ class Barcode extends Model
     protected $fillable = [
         'product_id',
         'value',
+        'barcode_type',
         'is_primary',
+        'is_enabled',
     ];
 
     protected $casts = [
         'is_primary' => 'boolean',
+        'is_enabled' => 'boolean',
     ];
 
     public function product()

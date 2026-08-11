@@ -21,10 +21,33 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 
 ### Orders
 - Full order history with search and status filtering
-- Order status management (Open, Closed, Cancelled)
+- Order status management (Open, Closed, Cancelled, Refunded)
 - View, Complete, and Refund orders
 - Download receipts as PDF
 - Responsive: card-based layout on mobile, table on desktop
+
+### Purchases
+- Supplier management with full CRUD (name, contact, email, address, status)
+- Purchase orders with multi-item support, payments (partial/full), status tracking
+- Purchase returns management
+- Report dashboard: by supplier, by product, monthly breakdown, outstanding payments
+- Supplier/category stock tracking integration
+
+### Income & Expenses
+- Dashboard with Income vs Expenses summary cards, monthly bar chart, recent entries
+- Income & Expenses CRUD with search, category/date filters, pagination
+- Category management with colored badges (12 default categories, 4 income + 8 expense)
+- POS Sales auto-sync: imports completed orders as income entries grouped by actual payment method
+- Reports: date-range filtered summary with by-category breakdown
+
+### Barcode Management
+- Barcode generator (CODE-128 / EAN-13 / UPC-A) with check-digit validation
+- Barcode list with SVG barcode image rendering (JsBarcode), search, type/status filters
+- Product integration: barcode field + auto-generate button in product create/edit modal
+- Print Labels: checkbox selection → preview modal with label size → ESC/POS print
+- POS scanning: hardware barcode scanner → auto-detect product → add to cart (50ms debounce)
+- Deactivate/Activate toggle preserves history; Copy-to-clipboard with visual feedback
+- Barcode Settings: default type, auto-generate, label content toggles
 
 ### Products
 - Product CRUD with Code/SKU, PLU, pricing, and categories
@@ -56,11 +79,13 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 - Pagination support
 
 ### Settings
-- **General** -- Company name, logo, currency, contact info
-- **POS** -- Grid columns/rows, tax rate, rounding rules, sound effects, payment confirmation, Dine-in/Takeaway/Table toggles
-- **Receipt** -- Auto-print settings, header/footer customization
-- **Notifications** -- Duration and position configuration
-- **System** -- Single Company vs Multi-Branch mode
+- **General** — Company name, logo, currency, contact info
+- **POS** — Grid columns/rows, tax rate, rounding rules, sound effects, payment confirmation, Dine-in/Takeaway/Table toggles
+- **Receipt** — Auto-print settings, header/footer customization
+- **Notifications** — Duration and position configuration
+- **System** — Single Company vs Multi-Branch mode
+- **Payment Methods** — Full CRUD for payment types (Cash, Card, Check, etc.) with Quick Pay toggle, shortcut keys, enable/disable
+- **Barcode** — Default barcode type, auto-generate toggle, label content toggles (name, price, SKU, company)
 
 ### Multi-Branch Support
 - **Single Company Mode** -- all data across one location
@@ -215,6 +240,67 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
   - Printing is fully fault-tolerant: if no printer is configured, the proxy is offline, or printing throws, the order still completes and the receipt still shows on screen (failures are logged as warnings only).
   - Added `F8` keyboard shortcut to print the on-screen receipt.
 
+### 22. Purchases Module (Implemented)
+- Complete supplier management with CRUD operations
+- Purchase orders with item tracking, payments (partial/full), and status workflow
+- Purchase returns management
+- Report dashboard: summary by supplier, by product, monthly trends, outstanding payments
+- Supplier filter, date range search, and status badges
+- Full currency support via dynamic Alpine store
+
+### 23. Income & Expenses Module (Implemented)
+- **Dashboard** — summary cards (Total Income, Total Expenses, Net Profit/Loss), monthly bar chart, top categories, recent entries
+- **Income / Expenses tabs** — full CRUD with search, date-range/category filters, pagination, dynamic payment methods
+- **Categories tab** — income & expense categories with color picker, inline add/edit/delete
+- **Reports tab** — date-range filtered summary, by-category breakdown
+- **POS Sync** — date-range selection modal to auto-sync completed POS sales as income entries grouped by actual payment method (Cash, Card, Check)
+- **Default categories**: 4 income (Sales, Service, Interest, Other) + 8 expense (Rent, Salaries, Supplies, Marketing, Maintenance, Travel, Taxes, Other)
+
+### 24. Barcode Module (Implemented)
+- **Barcode List** — searchable/filterable table with barcode image (JsBarcode SVG rendering), product, SKU, type, primary/active status
+- **Generate Barcode** — select product → choose type (CODE-128/EAN-13/UPC-A) → auto-generate with duplicate prevention
+- **Add/Edit Barcode** — manual entry or scanner input, auto-populates existing barcode on product selection
+- **Deactivate/Activate** — toggle barcode status without deleting (preserves history)
+- **Copy** — clipboard copy with "Copied!" visual feedback
+- **Print Labels** — select barcodes via checkboxes → preview modal with label size selector → print via ESC/POS proxy
+- **Barcode Settings tab** — default type, auto-generate toggle, label content toggles (name/price/SKU/company)
+- **Product Integration** — barcode field + Generate button in product create/edit modal; saved automatically
+- **POS Integration** — hardware barcode scanner → keyboard input → Enter → product found → added to cart (smart 50ms debounce for barcodes, 300ms for text search)
+- **Fixed bugs:** ProductResource `pluck('barcode')` → `map(fn($b) => ...)`, AroniumImporter column name `'barcode'` → `'value'`
+
+### 25. Payment Methods Management (Implemented)
+- **Settings → Payment Methods tab** — full CRUD table with Name, Code, Shortcut Key, Quick Pay toggle, Enabled toggle
+- Dynamic dropdowns: Income/Expenses payment methods fetched from `payment_types` table (tenant-scoped + global)
+- Deduplication: shared (tenant_id=NULL) and tenant-specific records merged by unique name
+- POS quick-pay buttons (Cash/Card/Check) tied to `is_quick_payment` flag in settings
+
+### 26. Currency Display — Dynamic & LocalStorage Caching (Fixed)
+- **Problem:** Currency symbol was hardcoded as `$` in purchase blade template (14+ places), `viewPurchase()` alert, and various tables
+- **Fix:** All currency displays now use `Alpine.store('currency')?.symbol` with `localStorage` caching for instant correct symbol on page load without waiting for API
+
+### 27. Sidebar — Global Thin Scrollbar (Implemented)
+- **Problem:** Browser-default thick scrollbar appeared on sidebar nav when content overflowed
+- **Fix:** Global CSS (*4px thin scrollbar* with transparent track and subtle thumb) applied via `app.css` — works on every scrollable element across the entire app in both light and dark modes. Chrome, Firefox, and Safari supported.
+
+### 28. POS Checkout — Instant Payment Modal (Fixed)
+- **Problem:** Clicking a payment method button called `loadDefaultStocks()` before opening the payment modal, causing a noticeable delay (stock validation already happens server-side)
+- **Fix:** Removed `loadDefaultStocks()` from `openPayment()` — payment modal opens instantly. Promotion calculation cached for 10 seconds even with items in cart.
+
+### 29. POS Stock — Instant Decrement After Sale (Fixed)
+- **Problem:** Stock count on product cards didn't update after a sale until page refresh
+- **Fix:** After successful payment, sold item quantities are subtracted from `stockMap` (Alpine-reactive), so product cards update immediately without refresh.
+
+### 30. Refund Stock Correction — Double Adjustment (Fixed)
+- **Problem:** `CheckoutService::processRefund()` already increments warehouse stock, but `PosController::refund()` was doing a second decrement (wrong direction). Missing stock records also threw errors.
+- **Fix:** Removed duplicate warehouse stock adjustment from PosController. Stock record auto-creation on missing records in `CheckoutService`. Refund now handles missing stock gracefully.
+
+### 31. Order View — Customer Name (Fixed)
+- **Problem:** Viewing an order always showed "Walk-in Customer" regardless of actual customer
+- **Fix:** `PosController::show()` now eager-loads `->with('customer')` so the API response includes the customer object
+
+### 32. Global Thin Scrollbar (Implemented)
+- All scrollable elements across the entire app now use a 4px subtle scrollbar (Chrome/Edge via `::-webkit-scrollbar`, Firefox via `scrollbar-width: thin`, Safari compatible). Dark mode support with appropriate color tints. Applied globally via `app.css` — no per-element classes needed.
+
 ---
 
 ## Tech Stack
@@ -358,6 +444,45 @@ php artisan serve --port=8000
 | GET/POST | `/api/loyalty` | Loyalty card management |
 | GET/POST | `/api/fiscal-items` | Fiscal item management |
 | GET | `/api/activity` | Activity log |
+
+### Purchases
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET/POST | `/api/suppliers` | Supplier CRUD |
+| GET/POST | `/api/purchases` | Purchase CRUD |
+| POST | `/api/purchases/{id}/return` | Purchase return |
+| GET | `/api/reports/purchases/summary` | Purchases dashboard |
+| GET | `/api/reports/purchases/by-supplier` | By supplier report |
+| GET | `/api/reports/purchases/by-product` | By product report |
+| GET | `/api/reports/purchases/monthly` | Monthly report |
+| GET | `/api/reports/purchases/outstanding` | Outstanding payments |
+
+### Income & Expenses
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET/POST | `/api/income-expenses` | Entry CRUD |
+| GET/POST | `/api/income-expense-categories` | Category CRUD |
+| POST | `/api/income-expenses/sync-pos-sales` | Sync POS sales as income |
+| GET | `/api/reports/income-expenses/summary` | Dashboard summary |
+| GET | `/api/reports/income-expenses/by-category` | By category report |
+| GET | `/api/reports/income-expenses/monthly` | Monthly breakdown |
+
+### Barcodes
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET/POST | `/api/barcodes` | List, create barcodes |
+| PUT/DELETE | `/api/barcodes/{id}` | Update, deactivate barcode |
+| POST | `/api/barcodes/generate` | Auto-generate barcode |
+| GET | `/api/barcodes/scan` | Scan/lookup product by barcode |
+| POST | `/api/barcodes/print` | Print barcode labels |
+| GET | `/api/barcodes/products-without` | Products without barcodes |
+
+### Payment Types
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/payment-types/quick-list` | Enabled quick-payment types |
+| GET | `/api/payment-types/all` | All payment types |
+| GET/POST | `/api/payment-types` | Payment type CRUD |
 
 ---
 

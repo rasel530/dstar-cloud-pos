@@ -14,6 +14,8 @@ return [
         'orders'     => ['label' => 'Orders',  'view' => 0, 'create' => 0, 'edit' => 0, 'delete' => 0],
         'products'   => ['label' => 'Products','view' => 0, 'create' => 5, 'edit' => 5, 'delete' => 9],
         'customers'  => ['label' => 'Customers','view' => 0, 'create' => 5, 'edit' => 5, 'delete' => 9],
+        'purchases'  => ['label' => 'Purchases','view' => 0, 'create' => 5, 'edit' => 5, 'delete' => 9],
+        'suppliers'  => ['label' => 'Suppliers','view' => 5, 'create' => 5, 'edit' => 5, 'delete' => 9],
         'reports'    => ['label' => 'Reports', 'view' => 5, 'create' => 9, 'edit' => 9, 'delete' => 9],
         'promotions' => ['label' => 'Promos',  'view' => 5, 'create' => 9, 'edit' => 9, 'delete' => 9],
         'loyalty'    => ['label' => 'Loyalty', 'view' => 5, 'create' => 9, 'edit' => 9, 'delete' => 9],
