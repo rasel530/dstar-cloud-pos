@@ -13,10 +13,12 @@
         <button @click="saveSettings()" :disabled="saving" class="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 text-white px-6 py-2.5 text-sm font-medium rounded-lg transition flex items-center gap-2 shrink-0">
             <span x-show="!saving">Save Settings</span>
             <span x-show="saving" class="flex items-center gap-2">
-                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                <svg class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
                 Saving...
             </span>
         </button>
+        <span x-show="saveStatus === 'saved'" class="text-sm text-green-600 dark:text-green-400 font-medium animate-pulse">Settings saved successfully</span>
+        <span x-show="saveStatus === 'error'" class="text-sm text-red-600 dark:text-red-400 font-medium">Failed to save. Please try again.</span>
     </div>
 
     <div class="flex flex-nowrap gap-1.5 border-b border-gray-200 dark:border-white/10 pb-0 overflow-x-auto hide-scrollbar">
@@ -399,28 +401,33 @@
                 <div class="flex items-center justify-between mb-4">
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Payment Methods</h3>
                     <button @click="openPaymentForm()" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">Add Payment Method</button>
+                    <button @click="savePaymentOrder()" class="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors">Save Order</button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead class="bg-gray-50 dark:bg-gray-700/50">
                             <tr>
+                                <th class="px-2 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase w-10">#</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Name</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Code</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Key</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Shortcut</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Quick Pay</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Enabled</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Status</th>
                                 <th class="px-4 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">Actions</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-                            <template x-for="pt in paymentTypes" :key="pt.id">
+                            <template x-for="(pt, idx) in paymentTypes" :key="pt.id">
                                 <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30">
+                                    <td class="px-2 py-3 text-center text-xs text-gray-400 font-mono" x-text="idx + 1"></td>
                                     <td class="px-4 py-3 font-medium text-gray-900 dark:text-white" x-text="pt.name"></td>
                                     <td class="px-4 py-3 font-mono text-xs text-gray-500" x-text="pt.code || '—'"></td>
                                     <td class="px-4 py-3 font-mono text-xs text-gray-500" x-text="pt.shortcut_key || '—'"></td>
                                     <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-xs font-medium" :class="pt.is_quick_payment ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'" x-text="pt.is_quick_payment ? 'Yes' : 'No'"></span></td>
                                     <td class="px-4 py-3"><span class="px-2 py-0.5 rounded text-xs font-medium" :class="pt.is_enabled ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-500'" x-text="pt.is_enabled ? 'Active' : 'Disabled'"></span></td>
-                                    <td class="px-4 py-3 text-right space-x-2">
+                                    <td class="px-4 py-3 text-right space-x-1">
+                                        <button @click="movePaymentType(idx, -1)" :disabled="idx === 0" class="text-gray-400 hover:text-gray-600 disabled:opacity-20 text-xs font-bold px-1" title="Move up">▲</button>
+                                        <button @click="movePaymentType(idx, 1)" :disabled="idx === paymentTypes.length - 1" class="text-gray-400 hover:text-gray-600 disabled:opacity-20 text-xs font-bold px-1" title="Move down">▼</button>
                                         <button @click="editPaymentType(pt)" class="text-blue-600 hover:text-blue-800 text-xs font-medium">Edit</button>
                                         <button @click="deletePaymentType(pt.id)" class="text-red-600 hover:text-red-800 text-xs font-medium">Delete</button>
                                     </td>
@@ -558,9 +565,26 @@
                                     this.form[s.key] = s.value ?? '';
                                 }
                             }
+                            if (this.barcode.hasOwnProperty(s.key)) {
+                                if (typeof this.barcode[s.key] === 'boolean') {
+                                    this.barcode[s.key] = s.value === 'true' || s.value === '1' || s.value === true;
+                                } else {
+                                    this.barcode[s.key] = s.value ?? this.barcode[s.key];
+                                }
+                            }
                         });
                         this.form._initialSystemMode = this.form.system_mode || 'multi_branch';
                     }
+                    Object.keys(this.barcode).forEach(k => {
+                        if (settings[k] !== undefined) {
+                            const val = settings[k];
+                            if (typeof this.barcode[k] === 'boolean') {
+                                this.barcode[k] = val === 'true' || val === '1' || val === true;
+                            } else {
+                                this.barcode[k] = val ?? this.barcode[k];
+                            }
+                        }
+                    });
                     }
                 } catch (e) {
                     console.error('Failed to load settings:', e);
@@ -579,6 +603,12 @@
                             value: typeof value === 'boolean' ? (value ? 'true' : 'false') : String(value),
                         });
                     }
+                    Object.entries(this.barcode).forEach(([key, value]) => {
+                        settings.push({
+                            key: key,
+                            value: typeof value === 'boolean' ? (value ? 'true' : 'false') : String(value),
+                        });
+                    });
                     await window.POS.api('/api/settings', {
                         method: 'POST',
                         body: JSON.stringify({ settings }),
@@ -670,6 +700,31 @@
                     await window.POS.api('/api/payment-types/' + id, { method: 'DELETE' });
                     this.fetchPaymentTypes();
                 } catch(e) { alert(e.message); }
+            },
+
+            movePaymentType(fromIdx, direction) {
+                const toIdx = fromIdx + direction;
+                if (toIdx < 0 || toIdx >= this.paymentTypes.length) return;
+                const arr = [...this.paymentTypes];
+                [arr[fromIdx], arr[toIdx]] = [arr[toIdx], arr[fromIdx]];
+                this.paymentTypes = arr;
+            },
+
+            async savePaymentOrder() {
+                try {
+                    const ids = this.paymentTypes.map(pt => pt.id);
+                    await window.POS.api('/api/payment-types/reorder', {
+                        method: 'POST',
+                        body: JSON.stringify({ ids }),
+                    });
+                    this.toastMsg('Payment order saved!', 'success');
+                } catch(e) { alert(e.message); }
+            },
+
+            toastMsg(msg, type = 'success') {
+                this.saveStatus = type === 'success' ? 'saved' : 'error';
+                setTimeout(() => { this.saveStatus = null; }, 3000);
+                alert(msg);
             },
 
         }));

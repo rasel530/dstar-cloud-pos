@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 
 @import "./browser-fallbacks.css";
 
@@ -63,3 +63,6 @@ svg { max-width: 100%; height: auto; flex-shrink: 0; }
 .dark *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
 * { scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.12) transparent; }
 .dark * { scrollbar-color: rgba(255,255,255,0.12) transparent; }
+@keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.animate-slide-up { animation: slide-up 0.25s ease-out; }
+@media (min-width: 768px) { .md\:animate-none { animation: none; } }

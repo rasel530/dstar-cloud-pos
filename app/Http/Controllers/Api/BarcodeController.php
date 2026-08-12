@@ -108,7 +108,7 @@ class BarcodeController extends Controller
     public function generate(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'product_id' => 'required|uuid|exists:products,id',
+            'product_id' => 'nullable|uuid|exists:products,id',
             'barcode_type' => 'in:CODE_128,EAN_13,UPC_A',
         ]);
 
@@ -121,16 +121,32 @@ class BarcodeController extends Controller
             $attempts++;
         } while ($service->isDuplicate($value) && $attempts < 10);
 
-        $barcode = Barcode::create([
-            'product_id' => $validated['product_id'],
-            'value' => $value,
-            'barcode_type' => $type,
-            'is_primary' => true,
-        ]);
+        if (!empty($validated['product_id'])) {
+            $existing = Barcode::where('product_id', $validated['product_id'])
+                ->where('is_primary', true)
+                ->first();
 
-        $barcode->load('product:id,name,code,price');
+            if ($existing) {
+                $existing->update([
+                    'value' => $value,
+                    'barcode_type' => $type,
+                ]);
+                $barcode = $existing;
+            } else {
+                $barcode = Barcode::create([
+                    'product_id' => $validated['product_id'],
+                    'value' => $value,
+                    'barcode_type' => $type,
+                    'is_primary' => true,
+                ]);
+            }
 
-        return response()->json(['data' => $barcode], 201);
+            $barcode->load('product:id,name,code,price');
+
+            return response()->json(['data' => $barcode], 201);
+        }
+
+        return response()->json(['data' => ['value' => $value, 'barcode_type' => $type]]);
     }
 
     public function scan(Request $request): JsonResponse
@@ -159,6 +175,54 @@ class BarcodeController extends Controller
             ->paginate($request->query('per_page', 50));
 
         return response()->json($products);
+    }
+
+    public function bulkGenerate(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'product_ids' => 'required|array|min:1',
+            'product_ids.*' => 'uuid|exists:products,id',
+            'barcode_type' => 'in:CODE_128,EAN_13,UPC_A',
+        ]);
+
+        $type = $validated['barcode_type'] ?? 'CODE_128';
+        $service = app(BarcodeService::class);
+        $generated = [];
+
+        foreach ($validated['product_ids'] as $productId) {
+            $existing = Barcode::where('product_id', $productId)
+                ->where('is_primary', true)
+                ->first();
+
+            if ($existing) {
+                $generated[] = $existing;
+                continue;
+            }
+
+            $attempts = 0;
+            do {
+                $value = $service->generate($type);
+                $attempts++;
+            } while ($service->isDuplicate($value) && $attempts < 10);
+
+            $barcode = Barcode::create([
+                'product_id' => $productId,
+                'value' => $value,
+                'barcode_type' => $type,
+                'is_primary' => true,
+            ]);
+
+            $generated[] = $barcode;
+        }
+
+        $generated = Barcode::whereIn('id', collect($generated)->pluck('id'))
+            ->with('product:id,name,code,price')
+            ->get();
+
+        return response()->json([
+            'data' => $generated,
+            'count' => $generated->count(),
+        ]);
     }
 
     public function print(Request $request): JsonResponse

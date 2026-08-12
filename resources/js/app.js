@@ -343,6 +343,7 @@ window.POS = {
             this.loadTaxRate(),
             this.loadDefaultCustomer(),
             this.loadStockSummary(),
+            this.loadPaymentTypes(),
         ]);
         window.addEventListener('branch-changed', () => {
             this.items = [];
@@ -358,11 +359,14 @@ window.POS = {
         if (orderId) { await this.loadOrder(orderId); }
         this._kbHandler = (e) => {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
-            if (e.key === 'F1') { e.preventDefault(); this.openPayment('cash'); }
-            else if (e.key === 'F2') { e.preventDefault(); this.openPayment('card'); }
-            else if (e.key === 'F3') { e.preventDefault(); this.openPayment('check'); }
-            else if (e.key === 'F4') { e.preventDefault(); this.newSale(); }
-            else if (e.key === 'F8') { e.preventDefault(); this.$refs.receiptFrame?.contentWindow?.print(); }
+            const pts = this.quickPaymentTypes;
+            if (pts.length > 0 && e.key === 'F1') { e.preventDefault(); this.openPayment(pts[0]); }
+            else if (pts.length > 1 && e.key === 'F2') { e.preventDefault(); this.openPayment(pts[1]); }
+            else if (pts.length > 2 && e.key === 'F3') { e.preventDefault(); this.openPayment(pts[2]); }
+            else if (pts.length > 3 && e.key === 'F4') { e.preventDefault(); this.openPayment(pts[3]); }
+            else if (pts.length > 4 && e.key === 'F5') { e.preventDefault(); this.openPayment(pts[4]); }
+            else if (e.key === 'F8') { e.preventDefault(); this.newSale(); }
+            else if (e.key === 'F10') { e.preventDefault(); this.$refs.receiptFrame?.contentWindow?.print(); }
             else if (e.key === 'Escape' && this.showPayment) { e.preventDefault(); this.showPayment = false; }
             else if (e.key === '?' && e.shiftKey) { e.preventDefault(); this.showShortcutsHelp = !this.showShortcutsHelp; }
         };
@@ -405,6 +409,31 @@ window.POS = {
             list.forEach(s => { this.stockMap[s.product_id] = s; });
             this.allowNegativeStock = list.length > 0 ? !!(list._allow_negative) : false;
         } catch (e) { /* stock tracking optional */ }
+    },
+    async loadPaymentTypes() {
+        try {
+            const d = await window.POS.api('/api/payment-types/all');
+            const types = d?.data || [];
+            const colors = ['emerald', 'blue', 'violet', 'amber', 'rose', 'cyan', 'indigo', 'teal',
+                           'orange', 'pink', 'lime', 'sky', 'purple', 'yellow', 'red', 'green'];
+            this.quickPaymentTypes = types.filter(t => t.is_quick_payment && t.is_enabled).map((t, i) => ({
+                ...t,
+                color: colors[i % colors.length],
+            }));
+            if (this.quickPaymentTypes.length === 0) {
+                this.quickPaymentTypes = [
+                    { id: 'cash', name: 'Cash', code: 'cash', color: 'emerald' },
+                    { id: 'card', name: 'Card', code: 'card', color: 'blue' },
+                    { id: 'check', name: 'Check', code: 'check', color: 'gray' },
+                ];
+            }
+        } catch (e) {
+            this.quickPaymentTypes = [
+                { id: 'cash', name: 'Cash', code: 'cash', color: 'emerald' },
+                { id: 'card', name: 'Card', code: 'card', color: 'blue' },
+                { id: 'check', name: 'Check', code: 'check', color: 'gray' },
+            ];
+        }
     },
     async loadDefaultStocks() {
         if (this.items.length === 0) return;
@@ -613,7 +642,7 @@ window.POS = {
             if (this.posSettings.sound_effects) POS_SOUNDS.removeItem(); this.refreshPromoDiscounts(); },
     updateQty(idx, qty) { if (qty < 1) return; this.items[idx].qty = qty; this.refreshPromoDiscounts(); },
     newSale() { if (this.items.length && !confirm('Clear order?')) return; this.items = []; this.discountType = 'percent'; this.discountValue = 0; this.promoDiscount = 0; this.selectedCustomer = null; this.orderTotal = null; this.existingOrderId = null; },
-    openPayment(type) { if (!this.items.length) return; this.paymentType = type; this.tenderAmount = this.grandTotal; this.showPayment = true; },
+    openPayment(paymentType) { if (!this.items.length) return; this.paymentType = paymentType; this.tenderAmount = this.grandTotal; this.showPayment = true; },
     async calcPromotionDiscounts() {
         const now = Date.now();
         if (now - this._promoCache.ts < 10000) return this._promoCache.data;
@@ -660,15 +689,20 @@ window.POS = {
     },
     async processPayment() {
         if (this.processingPayment || !this.items.length) return;
-        if (this.posSettings.payment_confirmation && !confirm('Confirm payment of ' + window.POS.formatCurrency(this.grandTotal) + '?')) return;
-        this.processingPayment = true;
+        if (!this.posSettings.payment_confirmation || confirm('Confirm payment of ' + window.POS.formatCurrency(this.grandTotal) + '?')) {
+            this.processingPayment = true;
+        } else { return; }
+        this.showPayment = false;
         try {
 
-            const promoDiscounts = await this.calcPromotionDiscounts();
+            const promoDiscountsPromise = this.calcPromotionDiscounts();
+
+            const paymentTypeName = this.paymentType?.code || this.paymentType?.name || this.paymentType;
+            const promoDiscounts = await promoDiscountsPromise;
 
             const payload = {
                 items: this.items.map(i => ({ product_id: i.product_id || i.id, quantity: i.qty, price: i.price })),
-                discount: this.discount + promoDiscounts, total: this.grandTotal, payment_type: this.paymentType,
+                discount: this.discount + promoDiscounts, total: this.grandTotal, payment_type: paymentTypeName,
                 paid_amount: this.tenderAmount || this.grandTotal,
                 customer_id: this.selectedCustomer?.id || null,
                 table_number: this.tableNumber || null,
@@ -676,18 +710,17 @@ window.POS = {
             };
             let checkoutRes = null;
             if (this.existingOrderId) {
-                const addItems = payload.items.map(item =>
+                await Promise.all(payload.items.map(item =>
                     window.POS.api('/api/orders/' + this.existingOrderId + '/items', { method: 'POST', body: JSON.stringify({ product_id: item.product_id, quantity: item.quantity, price: item.price }) })
-                );
-                await Promise.all(addItems);
+                ));
+                checkoutRes = await window.POS.api('/api/orders/' + this.existingOrderId + '/checkout', { method: 'POST', body: JSON.stringify({ payment_type: paymentTypeName, paid_amount: payload.paid_amount, discount: this.discount, discount_type: this.discountType === 'percent' ? 0 : 1, total: this.grandTotal, customer_id: payload.customer_id, table_number: payload.table_number }) });
                 this.receiptApiUrl = '/api/receipts/' + this.existingOrderId;
-                checkoutRes = await window.POS.api('/api/orders/' + this.existingOrderId + '/checkout', { method: 'POST', body: JSON.stringify({ payment_type: this.paymentType, paid_amount: payload.paid_amount, discount: this.discount, discount_type: this.discountType === 'percent' ? 0 : 1, total: this.grandTotal, customer_id: payload.customer_id, table_number: payload.table_number }) });
             } else {
                 const orderRes = await window.POS.api('/api/orders', { method: 'POST', body: JSON.stringify(payload) });
                 const orderId = orderRes?.data?.id;
                 if (orderId) {
                     this.receiptApiUrl = '/api/receipts/' + orderId;
-                    checkoutRes = await window.POS.api('/api/orders/' + orderId + '/checkout', { method: 'POST', body: JSON.stringify({ payment_type: this.paymentType, paid_amount: payload.paid_amount, discount: this.discount, discount_type: this.discountType === 'percent' ? 0 : 1, total: this.grandTotal, customer_id: payload.customer_id, table_number: payload.table_number }) });
+                    checkoutRes = await window.POS.api('/api/orders/' + orderId + '/checkout', { method: 'POST', body: JSON.stringify({ payment_type: paymentTypeName, paid_amount: payload.paid_amount, discount: this.discount, discount_type: this.discountType === 'percent' ? 0 : 1, total: this.grandTotal, customer_id: payload.customer_id, table_number: payload.table_number }) });
                 }
             }
             const receipt = checkoutRes?.data?.receipt;
@@ -695,13 +728,12 @@ window.POS = {
                 this.receiptData = receipt;
                 this.showReceipt = true;
                 if (this.posSettings.receipt_auto_print) {
-                    setTimeout(() => { this.$refs.receiptFrame?.contentWindow?.print(); }, 800);
+                    setTimeout(() => { this.$refs.receiptFrame?.contentWindow?.print(); }, 300);
                 }
             } else {
                 this.toastMsg('Sale completed!', 'success');
             }
             if (this.posSettings.sound_effects) POS_SOUNDS.paymentComplete();
-            // Update local stock counts instantly
             this.items.forEach(i => {
                 const s = this.stockMap[i.product_id];
                 if (s) {
@@ -709,8 +741,10 @@ window.POS = {
                     s.available_stock = s.quantity;
                 }
             });
-            this.showPayment = false; this.items = []; this.discountType = 'percent'; this.discountValue = 0; this.promoDiscount = 0; this.existingOrderId = null; this.orderTotal = null;
+            this.items = []; this.discountType = 'percent'; this.discountValue = 0; this.promoDiscount = 0; this.existingOrderId = null; this.orderTotal = null;
+            this.cartOpen = false;
         } catch (e) { this.toastMsg('Payment failed', 'error');
+            this.showPayment = false;
             if (this.posSettings.sound_effects) POS_SOUNDS.error(); } finally { this.processingPayment = false; }
     },
     downloadReceipt() {
@@ -818,8 +852,8 @@ Alpine.data('dashboard', () => ({
 Alpine.data('productsManager', () => ({
     products: [], loading: true, search: '', pagination: {},
     showModal: false, editing: false, saving: false, productGroups: [], branches: [],
-    showNewGroup: false, newGroupName: '', uploadingStock: false, toast: { show: false, message: '', type: 'success' },
-    measurementUnits: [], showNewUnit: false, newUnitName: '', newUnitKey: '',
+    showNewGroup: false, newGroupName: '', showManage: false, uploadingStock: false, toast: { show: false, message: '', type: 'success' },
+    measurementUnits: [], showNewUnit: false, newUnitName: '', newUnitKey: '', showManageUnit: false,
     showTransferModal: false, transferring: false, transferForm: { product_code: '', quantity: 1, from_branch: '', to_branch: '' }, transferMessage: '', transferError: false,
     form: { name: '', code: '', plu: '', price: 0, cost: 0, product_group_id: null, measurement_unit: '', is_enabled: true, track_inventory: true, is_global: true, stock_qty: 0, branch_stocks: {}, barcode: '', barcode_type: 'CODE_128' },
     genLoading: false,
@@ -866,12 +900,32 @@ Alpine.data('productsManager', () => ({
             if (newGroup) {
                 this.productGroups.push(newGroup);
                 this.form.product_group_id = newGroup.id;
+                this.generateProductCode();
             } else {
                 await this.fetchGroups();
             }
             this.newGroupName = '';
             this.showNewGroup = false;
-        } catch (e) { alert('Failed to create group: ' + (e.message || 'Unknown error')); }
+        } catch (e) {
+            let msg = e.message || 'Unknown error';
+            if (e.errors?.name) { msg = e.errors.name[0]; }
+            else if (e.response?.data?.errors?.name) { msg = e.response.data.errors.name[0]; }
+            alert('Failed to create group: ' + msg);
+        }
+    },
+    async deleteGroup(id) {
+        if (!confirm('Delete this product group? Products in this group will be unassigned.')) return;
+        try {
+            await window.POS.api('/api/product-groups/' + id, { method: 'DELETE' });
+            this.productGroups = this.productGroups.filter(g => g.id !== id);
+            if (this.form.product_group_id === id) {
+                this.form.product_group_id = null;
+                this.form.code = '';
+            }
+            this.toastMsg('Product group deleted', 'success');
+        } catch (e) {
+            this.toastMsg('Failed to delete group', 'error');
+        }
     },
     addNewUnit() {
         const key = this.newUnitKey.trim().toLowerCase();
@@ -886,6 +940,15 @@ Alpine.data('productsManager', () => ({
     },
     async saveMeasurementUnits() {
         try { await window.POS.api('/api/settings', { method: 'POST', body: JSON.stringify({ key: 'measurement_units', value: JSON.stringify(this.measurementUnits) }) }); } catch(e) {}
+    },
+    deleteUnit(key) {
+        if (!confirm('Delete measurement unit "' + (this.measurementUnits[key] || key) + '"?')) return;
+        delete this.measurementUnits[key];
+        if (this.form.measurement_unit === key) {
+            this.form.measurement_unit = '';
+        }
+        this.saveMeasurementUnits();
+        this.toastMsg('Measurement unit deleted', 'success');
     },
     async fetchProducts(page = 1) {
         this.loading = true;
@@ -903,6 +966,15 @@ Alpine.data('productsManager', () => ({
             }
         } catch(e) { /* ignore errors - barcode might have been generated already */ }
         finally { this.genLoading = false; }
+    },
+    async generateProductCode() {
+        if (!this.form.product_group_id) return;
+        try {
+            const d = await window.POS.api('/api/products/next-code?product_group_id=' + this.form.product_group_id);
+            if (d?.data?.code) {
+                this.form.code = d.data.code;
+            }
+        } catch(e) { /* ignore */ }
     },
     openAdd() { this.editing = false; this.form = { name: '', code: '', price: 0, cost: 0, product_group_id: null, measurement_unit: '', is_enabled: true, track_inventory: true, is_global: true, stock_qty: 0, branch_stocks: {}, barcode: '', barcode_type: 'CODE_128' }; this.showModal = true; },
     openEdit(p) { this.editing = true; const primaryBarcode = p.barcodes?.find(b => b.is_primary) || p.barcodes?.[0]; this.form = { ...p, stock_qty: p.stock || 0, branch_stocks: {}, is_global: p.is_global !== false, barcode: primaryBarcode?.value || '', barcode_type: primaryBarcode?.barcode_type || 'CODE_128' }; if (p.branch_stocks) { p.branch_stocks.forEach(b => { this.form.branch_stocks[b.branch_id] = b.stock; }); } this.showModal = true; },
@@ -1545,6 +1617,7 @@ Alpine.data('purchasesManager', () => ({
 
     async init() {
         await Promise.all([this.fetchSuppliers(), this.fetchSupplierList(), this.fetchProductList(), this.fetchWarehouseList()]);
+        this.fetchReportSummary();
     },
 
     switchTab(tab) {
@@ -1773,13 +1846,14 @@ Alpine.data('incomeExpensesManager', () => ({
     },
 
     async fetchEntries(tab) {
-        const type = tab || (this.activeTab === 'income' ? 'income' : 'expense');
+        const type = (typeof tab === 'string' && (tab === 'income' || tab === 'expense')) ? tab : (this.activeTab === 'income' ? 'income' : 'expense');
+        const page = (typeof tab === 'number') ? tab : this.entriesPage.current_page;
         this.entriesLoading = true;
         try {
             const params = new URLSearchParams();
             params.set('type', type);
             params.set('per_page', '20');
-            params.set('page', String(this.entriesPage.current_page));
+            params.set('page', String(page));
             if (this.filterSearch) params.set('search', this.filterSearch);
             if (this.filterCategoryId) params.set('category_id', this.filterCategoryId);
             if (this.filterDateFrom) params.set('date_from', this.filterDateFrom);
@@ -1940,13 +2014,15 @@ Alpine.data('barcodeManager', () => ({
     get allSelected() { return this.barcodes.length > 0 && this.barcodes.every(b => this.selectedIds.has(b.id)); },
     genResult: null, genError: '', formError: '',
 
-    genForm: { product_id: '', barcode_type: 'CODE_128' },
+    genForm: { product_id: '', value: '', barcode_type: 'CODE_128', is_primary: true },
+    genExistingBarcode: '',
     form: { product_id: '', value: '', barcode_type: 'CODE_128', is_primary: true },
     existingBarcode: '',
 
     async init() {
         await this.fetchBarcodes();
         await this.fetchProducts();
+        this.fetchSettings();
     },
 
     async fetchBarcodes(p) {
@@ -1972,14 +2048,122 @@ Alpine.data('barcodeManager', () => ({
         } catch(e) { this.products = []; }
     },
 
-    openGenerateModal() { this.showGenerateModal = true; this.genResult = null; this.genError = ''; this.genForm = { product_id: '', barcode_type: 'CODE_128' }; },
-
-    async generateBarcode() {
-        if (!this.genForm.product_id) { this.genError = 'Please select a product.'; return; }
-        this.genSaving = true; this.genError = ''; this.genResult = null;
+    async fetchSettings() {
         try {
-            const d = await window.POS.api('/api/barcodes/generate', { method: 'POST', body: JSON.stringify(this.genForm) });
-            this.genResult = d.data?.value;
+            const d = await window.POS.api('/api/settings');
+            const s = d?.data || {};
+            this.printSettings = {
+                show_product_name: s.show_product_name === 'true' || s.show_product_name === true,
+                show_price: s.show_price === 'true' || s.show_price === true,
+                show_sku: s.show_sku === 'true' || s.show_sku === true,
+                show_company_name: s.show_company_name === 'true' || s.show_company_name === true,
+            };
+            this.companyName = s.company_name || '';
+        } catch(e) { /* ignore */ }
+    },
+
+    async openBulkModal() {
+        this.showBulkModal = true;
+        this.bulkSelected = new Set();
+        this.bulkSelectAll = false;
+        this.bulkProducts = [];
+        try {
+            const d = await window.POS.api('/api/barcodes/products-without?per_page=500');
+            this.bulkProducts = d.data?.data || d.data || [];
+        } catch(e) { this.bulkProducts = []; }
+    },
+
+    toggleBulkProduct(id) {
+        if (this.bulkSelected.has(id)) this.bulkSelected.delete(id);
+        else this.bulkSelected.add(id);
+        this.bulkSelectAll = this.bulkProducts.length > 0 && this.bulkProducts.every(p => this.bulkSelected.has(p.id));
+    },
+
+    toggleBulkAll() {
+        if (this.bulkSelectAll) { this.bulkSelected.clear(); }
+        else { this.bulkProducts.forEach(p => this.bulkSelected.add(p.id)); }
+        this.bulkSelectAll = !this.bulkSelectAll;
+    },
+
+    async generateAllBarcodes() {
+        const productIds = Array.from(this.bulkSelected);
+        if (!productIds.length) return;
+        this.bulkGenerating = true;
+        try {
+            const d = await window.POS.api('/api/barcodes/bulk-generate', {
+                method: 'POST',
+                body: JSON.stringify({ product_ids: productIds, barcode_type: this.bulkType }),
+            });
+            const generated = d?.data || [];
+            this.showBulkModal = false;
+            this._bulkPrintItems = generated;
+            await this.fetchBarcodes();
+            if (generated.length > 0) {
+                this.showPrintModal = true;
+            }
+        } catch(e) { alert(e.message); }
+        finally { this.bulkGenerating = false; }
+    },
+
+    async fetchAllSelectedForPrint() {
+        this.openPrintModal();
+    },
+
+    get printItems() {
+        if (this._bulkPrintItems && this._bulkPrintItems.length > 0) {
+            return this._bulkPrintItems;
+        }
+        return this.barcodes.filter(b => this.selectedIds.has(b.id));
+    },
+
+    openGenerateModal() { this.showGenerateModal = true; this.genError = ''; this.genForm = { product_id: '', value: '', barcode_type: 'CODE_128', is_primary: true }; this.genExistingBarcode = ''; },
+
+    onGenProductSelect() {
+        if (!this.genForm.product_id) { this.genExistingBarcode = ''; this.genForm.value = ''; return; }
+        const product = this.products.find(p => p.id === this.genForm.product_id);
+        if (product) {
+            const primary = product.barcodes?.find(b => b.is_primary) || product.barcodes?.[0];
+            if (primary?.value) {
+                this.genForm.value = primary.value;
+                this.genForm.barcode_type = primary.barcode_type || 'CODE_128';
+                this.genExistingBarcode = primary.value;
+            } else {
+                this.genForm.value = '';
+                this.genExistingBarcode = '';
+            }
+        }
+    },
+
+    async generateBarcodeValue() {
+        this.genSaving = true; this.genError = '';
+        try {
+            const d = await window.POS.api('/api/barcodes/generate', {
+                method: 'POST',
+                body: JSON.stringify({ barcode_type: this.genForm.barcode_type || 'CODE_128' }),
+            });
+            if (d?.data?.value) {
+                this.genForm.value = d.data.value;
+                this.genExistingBarcode = '';
+            }
+        } catch(e) { this.genError = e.message; }
+        finally { this.genSaving = false; }
+    },
+
+    async saveGenBarcode() {
+        if (!this.genForm.product_id) { this.genError = 'Please select a product.'; return; }
+        if (!this.genForm.value.trim()) { this.genError = 'Please generate or enter a barcode value.'; return; }
+        this.genSaving = true; this.genError = '';
+        try {
+            await window.POS.api('/api/barcodes', {
+                method: 'POST',
+                body: JSON.stringify({
+                    product_id: this.genForm.product_id,
+                    value: this.genForm.value,
+                    barcode_type: this.genForm.barcode_type,
+                    is_primary: this.genForm.is_primary,
+                }),
+            });
+            this.showGenerateModal = false;
             this.fetchBarcodes();
         } catch(e) { this.genError = e.message; }
         finally { this.genSaving = false; }
@@ -2045,11 +2229,11 @@ Alpine.data('barcodeManager', () => ({
         try {
             const d = await window.POS.api('/api/barcodes/generate', {
                 method: 'POST',
-                body: JSON.stringify({ product_id: this.form.product_id, barcode_type: this.form.barcode_type }),
+                body: JSON.stringify({ barcode_type: this.form.barcode_type }),
             });
             if (d?.data?.value) {
-                this.fetchBarcodes();
-                this.showManualModal = false;
+                this.form.value = d.data.value;
+                this.existingBarcode = '';
             }
         } catch(e) { this.formError = e.message; }
         finally { this.genSaving = false; }
@@ -2120,20 +2304,21 @@ Alpine.data('barcodeManager', () => ({
         else { this.barcodes.forEach(b => this.selectedIds.add(b.id)); }
     },
 
-    get printItems() {
-        return this.barcodes.filter(b => this.selectedIds.has(b.id));
-    },
-
     showPrintModal: false, printLabelSize: 'medium', printSending: false,
+    printSettings: { show_product_name: true, show_price: true, show_sku: false, show_company_name: true },
+    companyName: '',
+
+    showBulkModal: false, bulkProducts: [], bulkSelected: new Set(), bulkType: 'CODE_128', bulkGenerating: false, bulkSelectAll: false,
+    _bulkPrintItems: [],
 
     openPrintModal() {
-        if (this.selectedIds.size === 0) return;
+        if (this.printItems.length === 0) return;
         this.showPrintModal = true;
         this.printSending = false;
     },
 
     async sendPrintJob() {
-        const ids = Array.from(this.selectedIds);
+        const ids = this.printItems.map(b => b.id);
         if (!ids.length) return;
         this.printSending = true;
         try {
@@ -2143,6 +2328,7 @@ Alpine.data('barcodeManager', () => ({
             });
             alert('Print job sent: ' + (d?.data?.label_count || 0) + ' labels completed.');
             this.showPrintModal = false;
+            this._bulkPrintItems = [];
             this.selectedIds.clear();
         } catch(e) { alert(e.message); }
         finally { this.printSending = false; }

@@ -53,7 +53,12 @@ class ReportController extends Controller
         })->values()->toArray();
 
         $totalSales = $allOrders->sum('total');
-        $totalTax = collect($records)->sum('tax');
+        $allOrdersWithItems = \App\Models\PosOrder::whereIn('id', $allOrders->pluck('id'))
+            ->with('posOrderItems.product')->get();
+        $totalTax = $allOrdersWithItems->reduce(function ($carry, $order) use ($calc) {
+            $tc = $calc->calculate($order);
+            return $carry + $tc['tax'];
+        }, 0);
 
         return response()->json([
             'data' => [
@@ -227,16 +232,16 @@ class ReportController extends Controller
         $page = (int)($request->input('page', 1));
         $perPage = (int)($request->input('per_page', 25));
 
-        $baseQuery = \App\Models\PosOrder::with('posOrderItems.product')
+        $allOrders = \App\Models\PosOrder::with('posOrderItems.product')
             ->where('tenant_id', auth()->user()->tenant_id)
             ->where('total', '>', 0)
             ->orderBy('created_at', 'desc');
 
         if ($startDate && $endDate) {
-            $baseQuery->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
+            $allOrders->whereBetween('created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
         }
 
-        $allOrders = (clone $baseQuery)->get();
+        $allOrders = $allOrders->get();
         $calc = new \App\Services\Pricing\TaxCalculator;
         $grouped = [];
 
@@ -250,22 +255,6 @@ class ReportController extends Controller
             $grouped[$date]['tax'] += $tc['tax'];
         }
 
-        $allRecords = [];
-        foreach ($grouped as $date => $data) {
-            $allRecords[] = [
-                'date' => $date,
-                'taxable_amount' => round((float) $data['subtotal'], 2),
-                'tax_amount' => round((float) $data['tax'], 2),
-            ];
-        }
-
-        usort($allRecords, fn($a, $b) => strcmp($b['date'], $a['date']));
-
-        $totalCount = count($allRecords);
-        $lastPage = max(1, (int) ceil($totalCount / $perPage));
-        $records = array_slice($allRecords, ($page - 1) * $perPage, $perPage);
-        $totalTax = round((float) array_sum(array_column($allRecords, 'tax_amount')), 2);
-
         $records = [];
         foreach ($grouped as $date => $data) {
             $records[] = [
@@ -277,11 +266,14 @@ class ReportController extends Controller
 
         usort($records, fn($a, $b) => strcmp($b['date'], $a['date']));
 
+        $totalCount = count($records);
+        $lastPage = max(1, (int) ceil($totalCount / $perPage));
+        $pagedRecords = array_slice($records, ($page - 1) * $perPage, $perPage);
         $totalTax = round((float) array_sum(array_column($records, 'tax_amount')), 2);
 
         return response()->json([
             'data' => [
-                'records' => $records,
+                'records' => $pagedRecords,
                 'total_tax' => $totalTax,
                 'pagination' => [
                     'current_page' => $page,

@@ -145,7 +145,7 @@
     <div x-show="cartOpen" @click="cartOpen = false" class="lg:hidden fixed inset-0 bg-black/60 z-35" x-cloak></div>
 
     {{-- RIGHT: Order Cart Panel --}}
-    <div class="w-72 bg-white dark:bg-[#1a1f3d] flex flex-col shrink-0 border-l border-gray-200 dark:border-white/10 fixed lg:relative inset-y-0 right-0 z-40 transition-transform duration-300 lg:translate-x-0 shadow-2xl lg:shadow-none" :class="cartOpen ? 'translate-x-0 pointer-events-auto' : 'translate-x-full lg:translate-x-0 pointer-events-none lg:pointer-events-auto'" style="overflow: visible;">
+    <div class="w-72 bg-white dark:bg-[#1a1f3d] flex flex-col shrink-0 border-l border-gray-200 dark:border-white/10 fixed lg:relative inset-y-0 right-0 z-40 transition-transform duration-300 lg:translate-x-0 shadow-2xl lg:shadow-none" :class="cartOpen ? 'translate-x-0 pointer-events-auto' : 'translate-x-full pointer-events-none'" x-cloak style="overflow: visible;">
 
 
         {{-- Cart Header --}}
@@ -334,23 +334,54 @@
 
         {{-- Action Buttons --}}
         <div class="border-t border-gray-200 dark:border-white/10 p-3 space-y-2 shrink-0">
-            <div class="flex gap-2">
-                <button
-                    @click="openPayment('cash')"
-                    :disabled="items.length === 0 || !hasBranch"
-                    class="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-lg transition text-xs uppercase tracking-wide"
-                >Cash</button>
-                <button
-                    @click="openPayment('card')"
-                    :disabled="items.length === 0 || !hasBranch"
-                    class="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-lg transition text-xs uppercase tracking-wide"
-                >Card</button>
-                <button
-                    @click="openPayment('check')"
-                    :disabled="items.length === 0 || !hasBranch"
-                    class="flex-1 bg-gray-600 hover:bg-gray-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-lg transition text-xs uppercase tracking-wide"
-                >Check</button>
-            </div>
+            <template x-if="quickPaymentTypes.length <= 3">
+                <div class="flex gap-2">
+                    <template x-for="pt in quickPaymentTypes" :key="pt.id || pt.code">
+                        <button @click="openPayment(pt)" :disabled="items.length === 0 || !hasBranch"
+                            class="flex-1 disabled:opacity-30 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-lg transition text-xs uppercase tracking-wide"
+                            :class="{
+                                'bg-emerald-600 hover:bg-emerald-500': pt.color === 'emerald',
+                                'bg-blue-600 hover:bg-blue-500': pt.color === 'blue',
+                                'bg-gray-600 hover:bg-gray-500': pt.color === 'gray',
+                                'bg-violet-600 hover:bg-violet-500': pt.color === 'violet',
+                                'bg-amber-600 hover:bg-amber-500': pt.color === 'amber',
+                                'bg-rose-600 hover:bg-rose-500': pt.color === 'rose',
+                                'bg-cyan-600 hover:bg-cyan-500': pt.color === 'cyan',
+                                'bg-green-600 hover:bg-green-500': pt.color === 'green',
+                                'bg-red-600 hover:bg-red-500': pt.color === 'red',
+                                'bg-indigo-600 hover:bg-indigo-500': pt.color === 'indigo',
+                                'bg-teal-600 hover:bg-teal-500': pt.color === 'teal',
+                                'bg-orange-600 hover:bg-orange-500': pt.color === 'orange',
+                                'bg-pink-600 hover:bg-pink-500': pt.color === 'pink',
+                            }"
+                            x-text="pt.name?.toUpperCase() || pt.code?.toUpperCase()"></button>
+                    </template>
+                </div>
+            </template>
+            <template x-if="quickPaymentTypes.length > 3">
+                <div class="grid gap-1.5" :class="quickPaymentTypes.length > 6 ? 'grid-cols-3' : 'grid-cols-2'">
+                    <template x-for="(pt, idx) in quickPaymentTypes" :key="pt.id || pt.code">
+                        <button @click="openPayment(pt)" :disabled="items.length === 0 || !hasBranch"
+                            class="disabled:opacity-30 disabled:cursor-not-allowed text-white font-bold py-2 rounded-lg transition text-[10px] uppercase tracking-wide"
+                            :class="{
+                                'bg-emerald-600 hover:bg-emerald-500': pt.color === 'emerald',
+                                'bg-blue-600 hover:bg-blue-500': pt.color === 'blue',
+                                'bg-gray-600 hover:bg-gray-500': pt.color === 'gray',
+                                'bg-violet-600 hover:bg-violet-500': pt.color === 'violet',
+                                'bg-amber-600 hover:bg-amber-500': pt.color === 'amber',
+                                'bg-rose-600 hover:bg-rose-500': pt.color === 'rose',
+                                'bg-cyan-600 hover:bg-cyan-500': pt.color === 'cyan',
+                                'bg-green-600 hover:bg-green-500': pt.color === 'green',
+                                'bg-red-600 hover:bg-red-500': pt.color === 'red',
+                                'bg-indigo-600 hover:bg-indigo-500': pt.color === 'indigo',
+                                'bg-teal-600 hover:bg-teal-500': pt.color === 'teal',
+                                'bg-orange-600 hover:bg-orange-500': pt.color === 'orange',
+                                'bg-pink-600 hover:bg-pink-500': pt.color === 'pink',
+                            }"
+                            x-text="pt.name?.toUpperCase() || pt.code?.toUpperCase()"></button>
+                    </template>
+                </div>
+            </template>
             <button
                 @click="newSale()"
                 :disabled="items.length === 0"

@@ -126,7 +126,7 @@
                                     <td class="px-4 py-2 text-gray-900 dark:text-white font-mono text-xs" x-text="e.reference_number"></td>
                                     <td class="px-4 py-2"><span class="px-2 py-0.5 rounded text-xs font-medium" :class="e.type==='income'?'bg-emerald-100 text-emerald-700':'bg-red-100 text-red-700'" x-text="e.type"></span></td>
                                     <td class="px-4 py-2 text-gray-600 dark:text-gray-300" x-text="e.category?.name"></td>
-                                    <td class="px-4 py-2 text-gray-600 dark:text-gray-300 truncate max-w-[200px]" x-text="e.description || '—'"></td>
+                                    <td class="px-4 py-2 text-gray-600 dark:text-gray-300 truncate max-w-[200px]" :title="e.description || '—'" x-text="e.description || '—'"></td>
                                     <td class="px-4 py-2 text-gray-600 dark:text-gray-300" x-text="e.date?.split('T')[0]"></td>
                                     <td class="px-4 py-2 text-right font-medium" :class="e.type==='income'?'text-emerald-600':'text-red-600'" x-text="(Alpine.store('currency')?.symbol || '$') + Number(e.amount).toFixed(2)"></td>
                                 </tr>
@@ -178,7 +178,7 @@
                                         <span class="text-gray-600 dark:text-gray-300" x-text="e.category?.name"></span>
                                     </span>
                                 </td>
-                                <td class="px-4 py-4 text-gray-600 dark:text-gray-300 truncate max-w-[200px]" x-text="e.description || '—'"></td>
+                                <td class="px-4 py-4 text-gray-600 dark:text-gray-300 truncate max-w-[200px]" :title="e.description || '—'" x-text="e.description || '—'"></td>
                                 <td class="px-4 py-4 text-gray-600 dark:text-gray-300" x-text="e.payment_method || '—'"></td>
                                 <td class="px-4 py-4 text-right font-medium text-emerald-600" x-text="(Alpine.store('currency')?.symbol || '$') + Number(e.amount).toFixed(2)"></td>
                                 <td class="px-4 py-4 text-right space-x-2">
@@ -239,7 +239,7 @@
                                             <span class="text-gray-600 dark:text-gray-300" x-text="e.category?.name"></span>
                                         </span>
                                     </td>
-                                    <td class="px-4 py-4 text-gray-600 dark:text-gray-300 truncate max-w-[200px]" x-text="e.description || '—'"></td>
+                                    <td class="px-4 py-4 text-gray-600 dark:text-gray-300 truncate max-w-[200px]" :title="e.description || '—'" x-text="e.description || '—'"></td>
                                     <td class="px-4 py-4 text-gray-600 dark:text-gray-300" x-text="e.payment_method || '—'"></td>
                                     <td class="px-4 py-4 text-right font-medium text-red-600" x-text="(Alpine.store('currency')?.symbol || '$') + Number(e.amount).toFixed(2)"></td>
                                     <td class="px-4 py-4 text-right space-x-2">

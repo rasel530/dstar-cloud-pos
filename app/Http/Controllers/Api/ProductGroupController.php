@@ -5,12 +5,18 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\ProductGroup;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ProductGroupController extends Controller
 {
     public function index()
     {
-        $groups = ProductGroup::with(['children', 'parent'])->get();
+        $tenantId = auth()->user()->tenant_id;
+        $groups = ProductGroup::with(['children', 'parent'])
+            ->where(function ($q) use ($tenantId) {
+                $q->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
+            })
+            ->get();
 
         return response()->json(['data' => $groups]);
     }
@@ -18,14 +24,22 @@ class ProductGroupController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name'            => 'required|max:255',
+            'name'            => [
+                'required', 'max:255',
+                Rule::unique('product_groups')->where(function ($q) {
+                    $q->where('tenant_id', auth()->user()->tenant_id)
+                      ->orWhereNull('tenant_id');
+                }),
+            ],
             'parent_group_id' => 'nullable|exists:product_groups,id',
             'color'           => 'nullable|string',
             'rank'            => 'nullable|integer',
         ]);
 
         try {
-            $group = ProductGroup::create($request->all());
+            $data = $request->all();
+            $data['tenant_id'] = auth()->user()->tenant_id;
+            $group = ProductGroup::create($data);
 
             return response()->json(['data' => $group], 201);
         } catch (\Exception $e) {
@@ -53,7 +67,15 @@ class ProductGroupController extends Controller
         }
 
         $request->validate([
-            'name'            => 'required|max:255',
+            'name'            => [
+                'required', 'max:255',
+                Rule::unique('product_groups')
+                    ->where(function ($q) {
+                        $q->where('tenant_id', auth()->user()->tenant_id)
+                          ->orWhereNull('tenant_id');
+                    })
+                    ->ignore($id),
+            ],
             'parent_group_id' => 'nullable|exists:product_groups,id',
             'color'           => 'nullable|string',
             'rank'            => 'nullable|integer',

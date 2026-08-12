@@ -96,6 +96,26 @@ class PaymentTypeController extends Controller
         return response()->json(['data' => $type]);
     }
 
+    public function reorder(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'uuid|exists:payment_types,id',
+        ]);
+
+        $tenantId = auth()->user()->tenant_id;
+
+        foreach ($validated['ids'] as $index => $id) {
+            PaymentType::where('id', $id)
+                ->where(function ($q) use ($tenantId) {
+                    $q->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
+                })
+                ->update(['ordinal' => $index]);
+        }
+
+        return response()->json(['message' => 'Order saved.']);
+    }
+
     public function destroy(string $id): JsonResponse
     {
         $type = $this->findType($id);

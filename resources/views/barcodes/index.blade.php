@@ -13,6 +13,7 @@
             </button>
             <button @click="openGenerateModal()" class="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors">Generate Barcode</button>
             <button @click="openManualModal()" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors">Add Barcode</button>
+            <button @click="openBulkModal()" class="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors">Bulk Generate</button>
         </div>
     </div>
 
@@ -94,7 +95,7 @@
             <div class="p-6 space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product *</label>
-                    <select x-model="genForm.product_id" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
+                    <select x-model="genForm.product_id" @change="onGenProductSelect()" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
                         <option value="">Select Product</option>
                         <template x-for="p in products" :key="p.id">
                             <option :value="p.id" x-text="p.name + (p.code ? ' (' + p.code + ')' : '')"></option>
@@ -102,23 +103,32 @@
                     </select>
                 </div>
                 <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Barcode Value *</label>
+                    <div class="flex gap-2">
+                        <input type="text" x-model="genForm.value" placeholder="Enter or generate barcode..." class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-mono">
+                        <button type="button" @click="generateBarcodeValue()" :disabled="genSaving" class="px-3 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap" x-text="genSaving ? '...' : 'Generate'"></button>
+                    </div>
+                    <p x-show="genExistingBarcode" class="mt-1 text-xs text-green-600 dark:text-green-400">
+                        <span x-text="'Existing: ' + genExistingBarcode"></span>
+                        <button type="button" @click="genForm.value = ''; genExistingBarcode = ''" class="ml-2 text-blue-600 hover:underline">Override</button>
+                    </p>
+                </div>
+                <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Barcode Type</label>
                     <select x-model="genForm.barcode_type" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
-                        <option value="CODE_128">CODE-128 (Recommended)</option>
+                        <option value="CODE_128">CODE-128</option>
                         <option value="EAN_13">EAN-13</option>
                         <option value="UPC_A">UPC-A</option>
                     </select>
                 </div>
-                <button @click="generateBarcode()" :disabled="genSaving" class="w-full px-4 py-2.5 text-sm text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 disabled:opacity-50" x-text="genSaving ? 'Generating...' : 'Generate Barcode'"></button>
-                <div x-show="genResult" class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
-                    <p class="text-xs text-gray-500 mb-1">Generated Barcode</p>
-                    <p class="text-2xl font-mono font-bold text-gray-900 dark:text-white" x-text="genResult"></p>
-                    <p class="text-xs text-gray-400 mt-1">Saved to product</p>
-                </div>
+                <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                    <input type="checkbox" x-model="genForm.is_primary" class="rounded border-gray-300"> Primary Barcode
+                </label>
                 <div x-show="genError" class="text-sm text-red-500" x-text="genError"></div>
             </div>
             <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
-                <button @click="showGenerateModal=false" class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg">Close</button>
+                <button @click="showGenerateModal=false" class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg">Cancel</button>
+                <button @click="saveGenBarcode()" :disabled="genSaving" class="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50" x-text="genSaving ? 'Saving...' : 'Save'"></button>
             </div>
         </div>
     </div>
@@ -175,7 +185,7 @@
     <div x-show="showPrintModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showPrintModal=false">
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto">
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Print Preview — <span x-text="selectedIds.size"></span> label(s)</h3>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Print Preview — <span x-text="printItems.length"></span> label(s)</h3>
                 <button @click="showPrintModal=false" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
             </div>
             <div class="p-6 space-y-4">
@@ -186,18 +196,19 @@
                         <option value="medium">Medium</option>
                         <option value="large">Large</option>
                     </select>
-                    <span class="text-xs text-gray-400 ml-auto" x-text="selectedIds.size + ' label(s) selected'"></span>
+                    <span class="text-xs text-gray-400 ml-auto" x-text="printItems.length + ' label(s) selected'"></span>
                 </div>
 
                 {{-- Label Previews --}}
                 <div class="grid gap-3" :class="printLabelSize==='small'?'grid-cols-3':'grid-cols-2'">
                     <template x-for="b in printItems" :key="b.id">
                         <div class="border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 p-3 flex flex-col items-center gap-1.5" :class="printLabelSize==='large'?'p-4':''">
-                            <span class="text-[10px] font-semibold text-gray-900 dark:text-white truncate max-w-full text-center" x-text="b.product?.name || 'Product'"></span>
-                            <span x-show="b.product?.code" class="text-[9px] text-gray-400 font-mono" x-text="b.product?.code"></span>
+                            <span x-show="printSettings.show_company_name && companyName" class="text-[11px] font-bold text-gray-800 dark:text-white truncate max-w-full text-center" x-text="companyName"></span>
+                            <span x-show="printSettings.show_product_name" class="text-[10px] font-semibold text-gray-900 dark:text-white truncate max-w-full text-center" x-text="b.product?.name || 'Product'"></span>
+                            <span x-show="printSettings.show_sku && b.product?.code" class="text-[9px] text-gray-400 font-mono" x-text="b.product?.code"></span>
                             <svg x-barcode="b.value" class="w-full" :class="printLabelSize==='small'?'h-8':'h-10'" style="max-width:100%"></svg>
                             <span class="text-[10px] font-mono text-gray-600 dark:text-gray-300" x-text="b.value"></span>
-                            <span x-show="b.product?.price" class="text-sm font-bold text-gray-900 dark:text-white" x-text="Alpine.store('currency')?.symbol + Number(b.product?.price || 0).toFixed(2)"></span>
+                            <span x-show="printSettings.show_price && b.product?.price" class="text-sm font-bold text-gray-900 dark:text-white" x-text="Alpine.store('currency')?.symbol + Number(b.product?.price || 0).toFixed(2)"></span>
                         </div>
                     </template>
                 </div>
@@ -206,6 +217,53 @@
                     <button @click="showPrintModal=false" class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg">Cancel</button>
                     <button @click="sendPrintJob()" :disabled="printSending" class="px-6 py-2.5 text-sm text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 font-medium" x-text="printSending ? 'Sending...' : 'Print Now'"></button>
                 </div>
+            </div>
+        </div>
+    </div>
+    {{-- Bulk Generate Modal --}}
+    <div x-show="showBulkModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="showBulkModal=false">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[85vh] flex flex-col">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 shrink-0">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Bulk Generate Barcodes</h3>
+                <button @click="showBulkModal=false" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+            </div>
+            <div class="p-4 border-b border-gray-200 dark:border-gray-700 shrink-0 flex items-center gap-3">
+                <span class="text-sm text-gray-600 dark:text-gray-400">Barcode Type:</span>
+                <select x-model="bulkType" class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    <option value="CODE_128">CODE-128</option>
+                    <option value="EAN_13">EAN-13</option>
+                    <option value="UPC_A">UPC-A</option>
+                </select>
+                <span class="text-xs text-gray-400 ml-auto" x-text="'Products without barcode: ' + bulkProducts.length"></span>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4">
+                <template x-if="bulkProducts.length === 0">
+                    <div class="text-center py-8 text-gray-400 dark:text-gray-500">
+                        <svg class="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <p class="text-sm">All products already have barcodes</p>
+                    </div>
+                </template>
+                <template x-if="bulkProducts.length > 0">
+                    <div class="space-y-1">
+                        <label class="flex items-center gap-2 px-2 py-2 border-b border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 rounded">
+                            <input type="checkbox" @change="toggleBulkAll()" :checked="bulkSelectAll" class="rounded border-gray-300 cursor-pointer">
+                            <span>Select All</span>
+                            <span class="text-xs text-gray-400 ml-auto" x-text="bulkSelected.size + ' selected'"></span>
+                        </label>
+                        <template x-for="p in bulkProducts" :key="p.id">
+                            <label class="flex items-center gap-2 px-2 py-2 rounded hover:bg-gray-50 dark:hover:bg-white/5 text-sm cursor-pointer">
+                                <input type="checkbox" @change="toggleBulkProduct(p.id)" :checked="bulkSelected.has(p.id)" class="rounded border-gray-300 cursor-pointer">
+                                <span class="text-gray-900 dark:text-white truncate" x-text="p.name"></span>
+                                <span class="text-xs text-gray-400 font-mono shrink-0" x-text="p.code || '--'"></span>
+                                <span class="text-xs text-gray-500 shrink-0" x-text="(Alpine.store('currency')?.symbol || '$') + Number(p.price || 0).toFixed(2)"></span>
+                            </label>
+                        </template>
+                    </div>
+                </template>
+            </div>
+            <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
+                <button @click="showBulkModal=false" class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200">Cancel</button>
+                <button @click="generateAllBarcodes()" :disabled="bulkGenerating || bulkSelected.size === 0" class="px-4 py-2 text-sm text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50" x-text="bulkGenerating ? 'Generating...' : 'Generate & Print (' + bulkSelected.size + ')'"></button>
             </div>
         </div>
     </div>

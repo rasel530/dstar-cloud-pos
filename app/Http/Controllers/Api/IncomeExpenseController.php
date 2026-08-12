@@ -143,32 +143,34 @@ class IncomeExpenseController extends Controller
                 DATE(documents.date) as sale_date,
                 payment_types.name as payment_method,
                 SUM(payments.amount) as total_amount,
-                COUNT(DISTINCT documents.id) as order_count
+                COUNT(DISTINCT documents.id) as order_count,
+                STRING_AGG(DISTINCT documents.number, ', ' ORDER BY documents.number) as order_numbers
             ")
             ->groupBy(DB::raw('DATE(documents.date)'), 'payment_types.name')
             ->orderBy('sale_date')
             ->orderBy('payment_method')
             ->get();
 
-        $synced = 0;
+        $created = 0;
+        $updated = 0;
+
         foreach ($salesByPayment as $sale) {
-            $match = [
+            $desc = 'POS Sales: ' . $sale->order_count . ' order(s) [' . ($sale->order_numbers ?: 'N/A') . ']';
+
+            $entry = IncomeExpense::where([
                 'tenant_id' => $tenantId,
                 'type' => 'income',
                 'category_id' => $salesCategory->id,
                 'payment_method' => $sale->payment_method,
-            ];
-            $entry = IncomeExpense::where($match)
-                ->whereDate('date', $sale->sale_date)
-                ->where('description', 'like', 'Auto-synced: %')
-                ->first();
+            ])->whereDate('date', $sale->sale_date)
+              ->first();
 
             if ($entry) {
                 $entry->update([
                     'amount' => $sale->total_amount,
-                    'description' => 'Auto-synced: ' . $sale->order_count . ' order(s) on ' . $sale->sale_date,
+                    'description' => $desc,
                 ]);
-                $synced++;
+                $updated++;
             } else {
                 IncomeExpense::create([
                     'tenant_id' => $tenantId,
@@ -177,18 +179,23 @@ class IncomeExpenseController extends Controller
                     'reference_number' => IncomeExpense::generateNumber('income'),
                     'type' => 'income',
                     'amount' => $sale->total_amount,
-                    'description' => 'Auto-synced: ' . $sale->order_count . ' order(s) on ' . $sale->sale_date,
+                    'description' => $desc,
                     'payment_method' => $sale->payment_method,
                     'date' => $sale->sale_date,
                     'status' => 'completed',
                 ]);
-                $synced++;
+                $created++;
             }
         }
 
+        $total = $created + $updated;
+        $msg = $total > 0 ? "{$created} new, {$updated} updated ({$total} total synced)." : "Nothing to sync.";
+
         return response()->json([
-            'message' => "{$synced} income entries synced from POS sales (by payment method).",
-            'synced_count' => $synced,
+            'message' => $msg,
+            'synced_count' => $total,
+            'created' => $created,
+            'updated' => $updated,
         ]);
     }
 

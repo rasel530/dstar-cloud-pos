@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Barcode;
 use App\Models\Product;
+use App\Models\ProductGroup;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
@@ -123,6 +124,25 @@ class ProductController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to update product'], 500);
         }
+    }
+
+    public function nextCode(Request $request)
+    {
+        $request->validate(['product_group_id' => 'required|uuid|exists:product_groups,id']);
+
+        $group = ProductGroup::find($request->product_group_id);
+        $prefix = strtoupper(substr(preg_replace('/[^a-zA-Z]/', '', $group->name), 0, 3));
+
+        $lastCode = Product::where('code', 'LIKE', $prefix . '%')
+            ->whereRaw("code ~ ?", ['^' . $prefix . '[0-9]+$'])
+            ->orderByRaw('LENGTH(code) DESC, code DESC')
+            ->value('code');
+
+        $next = $lastCode
+            ? $prefix . str_pad((int) substr($lastCode, strlen($prefix)) + 1, 3, '0', STR_PAD_LEFT)
+            : $prefix . '001';
+
+        return response()->json(['data' => ['code' => $next]]);
     }
 
     public function destroy($id)

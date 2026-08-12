@@ -158,13 +158,23 @@
                 </div>
                 <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Product Group</label>
                     <div class="flex gap-2">
-                        <select x-model="form.product_group_id" class="flex-1 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <select x-model="form.product_group_id" @change="generateProductCode()" class="flex-1 px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
                             <option value="">&mdash; Select Group &mdash;</option>
                             <template x-for="g in productGroups" :key="g.id"><option :value="g.id" x-text="g.name"></option></template>
                         </select>
-                        <button type="button" @click="showNewGroup = !showNewGroup" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors hidden md:inline-block"><span x-text="showNewGroup ? '\u2715' : '+ New'"></span></button>
+                        <button type="button" @click="showNewGroup = !showNewGroup; showManage = false" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors hidden md:inline-block"><span x-text="showNewGroup ? '\u2715' : '+ New'"></span></button>
+                        <button type="button" @click="showManage = !showManage; showNewGroup = false" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" :class="showManage ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' : ''"><span x-text="showManage ? '\u2715' : 'Manage'"></span></button>
                     </div>
-                    <div x-show="showNewGroup" class="mt-2 flex gap-2"><input type="text" x-model="newGroupName" placeholder="Group name" class="flex-1 px-3 py-1.5 text-sm border rounded-lg"><button type="button" @click="addNewGroup()" class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg">Add</button></div>
+                    <div x-show="showNewGroup" class="mt-2 flex gap-2"><input type="text" x-model="newGroupName" placeholder="Group name" class="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"><button type="button" @click="addNewGroup()" class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg">Add</button></div>
+                    <div x-show="showManage" class="mt-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 p-2 max-h-40 overflow-y-auto space-y-1">
+                        <template x-for="g in productGroups" :key="g.id">
+                            <div class="flex items-center justify-between px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-white/5 text-sm">
+                                <span class="text-gray-700 dark:text-gray-300" x-text="g.name"></span>
+                                <button type="button" @click="deleteGroup(g.id)" class="text-red-400 hover:text-red-600 dark:hover:text-red-300 px-1" title="Delete group">&times;</button>
+                            </div>
+                        </template>
+                        <p x-show="!productGroups.length" class="text-xs text-gray-400 px-2">No groups yet</p>
+                    </div>
                 </div>
                 <div><label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Measurement Unit</label>
                     <div class="flex gap-2">
@@ -172,9 +182,19 @@
                             <option value="">&mdash; Select Unit &mdash;</option>
                             <template x-for="(label, value) in measurementUnits" :key="value"><option :value="value" x-text="label"></option></template>
                         </select>
-                        <button type="button" @click="showNewUnit = !showNewUnit" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors hidden md:inline-block"><span x-text="showNewUnit ? '\u2715' : '+ New'"></span></button>
+                        <button type="button" @click="showNewUnit = !showNewUnit; showManageUnit = false" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors hidden md:inline-block"><span x-text="showNewUnit ? '\u2715' : '+ New'"></span></button>
+                        <button type="button" @click="showManageUnit = !showManageUnit; showNewUnit = false" class="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-sm rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" :class="showManageUnit ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400' : ''"><span x-text="showManageUnit ? '\u2715' : 'Manage'"></span></button>
                     </div>
-                    <div x-show="showNewUnit" class="mt-2 flex gap-2"><input type="text" x-model="newUnitKey" placeholder="Key (e.g. cup)" class="w-24 px-3 py-1.5 text-sm border rounded-lg"><input type="text" x-model="newUnitName" placeholder="Label (e.g. Cup)" class="flex-1 px-3 py-1.5 text-sm border rounded-lg"><button type="button" @click="addNewUnit()" class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg">Add</button></div>
+                    <div x-show="showNewUnit" class="mt-2 flex gap-2"><input type="text" x-model="newUnitKey" placeholder="Key (e.g. cup)" class="w-24 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"><input type="text" x-model="newUnitName" placeholder="Label (e.g. Cup)" class="flex-1 px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"><button type="button" @click="addNewUnit()" class="px-3 py-1.5 bg-blue-600 text-white text-sm rounded-lg">Add</button></div>
+                    <div x-show="showManageUnit" class="mt-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 p-2 max-h-40 overflow-y-auto space-y-1">
+                        <template x-for="(label, key) in measurementUnits" :key="key">
+                            <div class="flex items-center justify-between px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-white/5 text-sm">
+                                <span class="text-gray-700 dark:text-gray-300"><span class="text-xs text-gray-400 dark:text-gray-500 font-mono" x-text="key + ':'"></span> <span x-text="label"></span></span>
+                                <button type="button" @click="deleteUnit(key)" class="text-red-400 hover:text-red-600 dark:hover:text-red-300 px-1" title="Delete unit">&times;</button>
+                            </div>
+                        </template>
+                        <p x-show="!Object.keys(measurementUnits).length" class="text-xs text-gray-400 px-2">No units yet</p>
+                    </div>
                 </div>
                 <div class="flex items-center gap-3 py-1"><button type="button" @click="form.track_inventory = !form.track_inventory" class="relative inline-flex h-5 w-9 items-center rounded-full transition" :class="form.track_inventory ? 'bg-blue-500' : 'bg-gray-200 dark:bg-white/10'"><span class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition shadow-sm" :class="form.track_inventory ? 'translate-x-[18px]' : 'translate-x-[3px]'"></span></button><span class="text-sm text-gray-700 dark:text-gray-300" x-text="form.track_inventory ? 'Track Inventory' : 'No Inventory Tracking'"></span></div>
                 <div class="flex items-center gap-3 py-1" x-show="$store.sys.isMulti()"><button type="button" @click="form.is_global = !form.is_global" class="relative inline-flex h-5 w-9 items-center rounded-full transition" :class="form.is_global ? 'bg-blue-500' : 'bg-gray-200 dark:bg-white/10'"><span class="inline-block h-3.5 w-3.5 transform rounded-full bg-white transition shadow-sm" :class="form.is_global ? 'translate-x-[18px]' : 'translate-x-[3px]'"></span></button><span class="text-sm text-gray-700 dark:text-gray-300" x-text="form.is_global ? 'Global (All Branches)' : 'Branch-Only Product'"></span></div>

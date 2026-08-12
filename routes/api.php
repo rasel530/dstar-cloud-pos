@@ -57,6 +57,7 @@ Route::middleware(['auth:sanctum', 'user.enabled', 'throttle:api', 'track.activi
     Route::get('dashboard', [DashboardController::class, 'index']);
 
         // Products
+        Route::get('products/next-code', [ProductController::class, 'nextCode']);
         Route::apiResource('products', ProductController::class);
     Route::apiResource('product-groups', ProductGroupController::class);
 
@@ -125,6 +126,7 @@ Route::middleware(['auth:sanctum', 'user.enabled', 'throttle:api', 'track.activi
         // Income & Expenses
         Route::get('payment-types/quick-list', [PaymentTypeController::class, 'index']);
         Route::get('payment-types/all', [PaymentTypeController::class, 'all']);
+        Route::post('payment-types/reorder', [PaymentTypeController::class, 'reorder']);
         Route::apiResource('payment-types', PaymentTypeController::class)->except(['index']);
         Route::post('income-expenses/sync-pos-sales', [IncomeExpenseController::class, 'syncPosSales']);
         Route::apiResource('income-expenses', IncomeExpenseController::class);
@@ -133,6 +135,7 @@ Route::middleware(['auth:sanctum', 'user.enabled', 'throttle:api', 'track.activi
         // Barcodes
         Route::get('barcodes/products-without', [BarcodeController::class, 'productsWithoutBarcode']);
         Route::post('barcodes/generate', [BarcodeController::class, 'generate']);
+        Route::post('barcodes/bulk-generate', [BarcodeController::class, 'bulkGenerate']);
         Route::get('barcodes/scan', [BarcodeController::class, 'scan']);
         Route::post('barcodes/print', [BarcodeController::class, 'print']);
         Route::apiResource('barcodes', BarcodeController::class);
