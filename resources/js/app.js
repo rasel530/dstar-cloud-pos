@@ -251,9 +251,9 @@ window.POS = {
 
 // --- POS Cart Component ---
   Alpine.data('posCart', () => ({
-    cartOpen: false,
+    cartOpen: false, mode: 'browse', showCartSheet: false,
     hasBranch: true,
-    items: [], searchTerm: '', activeCategory: null, products: [],
+    items: [], searchTerm: '', searchResults: [], activeCategory: null, products: [],
     categories: [], selectedCustomer: null, defaultCustomer: null,
     serviceType: 0, tableNumber: '',
     showCustomerSearch: false, customerSearch: '', searchedCustomers: [],
@@ -608,12 +608,15 @@ window.POS = {
         } catch (e) { this.toastMsg('Failed to hold order', 'error'); }
     },
     async resumeHoldOrder(id) {
+        this.showHoldOrders = false;
         try {
             await window.POS.api('/api/orders/' + id + '/resume', { method: 'POST' });
-            this.showHoldOrders = false;
+        } catch (e) { /* order may already be open — still load it */ }
+        try {
             await this.loadOrder(id);
             this.saveCart();
-        } catch (e) { this.toastMsg('Failed to resume order', 'error'); }
+            if (this.items.length) this.mode = 'build';
+        } catch (e) { this.toastMsg('Failed to load order', 'error'); }
     },
     async cancelHoldOrder(id) {
         if (!confirm('Cancel this order?')) return;
@@ -696,12 +699,13 @@ window.POS = {
         this._searchTimer = setTimeout(() => this.searchProducts(), delay);
     },
     async searchProducts() {
-        if (!this.searchTerm || this.searchTerm.length < 2) { await this.loadProducts(); return; }
+        if (!this.searchTerm || this.searchTerm.length < 2) { await this.loadProducts(); this.searchResults = []; return; }
         await this.loadProducts(false);
+        this.searchResults = this.filteredProducts.slice(0, 6);
     },async handleBarcodeSearch() {
         if (this._scanning) return; const term = this.searchTerm.trim(); if (!term) return;
         this._scanning = true;
-        try { const data = await window.POS.api('/api/products?search=' + encodeURIComponent(term)); const items = Array.isArray(data?.data?.data) ? data.data.data : []; const p = items[0]; if (p) { this.addToCart(p); this.searchTerm = ''; } else this.toastMsg('Product not found', 'error'); } catch (e) { this.toastMsg('Product not found', 'error'); }
+        try { const data = await window.POS.api('/api/products?search=' + encodeURIComponent(term)); const items = Array.isArray(data?.data?.data) ? data.data.data : []; const p = items[0]; if (p) { this.addToCart(p); this.searchTerm = ''; this.searchResults = []; } else this.toastMsg('Product not found', 'error'); } catch (e) { this.toastMsg('Product not found', 'error'); }
         finally { this._scanning = false; }
     },
     async handleFileUpload(event) {
@@ -801,6 +805,7 @@ window.POS = {
             if (this.posSettings.sound_effects) POS_SOUNDS.removeItem(); this.refreshPromoDiscounts(); this.saveCart(); },
     updateQty(idx, qty) { if (qty < 1) return; this.items[idx].qty = qty; this.refreshPromoDiscounts(); this.saveCart(); },
     newSale() { if (this.items.length && !confirm('Clear order?')) return; this.items = []; this.discountType = 'percent'; this.discountValue = 0; this.promoDiscount = 0; this.selectedCustomer = null; this.orderTotal = null; this.existingOrderId = null; this.saveCart(); },
+    setMode(m) { this.mode = m; this.searchTerm = ''; this.searchResults = []; if (m === 'browse') this.loadProducts(); },
     saveCart() {
         try {
             const cart = {
@@ -897,6 +902,13 @@ window.POS = {
             };
             let checkoutRes = null;
             if (this.existingOrderId) {
+                try {
+                    const existing = await window.POS.api('/api/orders/' + this.existingOrderId);
+                    const existingItems = existing?.data?.pos_order_items || [];
+                    await Promise.all(existingItems.map(oi =>
+                        window.POS.api('/api/orders/' + this.existingOrderId + '/items/' + oi.id, { method: 'DELETE' })
+                    ));
+                } catch (e) { /* ignore sync errors */ }
                 await Promise.all(payload.items.map(item =>
                     window.POS.api('/api/orders/' + this.existingOrderId + '/items', { method: 'POST', body: JSON.stringify({ product_id: item.product_id, quantity: item.quantity, price: item.price }) })
                 ));
@@ -920,14 +932,16 @@ window.POS = {
             } else {
                 this.toastMsg('Sale completed!', 'success');
             }
-            if (this.posSettings.sound_effects) POS_SOUNDS.paymentComplete();
-            this.items.forEach(i => {
-                const s = this.stockMap[i.product_id];
-                if (s) {
-                    s.quantity = Math.max(0, (parseFloat(s.quantity) || 0) - (i.qty || 1));
-                    s.available_stock = s.quantity;
-                }
-            });
+            try { if (this.posSettings.sound_effects) POS_SOUNDS.paymentComplete(); } catch (e) {}
+            try {
+                this.items.forEach(i => {
+                    const s = this.stockMap[i.product_id];
+                    if (s) {
+                        s.quantity = Math.max(0, (parseFloat(s.quantity) || 0) - (i.qty || 1));
+                        s.available_stock = s.quantity;
+                    }
+                });
+            } catch (e) {}
             this.items = []; this.discountType = 'percent'; this.discountValue = 0; this.promoDiscount = 0; this.existingOrderId = null; this.orderTotal = null;
             this.selectedCustomer = this.defaultCustomer || null; this.tableNumber = null;
             this.cartOpen = false;

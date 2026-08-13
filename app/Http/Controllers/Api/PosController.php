@@ -195,8 +195,8 @@ class PosController extends Controller
             ->where('tenant_id', auth()->user()->tenant_id)
             ->first();
         if (!$o) return response()->json(['message' => 'Order not found'], 404);
-        if (!in_array($o->status, ['held'])) {
-            return response()->json(['message' => 'Only held orders can be resumed.'], 422);
+        if (!in_array($o->status, ['held', 'open'])) {
+            return response()->json(['message' => 'Only held or open orders can be resumed.'], 422);
         }
         $o->update(['status' => 'open', 'held_at' => null]);
         return response()->json(['data' => $o->fresh()]);

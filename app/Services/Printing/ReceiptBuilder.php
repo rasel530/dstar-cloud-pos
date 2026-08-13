@@ -163,10 +163,11 @@ class ReceiptBuilder
                 th.price, td.price { width: 18%; }
                 th.total, td.total { width: 20%; }
                 .totals { border-top: 1px dashed #000; padding-top: 4px; margin-bottom: 8px; }
-                .totals p { font-size: {$bodyFontSize}; display: flex; }
-                .totals p span:first-child { width: 80%; text-align: right; padding-right: 4px; }
-                .totals p span:last-child { width: 20%; text-align: left; }
-                .totals .grand-total { font-size: 13px; font-weight: bold; border-top: 2px solid #000; padding-top: 4px; margin-top: 4px; }
+                .totals p { font-size: {$bodyFontSize}; display: flex; align-items: baseline; }
+                .totals p span:first-child { width: 58%; text-align: right; padding-right: 4px; }
+                .totals p span:last-child { width: 42%; text-align: left; white-space: nowrap; }
+                .totals .grand-total { font-size: {$h2FontSize}; font-weight: bold; border-top: 2px solid #000; padding-top: 4px; margin-top: 4px; }
+                .totals .grand-total span:last-child { white-space: nowrap; }
                 .payment-line { text-align: center; margin-top: 4px; font-weight: bold; }
                 .footer { text-align: center; margin-top: 12px; padding-top: 6px; border-top: 1px dashed #000; }
                 .footer p { font-size: {$bodyFontSize}; margin-bottom: 2px; }
@@ -379,13 +380,15 @@ class ReceiptBuilder
         }
 
         $out .= $d . "\n";
-        $out .= sprintf("%-*s %8s %s\n", $w - 10, 'SUBTOTAL:', $currency, $subtotal);
-        if ((float)$tax > 0) $out .= sprintf("%-*s %8s %s\n", $w - 10, 'TAX:', $currency, $tax);
-        if ((float)$discount > 0) $out .= sprintf("%-*s %8s %s\n", $w - 10, 'DISCOUNT:', "-{$currency}", $discount);
-        $out .= sprintf("%-*s %8s %s\n", $w - 10, 'GRAND TOTAL:', $currency, $total);
+        $valW = $w >= 40 ? 15 : 13;
+        $labW = $w - $valW - 1;
+        $out .= sprintf("%-{$labW}s %{$valW}s\n", 'SUBTOTAL:', $currency . $subtotal);
+        if ((float)$tax > 0) $out .= sprintf("%-{$labW}s %{$valW}s\n", 'TAX:', $currency . $tax);
+        if ((float)$discount > 0) $out .= sprintf("%-{$labW}s %{$valW}s\n", 'DISCOUNT:', '-' . $currency . $discount);
+        $out .= sprintf("%-{$labW}s %{$valW}s\n", 'GRAND TOTAL:', $currency . $total);
         $out .= $d . "\n";
-        $out .= sprintf("%-*s %8s %s\n", $w - 10, 'PAID:', $currency, $paid);
-        if ((float)$change > 0) $out .= sprintf("%-*s %8s %s\n", $w - 10, 'CHANGE:', $currency, $change);
+        $out .= sprintf("%-{$labW}s %{$valW}s\n", 'PAID:', $currency . $paid);
+        if ((float)$change > 0) $out .= sprintf("%-{$labW}s %{$valW}s\n", 'CHANGE:', $currency . $change);
         $out .= $d . "\n";
         $out .= sprintf("Payment: %s\n", strtoupper($paymentMethod));
         $out .= str_repeat('=', $w) . "\n";

@@ -63,8 +63,34 @@
             </div>
         </div>
 
+        {{-- Mode Toggle --}}
+        <div class="px-4 pb-3 shrink-0">
+            <div class="inline-flex rounded-lg bg-gray-100 dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/10 p-0.5 gap-0.5">
+                <button @click="setMode('browse')" :class="mode === 'browse' ? 'bg-white dark:bg-white/10 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-gray-500 dark:text-white/50 hover:text-gray-700 dark:hover:text-white/80'" class="px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z"/></svg>
+                    Browse
+                </button>
+                <button @click="setMode('build')" :class="mode === 'build' ? 'bg-white dark:bg-white/10 text-violet-600 dark:text-violet-400 shadow-sm' : 'text-gray-500 dark:text-white/50 hover:text-gray-700 dark:hover:text-white/80'" class="px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7.5L7.5 3l4.5 4.5M7.5 3v18M3 16.5L7.5 21l4.5-4.5M21 7.5h-9M21 16.5h-9"/></svg>
+                    Build Order
+                </button>
+            </div>
+        </div>
+
+        {{-- Build Mode: Search Results Dropdown --}}
+        <div x-show="mode === 'build' && searchTerm && searchTerm.length >= 1 && searchResults.length" x-cloak class="px-4 pb-2 shrink-0 -mt-1">
+            <div class="bg-white dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/10 rounded-xl shadow-lg overflow-hidden">
+                <template x-for="p in searchResults" :key="p.id">
+                    <button @click="addToCart(p); searchTerm = ''; searchResults = []" class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-white/5 text-left transition border-b border-gray-100 dark:border-white/5 last:border-0">
+                        <span class="text-sm text-gray-900 dark:text-white" x-text="p.name"></span>
+                        <span class="text-xs font-mono text-gray-500 dark:text-white/50" x-text="formatMoney(p.price)"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+
         {{-- Category Pills --}}
-        <div class="px-4 pb-3 shrink-0" x-data="pillScroller" x-init @resize.window="checkOverflow()" @resize.window="checkOverflow()" @resize.window="checkOverflow()">
+        <div x-show="mode === 'browse'" class="px-4 pb-3 shrink-0" x-data="pillScroller" x-init @resize.window="checkOverflow()" @resize.window="checkOverflow()" @resize.window="checkOverflow()">
             <div class="relative">
                 <button
                     x-show="canScrollLeft"
@@ -112,8 +138,8 @@
             </div>
         </div>
 
-        {{-- Product Grid --}}
-        <div class="flex-1 overflow-y-auto px-4 pb-4">
+        {{-- Product Grid (Browse Mode) --}}
+        <div x-show="mode === 'browse'" class="flex-1 overflow-y-auto px-4 pb-4">
             <template x-if="filteredProducts.length === 0">
                 <div class="flex items-center justify-center h-full text-gray-400 dark:text-white/20 text-lg font-medium">
                     <span x-text="searchTerm ? 'No products found' : 'No products available'"></span>
@@ -147,6 +173,35 @@
                 </button>
             </div>
         </div>
+
+        {{-- Build Mode: Large Cart List --}}
+        <div x-show="mode === 'build'" class="flex-1 overflow-y-auto px-3 sm:px-4 pb-4">
+            <template x-if="items.length === 0">
+                <div class="flex flex-col items-center justify-center h-full text-gray-400 dark:text-white/25">
+                    <svg class="w-14 h-14 mb-3 opacity-40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/></svg>
+                    <p class="text-sm font-medium">Search or scan to add items</p>
+                    <p class="text-xs text-gray-400 dark:text-white/30 mt-1">Type a product name, code, or scan a barcode above</p>
+                </div>
+            </template>
+            <div x-show="items.length > 0" class="space-y-2 max-w-3xl mx-auto">
+                <template x-for="(item, idx) in items" :key="idx">
+                    <div class="flex items-center gap-3 bg-white dark:bg-[#1a1f3d] rounded-xl border border-gray-200 dark:border-white/10 p-3 shadow-sm">
+                        <span class="bg-blue-500 text-white w-7 h-7 rounded-full text-sm flex items-center justify-center font-bold shrink-0" x-text="item.qty"></span>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm sm:text-base font-medium text-gray-800 dark:text-white/90 truncate" x-text="item.name"></p>
+                            <p class="text-[11px] sm:text-xs text-gray-400 dark:text-white/50 font-mono" x-text="formatMoney(item.price) + ' × ' + item.qty"></p>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button @click="updateQty(idx, item.qty - 1)" :disabled="item.qty <= 1" class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/15 disabled:opacity-30 disabled:cursor-not-allowed text-base font-bold flex items-center justify-center transition-colors">-</button>
+                            <input type="number" x-model.number="item.qty" @input.debounce.300ms="updateQty(idx, item.qty)" min="1" class="w-14 h-8 text-center text-sm rounded-lg bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/90 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500">
+                            <button @click="updateQty(idx, item.qty + 1)" class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/15 text-base font-bold flex items-center justify-center transition-colors">+</button>
+                        </div>
+                        <p class="text-sm sm:text-base font-mono font-semibold text-gray-900 dark:text-white shrink-0 tabular-nums w-20 text-right" x-text="formatMoney(item.price * item.qty)"></p>
+                        <button @click="removeItem(idx)" class="text-gray-300 dark:text-white/30 hover:text-red-400 text-xl leading-none shrink-0 transition-colors p-1" title="Remove">&times;</button>
+                    </div>
+                </template>
+            </div>
+        </div>
     </div>
 
     {{-- RIGHT: Order Cart Panel Toggle (mobile) --}}
@@ -161,7 +216,7 @@
     <div x-show="cartOpen" @click="cartOpen = false" class="lg:hidden fixed inset-0 bg-black/60 z-35" x-cloak></div>
 
     {{-- RIGHT: Order Cart Panel --}}
-    <div class="w-72 bg-white dark:bg-[#1a1f3d] flex flex-col shrink-0 border-l border-gray-200 dark:border-white/10 fixed lg:relative inset-y-0 right-0 z-40 transition-transform duration-300 lg:translate-x-0 pointer-events-auto shadow-2xl lg:shadow-none" :class="cartOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'" x-cloak style="overflow: visible;">
+    <div class="w-80 lg:w-100 bg-white dark:bg-[#1a1f3d] flex flex-col shrink-0 border-l border-gray-200 dark:border-white/10 fixed lg:relative inset-y-0 right-0 z-40 transition-transform duration-300 lg:translate-x-0 pointer-events-auto shadow-2xl lg:shadow-none" :class="cartOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'" x-cloak style="overflow: visible;">
 
 
         {{-- Cart Header --}}
@@ -272,7 +327,7 @@
         </div>
 
         {{-- Cart Items --}}
-        <div class="flex-1 overflow-y-auto p-3 space-y-1.5">
+        <div x-show="mode === 'browse'" class="flex-1 overflow-y-auto p-3 space-y-1.5">
             <template x-if="items.length === 0">
                 <div class="flex items-center justify-center h-full text-gray-300 dark:text-white/25 text-sm font-medium">Cart is empty</div>
             </template>
