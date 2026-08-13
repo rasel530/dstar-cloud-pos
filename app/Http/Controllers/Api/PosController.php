@@ -45,6 +45,16 @@ class PosController extends Controller
             $query->whereDate("created_at", "<=", $request->date_to);
         }
 
+        if ($request->filled("q")) {
+            $search = trim($request->q);
+            $query->where(function ($q) use ($search) {
+                $q->where("number", "ilike", "%{$search}%")
+                  ->orWhereHas("customer", function ($cq) use ($search) {
+                      $cq->where("name", "ilike", "%{$search}%");
+                  });
+            });
+        }
+
         $orders = $query->orderBy("created_at", "desc")->paginate(25);
 
         return response()->json(["data" => $orders]);
@@ -250,14 +260,11 @@ class PosController extends Controller
         $calculatedTotal = $order->posOrderItems->sum(fn($i) => $i->quantity * $i->price);
         $discount = $request->input('discount', $order->discount ?? 0);
         $discountType = $request->input('discount_type', $order->discount_type ?? 0);
-        $discountAmount = $discountType === 1 ? floatval($discount) : ($calculatedTotal * floatval($discount) / 100);
+        $discountAmount = round(floatval($discount), 2);
 
-        if ($discountType === 1 && $discountAmount > $calculatedTotal * 0.5) {
-            return response()->json(['message' => 'Fixed discount cannot exceed 50% of order total.'], 422);
-        }
-        if ($discountType === 0 && floatval($discount) > 50) {
-            return response()->json(['message' => 'Percentage discount cannot exceed 50%.'], 422);
-        }
+if ($discountAmount > $calculatedTotal * 0.5) {
+return response()->json(['message' => 'Discount cannot exceed 50% of order total.'], 422);
+}
 
         $order->discount = $discountAmount;
         $order->discount_type = $discountType;
