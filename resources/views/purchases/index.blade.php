@@ -70,6 +70,7 @@
                                         <span x-show="!s.is_enabled" class="text-red-600 dark:text-red-400 text-xs font-medium bg-red-50 dark:bg-red-500/20 px-2 py-0.5 rounded">Disabled</span>
                                     </td>
                                     <td class="px-6 py-4 text-right">
+                                        <button @click="openSupplierStatement(s.id)" class="text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 text-xs font-medium mr-2">Statement</button>
                                         <button @click="editSupplier(s)" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 text-xs font-medium mr-2">Edit</button>
                                         <button @click="deleteSupplier(s.id)" class="text-red-600 hover:text-red-800 dark:text-red-400 text-xs font-medium">Delete</button>
                                     </td>
@@ -132,7 +133,8 @@
                                     <td class="px-4 py-4 text-right space-x-2">
                                         <button @click="viewPurchase(po)" class="text-blue-600 hover:text-blue-800 text-xs font-medium">View</button>
                                         <button x-show="['pending','ordered','partially_received'].includes(po.status)" @click="receivePurchase(po)" class="text-green-600 hover:text-green-800 text-xs font-medium">Receive</button>
-                                        <button x-show="po.payment_status !== 'paid'" @click="markPaid(po.id)" class="text-amber-600 hover:text-amber-800 text-xs font-medium">Pay</button>
+                                        <button x-show="po.payment_status !== 'paid'" @click="openPayment(po)" class="text-emerald-600 hover:text-emerald-800 text-xs font-medium">Pay</button>
+                                        <button x-show="po.payment_status !== 'paid'" @click="markPaid(po.id)" class="text-amber-600 hover:text-amber-800 text-xs font-medium">Mark Paid</button>
                                         <button x-show="['pending','ordered'].includes(po.status)" @click="cancelPurchase(po.id)" class="text-red-600 hover:text-red-800 text-xs font-medium">Cancel</button>
                                     </td>
                                 </tr>
@@ -584,6 +586,106 @@
             <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
                 <button @click="showReturnModal=false" class="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg">Cancel</button>
                 <button @click="saveReturn()" :disabled="returnSaving" class="px-4 py-2 text-sm text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50" x-text="returnSaving ? 'Processing...' : 'Submit Return'"></button>
+            </div>
+        </div>
+    </div>
+
+    {{-- Supplier Payment Modal --}}
+    <div x-show="showPaymentModal" x-cloak class="fixed inset-0 z-50 flex items-end sm:items-center justify-center" @keydown.escape="showPaymentModal = false">
+        <div class="absolute inset-0 bg-black/60" @click="showPaymentModal = false"></div>
+        <div class="relative bg-white dark:bg-[#1a1f3d] w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl shadow-2xl max-h-[85vh] overflow-y-auto animate-slide-up sm:animate-none pb-[env(safe-area-inset-bottom,0px)]">
+            <div class="sm:hidden flex justify-center pt-3 pb-1"><div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div></div>
+            <div class="flex items-center justify-between px-5 pt-1 pb-3">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Record Payment</h3>
+                <button @click="showPaymentModal = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="px-5 space-y-4 pb-2">
+                <div class="text-sm text-gray-500 dark:text-white/60">Purchase: <span class="font-semibold text-gray-900 dark:text-white" x-text="paymentPurchase?.purchase_number"></span></div>
+                <div class="text-sm text-gray-500 dark:text-white/60">Outstanding Due: <span class="font-semibold text-rose-600 dark:text-rose-400" x-text="formatMoney(paymentPurchase?.due_amount || 0)"></span></div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount</label>
+                    <input type="number" x-model="paymentForm.amount" step="0.01" min="0" inputmode="decimal" placeholder="0.00" class="w-full px-3 py-3 bg-gray-50 dark:bg-[#0f1535] border-2 border-gray-200 dark:border-white/20 rounded-xl text-gray-900 dark:text-white text-xl font-bold focus:border-emerald-500 outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Method</label>
+                    <select x-model="paymentForm.payment_method" class="w-full px-3 py-2.5 bg-gray-50 dark:bg-[#0f1535] border border-gray-200 dark:border-white/20 rounded-xl text-sm text-gray-900 dark:text-white">
+                        <option value="cash">Cash</option>
+                        <option value="card">Card</option>
+                        <option value="bkash">bKash</option>
+                        <option value="nagad">Nagad</option>
+                        <option value="bank">Bank Transfer</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note</label>
+                    <input type="text" x-model="paymentForm.note" placeholder="Optional" class="w-full px-3 py-2.5 bg-gray-50 dark:bg-[#0f1535] border border-gray-200 dark:border-white/20 rounded-xl text-sm text-gray-900 dark:text-white">
+                </div>
+            </div>
+            <div class="px-5 pt-3 pb-5 space-y-2">
+                <button @click="savePayment()" :disabled="paymentSaving" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold rounded-xl transition text-sm">
+                    <span x-show="!paymentSaving">Record Payment</span>
+                    <span x-show="paymentSaving">Saving...</span>
+                </button>
+                <button @click="showPaymentModal = false" class="w-full py-2.5 text-gray-400 hover:text-gray-600 text-sm font-medium rounded-lg transition">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- Supplier Statement Modal --}}
+    <div x-show="showSupplierStatementModal" x-cloak class="fixed inset-0 z-50 flex items-end sm:items-center justify-center" @keydown.escape="showSupplierStatementModal = false">
+        <div class="absolute inset-0 bg-black/60" @click="showSupplierStatementModal = false"></div>
+        <div class="relative bg-white dark:bg-[#1a1f3d] w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl max-h-[85vh] flex flex-col animate-slide-up sm:animate-none pb-[env(safe-area-inset-bottom,0px)]">
+            <div class="sm:hidden flex justify-center pt-3 pb-1 shrink-0"><div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div></div>
+            <div class="flex items-center justify-between px-5 pt-1 pb-3 border-b border-gray-200 dark:border-white/10 shrink-0">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white" x-text="'Statement: ' + (supplierStatement?.supplier?.name || '')"></h3>
+                <button @click="showSupplierStatementModal = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="overflow-y-auto flex-1 px-5 py-3">
+                <div x-show="supplierStatementLoading" class="text-center py-10 text-gray-400 text-sm">Loading...</div>
+                <template x-if="!supplierStatementLoading && supplierStatement">
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-3 text-center border border-gray-100 dark:border-white/5">
+                                <span class="block text-xs text-gray-500 dark:text-white/50">Purchased</span>
+                                <span class="text-sm font-bold text-gray-900 dark:text-white" x-text="formatMoney(supplierStatement.summary?.total_purchased || 0)"></span>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-3 text-center border border-gray-100 dark:border-white/5">
+                                <span class="block text-xs text-gray-500 dark:text-white/50">Paid</span>
+                                <span class="text-sm font-bold text-emerald-600 dark:text-emerald-400" x-text="formatMoney(supplierStatement.summary?.total_paid || 0)"></span>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-3 text-center border border-gray-100 dark:border-white/5">
+                                <span class="block text-xs text-gray-500 dark:text-white/50">Due</span>
+                                <span class="text-sm font-bold text-rose-600 dark:text-rose-400" x-text="formatMoney(supplierStatement.summary?.total_due || 0)"></span>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-semibold text-gray-500 dark:text-white/50 uppercase mb-2">Purchases</h4>
+                            <div class="space-y-1.5">
+                                <template x-for="p in supplierStatement.purchases || []" :key="p.id">
+                                    <div class="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-[#0f1535] rounded-lg text-sm border border-gray-100 dark:border-white/5">
+                                        <span class="text-gray-700 dark:text-gray-300 font-mono text-xs" x-text="p.purchase_number"></span>
+                                        <span class="font-semibold text-gray-900 dark:text-white" x-text="formatMoney(p.grand_total)"></span>
+                                        <span class="font-semibold" :class="parseFloat(p.due_amount) > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'" x-text="parseFloat(p.due_amount) > 0 ? 'Due ' + formatMoney(p.due_amount) : 'Paid'"></span>
+                                    </div>
+                                </template>
+                                <p x-show="!supplierStatement.purchases?.length" class="text-xs text-gray-400 py-2 text-center">No purchases</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-semibold text-gray-500 dark:text-white/50 uppercase mb-2">Payments</h4>
+                            <div class="space-y-1.5">
+                                <template x-for="p in supplierStatement.payments || []" :key="p.id">
+                                    <div class="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-[#0f1535] rounded-lg text-sm border border-gray-100 dark:border-white/5">
+                                        <span class="text-gray-500 dark:text-white/60" x-text="p.payment_method || 'Payment'"></span>
+                                        <span class="text-gray-400 dark:text-white/40 text-xs" x-text="p.date || new Date(p.created_at).toLocaleDateString()"></span>
+                                        <span class="font-semibold text-emerald-600 dark:text-emerald-400" x-text="'+ ' + formatMoney(p.amount)"></span>
+                                    </div>
+                                </template>
+                                <p x-show="!supplierStatement.payments?.length" class="text-xs text-gray-400 py-2 text-center">No payments yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
             </div>
         </div>
     </div>

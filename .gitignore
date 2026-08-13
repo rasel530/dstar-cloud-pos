@@ -22,6 +22,8 @@
 /storage/*.key
 /storage/pail
 /storage/framework/views/*.php
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
 /storage/temp_*
 /tmp.ps1
 /vendor

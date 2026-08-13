@@ -11,10 +11,21 @@ class SettingsController extends Controller
 {
     public function index(): JsonResponse
     {
-        $settings = ApplicationSetting::where('tenant_id', auth()->user()->tenant_id)
+        $tenantId = auth()->user()->tenant_id;
+
+        $globalSettings = ApplicationSetting::whereNull('tenant_id')
             ->orderBy('key')
             ->get()
-            ->pluck('value', 'key');
+            ->pluck('value', 'key')
+            ->toArray();
+
+        $tenantSettings = ApplicationSetting::where('tenant_id', $tenantId)
+            ->orderBy('key')
+            ->get()
+            ->pluck('value', 'key')
+            ->toArray();
+
+        $settings = array_merge($globalSettings, $tenantSettings);
 
         return response()->json(['data' => $settings]);
     }

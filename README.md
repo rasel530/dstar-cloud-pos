@@ -11,7 +11,7 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 - **Cart Management** -- add/remove items, adjust quantities, apply discounts (flat/percentage/promo)
 - **Order Types** -- Dine-in, Takeaway, and Table Management (all toggleable from Settings)
 - **Customer Selection** -- search existing customers or create walk-in customers inline
-- **Payment Processing** -- Cash, Card, and Check payment methods
+- **Payment Processing** -- dynamic payment methods (Cash, Card, Check, bKash, Nagad, Rocket, Bank Transfer, Customer Due) with reorderable shortcuts
 - **Barcode Scanning** -- scan barcode + Enter auto-adds product to cart (fast checkout flow)
 - **Automated Receipt Printing** -- plain-text ESC/POS receipts auto-printed to thermal printers on checkout (fault-tolerant, never blocks the order)
 - **Keyboard Shortcuts** -- `F1` Cash, `F2` Card, `F3` Check, `F4` New Sale, `F8` Print, `Esc` Close, `Shift+?` Shortcut help (with in-app help modal)
@@ -40,6 +40,21 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 - POS Sales auto-sync: imports completed orders as income entries grouped by actual payment method
 - Reports: date-range filtered summary with by-category breakdown
 
+### Cash Register (Opening / Closing Cash)
+- **Open Register** -- select shift (dynamic), enter opening cash
+- **Close Register** -- summary (Opening Cash + Cash Sales + Cash In − Cash Refund − Cash Out = Expected Cash), actual cash count, variance
+- **Cash In / Cash Out** -- recorded with dynamic reasons (managed in Settings)
+- **Per-cashier separation** -- each cashier has their own register (scoped by user + branch)
+- **Register History** -- past shifts with opening/expected/actual/variance + cashier session timeline
+- **Unattended detection** -- idle register warning (last activity tracking)
+- **Logout protection** -- warns if register is open, register stays open on logout (auth ≠ register state)
+- **Cart persistence** -- cart survives page refresh, restored on re-login
+
+### Open / Held Orders
+- Hold (park) orders mid-transaction, resume or cancel later
+- Open/Held orders panel with resume/cancel actions
+- Order state tracking (open/held/closed/refunded/cancelled)
+
 ### Barcode Management
 - Barcode generator (CODE-128 / EAN-13 / UPC-A) with check-digit validation
 - Barcode list with SVG barcode image rendering (JsBarcode), search, type/status filters
@@ -66,15 +81,29 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 - Loyalty points tracking per customer
 - Enable/disable toggles for customer accounts
 - Status badges and quick actions
+- **Outstanding balance** -- red balance column + Add Payment button
+- **Customer statement** -- invoices + payments + running balance
+- **Partial payments** -- auto-allocated across multiple invoices
+
+### Customer & Supplier Due
+- **Customer Due** -- credit sales (Customer Due payment method) tracked with paid/due amounts
+- **Supplier Due** -- purchase totals with paid/due amounts
+- **Payment recording** -- partial payments, overpayment protection (capped at due)
+- **Statements** -- customer statement (invoices + payments) and supplier statement (purchases + payments)
+- **Due reports** -- Customer Due and Outstanding Purchases
 
 ### Reports & Analytics
-- **Sales Summary** -- revenue totals, order counts, avg order, tax collected, revenue trend chart
+- **Sales Summary** -- revenue totals, order counts, avg order, tax collected, revenue trend chart (net of refunds)
+- **Payment Methods** -- amount + transaction count per payment method
 - **Best Selling** -- products ranked by revenue with gold/silver/bronze badges
+- **Profit & Loss** -- Gross Sales → Net Sales → COGS → Gross Profit → Other Income → Operating Expenses → Net Profit
 - **Customer Analytics** -- top customers by spending, total orders
+- **Customer Due** -- outstanding balance per customer
 - **Customer Detail** -- per-customer drill-down: orders, top products, receipts
 - **Employee Detail** -- per-employee sales breakdown: orders, items, top products
 - **Tax Report** -- tax collected by date with totals
 - Date range filtering across all reports
+- Status filter (Closed / Open / Refunded / All)
 - Branch filtering in multi-branch mode
 - Pagination support
 
@@ -84,7 +113,8 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 - **Receipt** — Auto-print settings, header/footer customization
 - **Notifications** — Duration and position configuration
 - **System** — Single Company vs Multi-Branch mode
-- **Payment Methods** — Full CRUD for payment types (Cash, Card, Check, etc.) with Quick Pay toggle, shortcut keys, enable/disable
+- **Payment Methods** — Full CRUD for payment types (Cash, Card, Check, bKash, Nagad, Rocket, Bank, Customer Due) with Quick Pay toggle, shortcut keys, enable/disable, reorderable (drag up/down)
+- **Cash Register** — Shift management (CRUD), Cash In/Out reasons management
 - **Barcode** — Default barcode type, auto-generate toggle, label content toggles (name, price, SKU, company)
 
 ### Multi-Branch Support
@@ -103,7 +133,7 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 - **Fiscal Items** -- legal/compliance document management
 - **Promotions** -- discount promotion management
 - **Loyalty Cards** -- loyalty program with points tracking
-- **Activity Log** -- audit trail of all system actions
+- **Activity Log** -- audit trail of all system actions with category tabs, filters, and detail view
 
 ### UI/UX
 - **Fully Responsive** -- works on desktop, tablet, and mobile
@@ -116,6 +146,17 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 ---
 
 ## Recent Updates & Bug Fixes
+
+### Major Features (this release)
+
+1. **Cash Register (Opening/Closing Cash)** — full shift-based cash drawer management with open/close, cash in/out, dynamic shifts and reasons, per-cashier separation, register history with cashier session timeline, unattended detection, and logout protection.
+2. **Dynamic Payment Methods** — expanded to 8 methods (Cash, Card, Check, bKash, Nagad, Rocket, Bank Transfer, Customer Due) with reorderable buttons and shortcuts.
+3. **COGS + Profit & Loss** — cost snapshot captured at sale time, full P&L report (Gross Sales → Net Sales → COGS → Gross Profit → Other Income → Expenses → Net Profit).
+4. **Customer & Supplier Due** — credit sales tracking, partial payments with auto-allocation, customer/supplier statements, overpayment protection.
+5. **Open/Held Orders** — hold, resume, and cancel orders mid-transaction.
+6. **Enhanced Activity Log** — category tabs, user/action/branch/search filters, detail modal with device/IP/changes, login/logout + cash register tracking.
+7. **Cart Persistence** — cart survives page refresh, restored on re-login.
+8. **Logo Optimization** — company logo resized/compressed (96KB → 14KB) for faster page loads.
 
 ### 1. RTL/LTR Toggle — Side Panel Positioning (Fixed)
 - **Problem:** When toggling to RTL mode, the left/right side panels swapped incorrectly and the right panel slid off-screen and vanished.

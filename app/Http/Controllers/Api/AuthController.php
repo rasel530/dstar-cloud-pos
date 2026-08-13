@@ -63,6 +63,8 @@ class AuthController extends Controller
 
         $token = $user->createToken('api-token')->plainTextToken;
 
+        $this->logActivity($user, $request, 'login', 'Logged in');
+
         return response()->json([
             'data' => [
                 'user'  => $user->setAttribute('has_pin', !is_null($user->pin_code)),
@@ -134,6 +136,8 @@ class AuthController extends Controller
             ]);
 
             $token = $user->createToken('api-token')->plainTextToken;
+
+            $this->logActivity($user, $request, 'login', 'Logged in via PIN');
 
             return response()->json([
                 'data' => [
@@ -262,6 +266,8 @@ class AuthController extends Controller
 
             $token = $user->createToken('api-token')->plainTextToken;
 
+            $this->logActivity($user, $request, 'login', 'Logged in via employee PIN');
+
             return response()->json([
                 'data' => [
                     'user'  => $user->setAttribute('has_pin', !is_null($user->pin_code)),
@@ -310,5 +316,40 @@ class AuthController extends Controller
         ]);
 
         return response()->json(['message' => 'PIN has been reset. User must set up a new PIN on next login.']);
+    }
+
+    private function logActivity($user, Request $request, string $event, string $action): void
+    {
+        try {
+            \App\Models\UserActivityLog::create([
+                'user_id'    => $user->id,
+                'tenant_id'  => $user->tenant_id,
+                'branch_id'  => $request->header('X-Active-Branch'),
+                'module'     => 'Security',
+                'action'     => $action,
+                'event'      => $event,
+                'url'        => $request->fullUrl(),
+                'method'     => $request->method(),
+                'ip_address' => $request->ip(),
+                'device'     => $this->detectDevice($request),
+            ]);
+        } catch (\Exception $e) { /* activity log is non-critical */ }
+    }
+
+    private function detectDevice(Request $request): string
+    {
+        $ua = $request->header('User-Agent', '');
+        $browser = 'Unknown';
+        $os = 'Unknown';
+        if (preg_match('/Chrome\/(\d+)/', $ua)) $browser = 'Chrome';
+        elseif (preg_match('/Firefox\/(\d+)/', $ua)) $browser = 'Firefox';
+        elseif (preg_match('/Safari\/(\d+)/', $ua) && ! str_contains($ua, 'Chrome')) $browser = 'Safari';
+        elseif (str_contains($ua, 'Edg/')) $browser = 'Edge';
+        if (str_contains($ua, 'Windows')) $os = 'Windows';
+        elseif (str_contains($ua, 'Mac OS')) $os = 'macOS';
+        elseif (str_contains($ua, 'Android')) $os = 'Android';
+        elseif (str_contains($ua, 'iPhone') || str_contains($ua, 'iPad')) $os = 'iOS';
+        elseif (str_contains($ua, 'Linux')) $os = 'Linux';
+        return $browser . ' / ' . $os;
     }
 }

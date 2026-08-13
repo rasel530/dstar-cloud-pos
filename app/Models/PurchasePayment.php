@@ -2,35 +2,33 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
-class Payment extends Model
+class PurchasePayment extends Model
 {
     use HasFactory;
     use HasUuids;
 
-    protected $table = 'payments';
+    protected $table = 'purchase_payments';
 
     protected $fillable = [
         'tenant_id',
-        'document_id',
-        'payment_type_id',
+        'purchase_id',
+        'supplier_id',
         'user_id',
         'amount',
-        'rounding_adjustment',
+        'payment_method',
+        'note',
         'date',
-        'z_report_id',
-        'cash_register_id',
     ];
 
     protected function casts(): array
     {
         return [
             'amount' => 'decimal:4',
-            'rounding_adjustment' => 'decimal:4',
             'date' => 'date',
         ];
     }
@@ -40,28 +38,18 @@ class Payment extends Model
         return $this->belongsTo(Tenant::class);
     }
 
-    public function document(): BelongsTo
+    public function purchase(): BelongsTo
     {
-        return $this->belongsTo(Document::class);
+        return $this->belongsTo(Purchase::class);
     }
 
-    public function paymentType(): BelongsTo
+    public function supplier(): BelongsTo
     {
-        return $this->belongsTo(PaymentType::class);
+        return $this->belongsTo(Customer::class, 'supplier_id');
     }
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function zReport(): BelongsTo
-    {
-        return $this->belongsTo(ZReport::class);
-    }
-
-    public function cashRegister(): BelongsTo
-    {
-        return $this->belongsTo(CashRegister::class);
     }
 }

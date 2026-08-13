@@ -11,9 +11,14 @@ class CustomerController extends Controller
 {
     public function index(Request $request)
     {
+        $tenantId = auth()->user()->tenant_id;
         $query = Customer::query()
+            ->where(function ($q) use ($tenantId) {
+                $q->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
+            })
             ->select('customers.*')
-            ->selectRaw('COALESCE((SELECT SUM(points_balance) FROM loyalty_cards WHERE customer_id = customers.id), 0) as loyalty_points');
+            ->selectRaw('COALESCE((SELECT SUM(points_balance) FROM loyalty_cards WHERE customer_id = customers.id), 0) as loyalty_points')
+            ->selectRaw('COALESCE((SELECT SUM(due_amount) FROM documents WHERE customer_id = customers.id), 0) as outstanding_balance');
 
         if ($search = $request->query('search')) {
             $query->where(function ($q) use ($search) {
@@ -150,5 +155,112 @@ class CustomerController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => 'Failed to delete customer'], 500);
         }
+    }
+
+    public function addPayment(Request $request, string $id): \Illuminate\Http\JsonResponse
+    {
+        $validated = $request->validate([
+            'amount' => 'required|numeric|gt:0',
+            'payment_method' => 'nullable|string|max:50',
+        ]);
+
+        $customer = Customer::where(function ($q) { $q->where('tenant_id', auth()->user()->tenant_id)->orWhereNull('tenant_id'); })->findOrFail($id);
+
+        $docs = \App\Models\Document::where('customer_id', $id)
+            ->where('due_amount', '>', 0)
+            ->orderBy('date')
+            ->get();
+
+        if ($docs->isEmpty()) {
+            return response()->json(['message' => 'No outstanding invoices for this customer.'], 422);
+        }
+
+        $totalDue = round((float) $docs->sum('due_amount'), 4);
+        $amount = min(round((float) $validated['amount'], 4), $totalDue);
+        $excess = round((float) $validated['amount'] - $amount, 4);
+
+        $remaining = $amount;
+        $allocated = 0;
+        $paymentType = \App\Models\PaymentType::where('code', $validated['payment_method'] ?? 'cash')->first()
+            ?? \App\Models\PaymentType::first();
+
+        foreach ($docs as $doc) {
+            if ($remaining <= 0.0001) break;
+            $pay = min(round($remaining, 4), round((float) $doc->due_amount, 4));
+            $doc->paid_amount = round((float) $doc->paid_amount + $pay, 4);
+            $doc->due_amount = round((float) $doc->due_amount - $pay, 4);
+            $doc->paid_status = $doc->due_amount <= 0.0001 ? 1 : 2;
+            $doc->save();
+            $remaining = round($remaining - $pay, 4);
+            $allocated = round($allocated + $pay, 4);
+
+            \App\Models\Payment::create([
+                'tenant_id' => $doc->tenant_id,
+                'document_id' => $doc->id,
+                'payment_type_id' => $paymentType?->id,
+                'user_id' => auth()->id(),
+                'amount' => $pay,
+                'date' => now(),
+            ]);
+        }
+
+        return response()->json([
+            'message' => $excess > 0
+                ? 'Payment recorded. ' . $allocated . ' applied, ' . $excess . ' overpaid (excess ignored).'
+                : 'Payment allocated to invoice(s).',
+            'data' => [
+                'allocated' => $allocated,
+                'remaining' => $remaining,
+                'excess' => $excess,
+            ],
+        ]);
+    }
+
+    public function statement(Request $request, string $id): \Illuminate\Http\JsonResponse
+    {
+        $customer = Customer::where(function ($q) { $q->where('tenant_id', auth()->user()->tenant_id)->orWhereNull('tenant_id'); })->findOrFail($id);
+
+        $documents = \App\Models\Document::where('customer_id', $id)
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->orderBy('date')
+            ->orderBy('created_at')
+            ->get();
+
+        $totalInvoiced = round((float) $documents->sum('total'), 4);
+        $totalPaid = round((float) $documents->sum('paid_amount'), 4);
+        $totalDue = round((float) $documents->sum('due_amount'), 4);
+
+        $paymentRecords = \App\Models\Payment::with('paymentType:id,name')
+            ->whereIn('document_id', $documents->pluck('id'))
+            ->where('amount', '>', 0)
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json([
+            'data' => [
+                'customer' => $customer,
+                'invoices' => $documents,
+                'payments' => $paymentRecords,
+                'summary' => [
+                    'total_invoiced' => $totalInvoiced,
+                    'total_paid' => $totalPaid,
+                    'total_due' => $totalDue,
+                ],
+            ],
+        ]);
+    }
+
+    public function payments(Request $request, string $id): \Illuminate\Http\JsonResponse
+    {
+        $customer = Customer::where(function ($q) { $q->where('tenant_id', auth()->user()->tenant_id)->orWhereNull('tenant_id'); })->findOrFail($id);
+
+        $documentIds = \App\Models\Document::where('customer_id', $id)->pluck('id');
+
+        $payments = \App\Models\Payment::with('paymentType:id,name')
+            ->whereIn('document_id', $documentIds)
+            ->orderByDesc('created_at')
+            ->paginate(25);
+
+        return response()->json(['data' => $payments]);
     }
 }

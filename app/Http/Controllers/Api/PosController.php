@@ -104,16 +104,19 @@ class PosController extends Controller
             "table_number"  => $request->table_number ?? null,
             "status"        => "open",
             "total"         => $request->total ?? 0,
+            "tax_amount"    => $request->tax_amount ?? 0,
             "discount"      => $request->discount ?? 0,
-            "discount_type" => 0,
+            "discount_type" => $request->discount_type ?? 0,
         ]);
 
         foreach ($request->items as $item) {
+            $product = \App\Models\Product::find($item["product_id"]);
             PosOrderItem::create([
                 "pos_order_id" => $order->id,
                 "product_id"   => $item["product_id"],
                 "quantity"     => $item["quantity"],
                 "price"        => $item["price"],
+                "cost"         => $product?->cost ?? 0,
             ]);
         }
 
@@ -135,6 +138,7 @@ class PosController extends Controller
 
         $o->update([
             'status' => 'closed',
+            'closed_at' => now(),
             'total' => $calc['total'],
             'discount' => $calc['discount'],
             'updated_at' => now(),
@@ -147,6 +151,58 @@ class PosController extends Controller
             }
         } catch (\Exception $e) { /* loyalty award is non-critical */ }
         return response()->json(["data" => $o]);
+    }
+
+    public function holdOrders(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $query = PosOrder::query()
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->whereIn('status', ['open', 'held'])
+            ->when($request->header('X-Active-Branch'), fn($q, $bid) => $q->where('branch_id', $bid))
+            ->with(['customer:id,name', 'user:id,first_name,last_name', 'posOrderItems.product'])
+            ->withCount('posOrderItems')
+            ->orderByDesc('updated_at');
+
+        return response()->json(['data' => $query->get()]);
+    }
+
+    public function holdOrder(Request $request, $order): \Illuminate\Http\JsonResponse
+    {
+        $o = PosOrder::where('id', $order)
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->first();
+        if (!$o) return response()->json(['message' => 'Order not found'], 404);
+        if (!in_array($o->status, ['open'])) {
+            return response()->json(['message' => 'Only open orders can be held.'], 422);
+        }
+        $o->update(['status' => 'held', 'held_at' => now()]);
+        return response()->json(['data' => $o->fresh()]);
+    }
+
+    public function resumeOrder(Request $request, $order): \Illuminate\Http\JsonResponse
+    {
+        $o = PosOrder::where('id', $order)
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->first();
+        if (!$o) return response()->json(['message' => 'Order not found'], 404);
+        if (!in_array($o->status, ['held'])) {
+            return response()->json(['message' => 'Only held orders can be resumed.'], 422);
+        }
+        $o->update(['status' => 'open', 'held_at' => null]);
+        return response()->json(['data' => $o->fresh()]);
+    }
+
+    public function cancelOrder(Request $request, $order): \Illuminate\Http\JsonResponse
+    {
+        $o = PosOrder::where('id', $order)
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->first();
+        if (!$o) return response()->json(['message' => 'Order not found'], 404);
+        if (!in_array($o->status, ['open', 'held'])) {
+            return response()->json(['message' => 'Only open/held orders can be cancelled.'], 422);
+        }
+        $o->update(['status' => 'cancelled', 'closed_at' => now()]);
+        return response()->json(['data' => $o->fresh()]);
     }
 
     public function addItem(Request $request, $orderId)
@@ -171,6 +227,7 @@ class PosController extends Controller
             "product_id"   => $validated['product_id'],
             "quantity"     => $validated['quantity'],
             "price"        => $validated['price'],
+            "cost"         => $product->cost ?? 0,
             "round_number" => 1,
         ]);
         return response()->json(["data" => $item], 201);
@@ -224,12 +281,32 @@ class PosController extends Controller
         $docNumber = $dateFmt . str_pad($count, 4, "0", STR_PAD_LEFT);
         $docType = \App\Models\DocumentType::where("code", "200")->first();
         $warehouse = \App\Models\Warehouse::where("tenant_id", $user->tenant_id)->first();
-        $paymentType = \App\Models\PaymentType::first();
+        $paymentType = \App\Models\PaymentType::where(function ($q) use ($paymentMethod) {
+            $q->where('code', $paymentMethod)->orWhere('name', 'ilike', $paymentMethod);
+        })->first() ?? \App\Models\PaymentType::first();
+
+        $openRegister = \App\Models\CashRegister::where('user_id', $user->id)
+            ->where('tenant_id', $user->tenant_id)
+            ->where('status', 'open')
+            ->when($branchId && !\App\Services\SystemModeService::isSingleMode(),
+                fn($q) => $q->where('branch_id', $branchId),
+                fn($q) => $q->whereNull('branch_id'))
+            ->latest('opened_at')->first();
+
+        $isCredit = $paymentType && !$paymentType->mark_as_paid;
+        $effectiveCustomerId = $request->input('customer_id', $order->customer_id);
+        if ($isCredit && !$effectiveCustomerId) {
+            return response()->json(['message' => 'Customer Due (credit) requires a registered customer. Please select a customer first.'], 422);
+        }
+        $docPaidAmount = $isCredit ? 0 : $finalTotal;
+        $docDueAmount = $isCredit ? $finalTotal : 0;
+        $docPaidStatus = $isCredit ? 0 : 1;
+        $paymentAmount = $isCredit ? 0 : $finalTotal;
 
         $doc = Document::create([
             "tenant_id" => $user->tenant_id,
             "user_id" => $user->id,
-            "customer_id" => $order->customer_id,
+            "customer_id" => $effectiveCustomerId,
             "number" => $docNumber,
             "order_number" => $order->number,
             "document_type_id" => $docType?->id,
@@ -237,9 +314,12 @@ class PosController extends Controller
             "date" => now()->toDateString(),
             "stock_date" => now(),
             "total" => $finalTotal,
+            "paid_amount" => $docPaidAmount,
+            "due_amount" => $docDueAmount,
+            "tax_amount" => $taxAmount,
             "discount" => $discountAmount,
             "discount_type" => $discountType,
-            "paid_status" => 1,
+            "paid_status" => $docPaidStatus,
         ]);
 
         foreach ($order->posOrderItems as $oi) {
@@ -257,8 +337,13 @@ class PosController extends Controller
             "document_id" => $doc->id,
             "payment_type_id" => $paymentType?->id,
             "user_id" => $user->id,
-            "amount" => $finalTotal,
+            "amount" => $paymentAmount,
+            "cash_register_id" => $openRegister?->id,
         ]);
+
+        if ($openRegister) {
+            $openRegister->update(['last_activity_at' => now()]);
+        }
 
         \DB::table('pos_orders')->where('id', $orderId)->update([
             'status' => 'closed',
@@ -269,7 +354,7 @@ class PosController extends Controller
             'change_amount' => $changeAmount,
             'payment_method' => $paymentMethod,
             'tax_amount' => $taxAmount,
-            'customer_id' => $request->input('customer_id', $order->customer_id),
+            'customer_id' => $effectiveCustomerId,
             'branch_id' => $branchId,
             'updated_at' => now(),
         ]);
@@ -360,7 +445,19 @@ class PosController extends Controller
             if ($doc) {
             try {
                 $checkoutService = app(\App\Services\Pos\CheckoutService::class);
-                $checkoutService->processRefund($doc->id, $user->id, $reason);
+                $refundResult = $checkoutService->processRefund($doc->id, $user->id, $reason);
+
+                $openRegister = \App\Models\CashRegister::where('user_id', $user->id)
+                    ->where('tenant_id', $user->tenant_id)
+                    ->where('status', 'open')
+                    ->when($order->branch_id && !\App\Services\SystemModeService::isSingleMode(),
+                        fn($q) => $q->where('branch_id', $order->branch_id),
+                        fn($q) => $q->whereNull('branch_id'))
+                    ->latest('opened_at')->first();
+                if ($openRegister && isset($refundResult['document'])) {
+                    \App\Models\Payment::where('document_id', $refundResult['document']->id)
+                        ->update(['cash_register_id' => $openRegister->id]);
+                }
             } catch (\InvalidArgumentException|\RuntimeException $e) {
                 $alreadyRefunded = true;
             }

@@ -254,14 +254,23 @@ window.POS = {
     cartOpen: false,
     hasBranch: true,
     items: [], searchTerm: '', activeCategory: null, products: [],
-    categories: [], selectedCustomer: null,
+    categories: [], selectedCustomer: null, defaultCustomer: null,
     serviceType: 0, tableNumber: '',
     showCustomerSearch: false, customerSearch: '', searchedCustomers: [],
     discountType: 'percent', discountValue: 0,
     showPayment: false, paymentType: 'cash', tenderAmount: null, changeAmount: 0,
     quickPaymentTypes: [],
+    register: { is_open: false, register: null, summary: null },
+    showOpenRegister: false, showCloseRegister: false, showCashInOut: false, showRegisterHistory: false,
+    registerHistory: [], registerHistoryLoading: false,
+    openRegisterForm: { opening_cash: '', shift_id: '', note: '' },
+    closeRegisterForm: { actual_cash: '', note: '' },
+    cashInOutForm: { type: 'in', amount: '', reason: '' },
+    registerLoading: false, registerSaving: false,
+    shifts: [], cashInReasons: [], cashOutReasons: [],
     processingPayment: false, toast: { show: false, message: '', type: 'success' },
     showReceipt: false, receiptData: null, receiptApiUrl: null,
+    showHoldOrders: false, holdOrders: [], holdOrdersLoading: false,
     showAuthRedirect: false, uploading: false, existingOrderId: null, promoDiscount: 0, orderTotal: null,
     showQuickCustomerForm: false, quickCustomerPhone: '', quickCustomerName: '', quickCustomerSaving: false,
     showShortcutsHelp: false,
@@ -316,6 +325,12 @@ window.POS = {
         return amount;
     },
     get grandTotal() { return this.orderTotal != null ? this.orderTotal : this.applyRounding(this.subtotal - this.discount - this.promoDiscount + this.tax); },
+    get registerInactiveMins() {
+        if (!this.register.is_open) return null;
+        const la = this.register.register?.last_activity_at;
+        if (!la) return null;
+        return Math.max(0, Math.floor((Date.now() - new Date(la).getTime()) / 60000));
+    },
     get filteredProducts() {
         if (!this.searchTerm) return this.products;
         const q = this.searchTerm.toLowerCase();
@@ -344,6 +359,8 @@ window.POS = {
             this.loadDefaultCustomer(),
             this.loadStockSummary(),
             this.loadPaymentTypes(),
+            this.loadRegisterStatus(),
+            this.loadRegisterConfig(),
         ]);
         window.addEventListener('branch-changed', () => {
             this.items = [];
@@ -353,7 +370,13 @@ window.POS = {
             this.orderTotal = null;
             this.showPayment = false;
             this.loadStockSummary();
+            this.saveCart();
         });
+        this.loadCart();
+        this.$watch('discountValue', () => this.saveCart());
+        this.$watch('discountType', () => this.saveCart());
+        this.$watch('tableNumber', () => this.saveCart());
+        this.$watch('serviceType', () => this.saveCart());
         const params = new URLSearchParams(window.location.search);
         const orderId = params.get('order');
         if (orderId) { await this.loadOrder(orderId); }
@@ -398,6 +421,7 @@ window.POS = {
             const customers = Array.isArray(data?.data) ? data.data : (data?.data?.data || []);
             if (customers.length > 0) {
                 this.selectedCustomer = customers[0];
+                this.defaultCustomer = customers[0];
             }
         } catch (e) { /* ignore */ }
     },
@@ -435,6 +459,95 @@ window.POS = {
             ];
         }
     },
+    async loadRegisterStatus() {
+        try {
+            const d = await window.POS.api('/api/cash-register/status');
+            this.register = d?.data || { is_open: false, register: null, summary: null };
+        } catch (e) {
+            this.register = { is_open: false, register: null, summary: null };
+        }
+    },
+    async loadRegisterConfig() {
+        try {
+            const [shiftsRes, settingsRes] = await Promise.all([
+                window.POS.api('/api/shifts'),
+                window.POS.api('/api/settings'),
+            ]);
+            this.shifts = (shiftsRes?.data || []).filter(s => s.is_enabled);
+            const settings = settingsRes?.data || {};
+            const parse = (v) => {
+                if (Array.isArray(v)) return v;
+                if (typeof v === 'string') { try { const p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch (e) { return []; } }
+                return [];
+            };
+            this.cashInReasons = parse(settings.cash_in_reasons);
+            this.cashOutReasons = parse(settings.cash_out_reasons);
+        } catch (e) {
+            this.shifts = [];
+            this.cashInReasons = [];
+            this.cashOutReasons = [];
+        }
+    },
+    async openRegisterHistory() {
+        this.showRegisterHistory = true;
+        this.registerHistoryLoading = true;
+        this.registerHistory = [];
+        try {
+            const d = await window.POS.api('/api/cash-register/history?per_page=50');
+            this.registerHistory = d?.data?.data || d?.data || [];
+        } catch (e) {
+            this.registerHistory = [];
+        } finally {
+            this.registerHistoryLoading = false;
+        }
+    },
+    openRegisterModal() { this.openRegisterForm = { opening_cash: '', shift_id: '', note: '' }; this.showOpenRegister = true; },    async openRegister() {
+        const amount = parseFloat(this.openRegisterForm.opening_cash);
+        if (!amount || amount < 0) { alert('Enter a valid opening cash amount.'); return; }
+        this.registerSaving = true;
+        try {
+            await window.POS.api('/api/cash-register/open', {
+                method: 'POST',
+                body: JSON.stringify({ opening_cash: amount, shift_id: this.openRegisterForm.shift_id || null, note: this.openRegisterForm.note }),
+            });
+            this.showOpenRegister = false;
+            await this.loadRegisterStatus();
+            this.toastMsg('Register opened', 'success');
+        } catch (e) { alert(e.message || 'Failed to open register'); }
+        finally { this.registerSaving = false; }
+    },
+    openCloseRegisterModal() { this.closeRegisterForm = { actual_cash: '', note: '' }; this.showCloseRegister = true; },
+    async closeRegister() {
+        const actual = parseFloat(this.closeRegisterForm.actual_cash);
+        if (isNaN(actual) || actual < 0) { alert('Enter the actual cash counted.'); return; }
+        this.registerSaving = true;
+        try {
+            await window.POS.api('/api/cash-register/close', {
+                method: 'POST',
+                body: JSON.stringify({ actual_cash: actual, note: this.closeRegisterForm.note }),
+            });
+            this.showCloseRegister = false;
+            await this.loadRegisterStatus();
+            this.toastMsg('Register closed', 'success');
+        } catch (e) { alert(e.message || 'Failed to close register'); }
+        finally { this.registerSaving = false; }
+    },
+    openCashInOutModal(type) { this.cashInOutForm = { type: type, amount: '', reason: '' }; this.showCashInOut = true; },
+    async recordCashInOut() {
+        const amount = parseFloat(this.cashInOutForm.amount);
+        if (!amount || amount <= 0) { alert('Enter a valid amount.'); return; }
+        this.registerSaving = true;
+        try {
+            await window.POS.api('/api/cash-register/cash-in-out', {
+                method: 'POST',
+                body: JSON.stringify({ type: this.cashInOutForm.type, amount: amount, reason: this.cashInOutForm.reason }),
+            });
+            this.showCashInOut = false;
+            await this.loadRegisterStatus();
+            this.toastMsg('Cash ' + (this.cashInOutForm.type === 'in' ? 'in' : 'out') + ' recorded', 'success');
+        } catch (e) { alert(e.message || 'Failed to record cash movement'); }
+        finally { this.registerSaving = false; }
+    },
     async loadDefaultStocks() {
         if (this.items.length === 0) return;
         try {
@@ -444,8 +557,7 @@ window.POS = {
             list.forEach(s => { this.stockMap[s.product_id] = s; });
         } catch (e) {}
     },
-    async loadOrder(orderId) {
-        try {
+    async loadOrder(orderId) {        try {
             const data = await window.POS.api('/api/orders/' + orderId);
             const order = data?.data;
             if (!order) { this.toastMsg('Order not found', 'error'); return; }
@@ -465,6 +577,51 @@ window.POS = {
                 this.selectedCustomer = order.customer || null;
                 this.serviceType = order.service_type || 0;
         } catch (e) { this.toastMsg('Failed to load order', 'error'); }
+    },
+    async openHoldOrders() {
+        this.showHoldOrders = true;
+        await this.loadHoldOrders();
+    },
+    async loadHoldOrders() {
+        this.holdOrdersLoading = true;
+        try {
+            const d = await window.POS.api('/api/orders/hold-list');
+            this.holdOrders = d?.data || [];
+        } catch (e) { this.holdOrders = []; }
+        finally { this.holdOrdersLoading = false; }
+    },
+    async holdCurrentOrder() {
+        if (!this.items.length) return;
+        try {
+            if (this.existingOrderId) {
+                await window.POS.api('/api/orders/' + this.existingOrderId + '/hold', { method: 'POST' });
+            } else {
+                const payload = { items: this.items.map(i => ({ product_id: i.product_id || i.id, quantity: i.qty, price: i.price })), customer_id: this.selectedCustomer?.id || null, table_number: this.tableNumber || null, service_type: this.serviceType, discount: this.discount, discount_type: this.discountType === 'percent' ? 0 : 1, total: this.grandTotal, tax_amount: this.tax };
+                const r = await window.POS.api('/api/orders', { method: 'POST', body: JSON.stringify(payload) });
+                const oid = r?.data?.id;
+                if (oid) await window.POS.api('/api/orders/' + oid + '/hold', { method: 'POST' });
+            }
+            this.items = []; this.discountType = 'percent'; this.discountValue = 0; this.promoDiscount = 0; this.selectedCustomer = this.defaultCustomer || null; this.existingOrderId = null; this.orderTotal = null;
+            this.saveCart();
+            this.toastMsg('Order held', 'success');
+            await this.loadHoldOrders();
+        } catch (e) { this.toastMsg('Failed to hold order', 'error'); }
+    },
+    async resumeHoldOrder(id) {
+        try {
+            await window.POS.api('/api/orders/' + id + '/resume', { method: 'POST' });
+            this.showHoldOrders = false;
+            await this.loadOrder(id);
+            this.saveCart();
+        } catch (e) { this.toastMsg('Failed to resume order', 'error'); }
+    },
+    async cancelHoldOrder(id) {
+        if (!confirm('Cancel this order?')) return;
+        try {
+            await window.POS.api('/api/orders/' + id + '/cancel', { method: 'POST' });
+            await this.loadHoldOrders();
+            this.toastMsg('Order cancelled', 'success');
+        } catch (e) { this.toastMsg('Failed to cancel order', 'error'); }
     },
     async loadCategories() {
         try {
@@ -593,6 +750,7 @@ window.POS = {
             if (this.posSettings.sound_effects) POS_SOUNDS.addItem(); }
         this.showToast('Added: ' + product.name);
         this.refreshPromoDiscounts();
+        this.saveCart();
     },
     async searchCustomers() {
         const term = (this.customerSearch || '').trim();
@@ -617,6 +775,7 @@ window.POS = {
         this.customerSearch = '';
         this.searchedCustomers = [];
         this.showCustomerSearch = false;
+        this.saveCart();
     },
     async quickCreateCustomer() {
         const phone = (this.quickCustomerPhone || '').trim();
@@ -639,9 +798,40 @@ window.POS = {
         finally { this.quickCustomerSaving = false; }
     },
     removeItem(idx) { const item = this.items[idx]; this.items.splice(idx, 1); this.showToast('Removed: ' + item.name);
-            if (this.posSettings.sound_effects) POS_SOUNDS.removeItem(); this.refreshPromoDiscounts(); },
-    updateQty(idx, qty) { if (qty < 1) return; this.items[idx].qty = qty; this.refreshPromoDiscounts(); },
-    newSale() { if (this.items.length && !confirm('Clear order?')) return; this.items = []; this.discountType = 'percent'; this.discountValue = 0; this.promoDiscount = 0; this.selectedCustomer = null; this.orderTotal = null; this.existingOrderId = null; },
+            if (this.posSettings.sound_effects) POS_SOUNDS.removeItem(); this.refreshPromoDiscounts(); this.saveCart(); },
+    updateQty(idx, qty) { if (qty < 1) return; this.items[idx].qty = qty; this.refreshPromoDiscounts(); this.saveCart(); },
+    newSale() { if (this.items.length && !confirm('Clear order?')) return; this.items = []; this.discountType = 'percent'; this.discountValue = 0; this.promoDiscount = 0; this.selectedCustomer = null; this.orderTotal = null; this.existingOrderId = null; this.saveCart(); },
+    saveCart() {
+        try {
+            const cart = {
+                items: this.items.map(i => ({ id: i.id, name: i.name, price: i.price, qty: i.qty })),
+                discountType: this.discountType,
+                discountValue: this.discountValue,
+                selectedCustomer: this.selectedCustomer ? { id: this.selectedCustomer.id, name: this.selectedCustomer.name } : null,
+                tableNumber: this.tableNumber,
+                serviceType: this.serviceType,
+                savedAt: Date.now(),
+            };
+            if (cart.items.length) localStorage.setItem('pos_cart', JSON.stringify(cart));
+            else localStorage.removeItem('pos_cart');
+        } catch (e) { /* ignore */ }
+    },
+    loadCart() {
+        try {
+            const raw = localStorage.getItem('pos_cart');
+            if (!raw) return;
+            const cart = JSON.parse(raw);
+            if (cart && Array.isArray(cart.items) && cart.items.length) {
+                this.items = cart.items;
+                this.discountType = cart.discountType || 'percent';
+                this.discountValue = cart.discountValue || 0;
+                this.tableNumber = cart.tableNumber || '';
+                this.serviceType = cart.serviceType || 0;
+                if (cart.selectedCustomer && cart.selectedCustomer.id) this.selectedCustomer = cart.selectedCustomer;
+                this.toastMsg('Restored previous cart', 'success');
+            }
+        } catch (e) { /* ignore */ }
+    },
     openPayment(paymentType) { if (!this.items.length) return; this.paymentType = paymentType; this.tenderAmount = this.grandTotal; this.showPayment = true; },
     async calcPromotionDiscounts() {
         const now = Date.now();
@@ -695,14 +885,11 @@ window.POS = {
         this.showPayment = false;
         try {
 
-            const promoDiscountsPromise = this.calcPromotionDiscounts();
-
             const paymentTypeName = this.paymentType?.code || this.paymentType?.name || this.paymentType;
-            const promoDiscounts = await promoDiscountsPromise;
 
             const payload = {
                 items: this.items.map(i => ({ product_id: i.product_id || i.id, quantity: i.qty, price: i.price })),
-                discount: this.discount + promoDiscounts, total: this.grandTotal, payment_type: paymentTypeName,
+                discount: this.discount + this.promoDiscount, total: this.grandTotal, payment_type: paymentTypeName,
                 paid_amount: this.tenderAmount || this.grandTotal,
                 customer_id: this.selectedCustomer?.id || null,
                 table_number: this.tableNumber || null,
@@ -742,7 +929,9 @@ window.POS = {
                 }
             });
             this.items = []; this.discountType = 'percent'; this.discountValue = 0; this.promoDiscount = 0; this.existingOrderId = null; this.orderTotal = null;
+            this.selectedCustomer = this.defaultCustomer || null; this.tableNumber = null;
             this.cartOpen = false;
+            this.saveCart();
         } catch (e) { this.toastMsg('Payment failed', 'error');
             this.showPayment = false;
             if (this.posSettings.sound_effects) POS_SOUNDS.error(); } finally { this.processingPayment = false; }
@@ -1043,6 +1232,9 @@ Alpine.data('customersManager', () => ({
     showModal: false, editing: false, saving: false,
     toast: { show: false, message: '', type: 'success' },
     form: { name: '', email: '', phone_number: '', code: '', is_enabled: true },
+    showPaymentModal: false, showStatementModal: false,
+    paymentForm: { amount: '', payment_method: 'cash' }, paymentSaving: false, paymentCustomer: null,
+    statement: null, statementLoading: false,
     get gridStyle() {
         const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
@@ -1070,6 +1262,40 @@ Alpine.data('customersManager', () => ({
     async deleteCustomer(id) { if (!confirm('Delete this customer?')) return; this.customers = this.customers.filter(c => c.id !== id); try { await window.POS.api('/api/customers/' + id, { method: 'DELETE' }); this.toastMsg('Customer deleted', 'success'); } catch (e) { this.toastMsg('Delete failed. Refreshing...', 'error'); this.fetchCustomers(); } },
     async toggleStatus(customer) { const was = customer.is_enabled; customer.is_enabled = !customer.is_enabled; try { await window.POS.api('/api/customers/' + customer.id, { method: 'PUT', body: JSON.stringify({ is_enabled: customer.is_enabled }) }); } catch (e) { customer.is_enabled = was; this.toastMsg('Toggle failed', 'error'); } },
     toastMsg(message, type = 'success') { this.toast = { show: true, message, type }; clearTimeout(this._t); this._t = setTimeout(() => { this.toast.show = false; }, 2500); },
+    formatMoney(amount) { return window.POS.formatCurrency(amount); },
+    openPayment(customer) {
+        this.paymentCustomer = customer;
+        this.paymentForm = { amount: '', payment_method: 'cash' };
+        this.showPaymentModal = true;
+    },
+    async savePayment() {
+        const amount = parseFloat(this.paymentForm.amount);
+        if (!amount || amount <= 0) { alert('Enter a valid amount.'); return; }
+        this.paymentSaving = true;
+        try {
+            const r = await window.POS.api('/api/customers/' + this.paymentCustomer.id + '/payment', {
+                method: 'POST',
+                body: JSON.stringify({ amount: amount, payment_method: this.paymentForm.payment_method }),
+            });
+            this.showPaymentModal = false;
+            await this.fetchCustomers();
+            if (r?.data?.excess > 0) {
+                alert('Payment recorded. ' + r.data.allocated + ' applied, ' + r.data.excess + ' overpaid (excess ignored).');
+            }
+            this.toastMsg('Payment recorded', 'success');
+        } catch (e) { alert(e.message || 'Failed to record payment'); }
+        finally { this.paymentSaving = false; }
+    },
+    async openStatement(customer) {
+        this.showStatementModal = true;
+        this.statementLoading = true;
+        this.statement = null;
+        try {
+            const r = await window.POS.api('/api/customers/' + customer.id + '/statement');
+            this.statement = r?.data || null;
+        } catch (e) { this.statement = null; }
+        finally { this.statementLoading = false; }
+    },
 }));
 
 // --- Orders List Component ---
@@ -1140,11 +1366,18 @@ Alpine.data('ordersList', () => ({
 // --- Reports Component ---
 Alpine.data('reportsManager', () => ({
     activeTab: 'sales', tabData: {}, loading: false, dateFrom: '', dateTo: '',
-    customerId: '', customers: [], employeeId: '', employees: [], branchId: '', branches: [], pagination: {}, custPage: 1,
+    customerId: '', customers: [], employeeId: '', employees: [], branchId: '', branches: [], pagination: {}, custPage: 1, statusFilter: 'closed',
+    formatMoney(amount) {
+        const sym = window.POS?.currency?.symbol || (Alpine.store('currency')?.symbol ?? '$');
+        return sym + Number(amount || 0).toFixed(Alpine.store('currency')?.decimalPlaces ?? 2);
+    },
     tabs: [
         { key: 'sales', label: 'Sales Summary' },
+        { key: 'payments', label: 'Payment Methods' },
         { key: 'bestselling', label: 'Best Selling' },
+        { key: 'profit-loss', label: 'Profit & Loss' },
         { key: 'customers', label: 'Customer Analytics' },
+        { key: 'customer-due', label: 'Customer Due' },
         { key: 'customer-detail', label: 'Customer Detail' },
         { key: 'employee-detail', label: 'Employee Detail' },
         { key: 'tax', label: 'Tax Report' },
@@ -1177,11 +1410,12 @@ Alpine.data('reportsManager', () => ({
         if (this.branchId && this.branchId !== 'all') { localStorage.setItem('active_branch_id', this.branchId); } else { localStorage.removeItem('active_branch_id'); }
         this.loading = true;
         try {
-            const apiMap = { sales: 'sales-summary', bestselling: 'best-selling', customers: 'customers', tax: 'taxes', 'customer-detail': 'customer-sales', 'employee-detail': 'employee-sales' };
+            const apiMap = { sales: 'sales-summary', payments: 'payments', bestselling: 'best-selling', 'profit-loss': 'profit-loss', customers: 'customers', 'customer-due': 'customer-due', tax: 'taxes', 'customer-detail': 'customer-sales', 'employee-detail': 'employee-sales' };
             let url = '/api/reports/' + (apiMap[this.activeTab] || 'sales-summary');
             let params = [];
             if (this.dateFrom) params.push('start_date=' + this.dateFrom + '&end_date=' + this.dateTo);
             params.push('page=' + page + '&per_page=25');
+            if (this.statusFilter && this.statusFilter !== 'all') params.push('status=' + this.statusFilter);
             if (this.activeTab === 'employee-detail' && this.employeeId) params.push('user_id=' + this.employeeId + '&per_page=10');
             if (this.activeTab === 'customer-detail' && this.customerId) params.push('customer_id=' + this.customerId + '&per_page=10');
             
@@ -1557,7 +1791,21 @@ Alpine.data('inventoryManager', () => ({
 // --- Activity Log Manager Component ---
 Alpine.data('activityManager', () => ({
     logs: [], loading: true, pagination: {},
-    filterModule: '', filterDateFrom: '', filterDateTo: '',
+    activeTab: 'all',
+    filterModule: '', filterEvent: '', filterUser: '', filterBranch: '',
+    filterDateFrom: '', filterDateTo: '', filterSearch: '',
+    selectedLog: null, showDetail: false,
+    users: [], branches: [],
+    tabs: [
+        { key: 'all', label: 'All Activities', modules: '' },
+        { key: 'security', label: 'Login & Security', modules: 'Security' },
+        { key: 'sales', label: 'Sales Activities', modules: 'POS,Orders' },
+        { key: 'purchase', label: 'Purchase Activities', modules: 'Purchases' },
+        { key: 'inventory', label: 'Inventory Activities', modules: 'Inventory,Stock,Warehouses' },
+        { key: 'customer', label: 'Customer Activities', modules: 'Customers' },
+        { key: 'product', label: 'Product Activities', modules: 'Products,Barcodes' },
+        { key: 'system', label: 'System Activities', modules: 'Users,Roles,Settings,Branches,Taxes,Printers,Fiscal,Shifts,Payment Types,Cash Register' },
+    ],
     get gridStyle() {
         const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
@@ -1566,19 +1814,39 @@ Alpine.data('activityManager', () => ({
         return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
     },
 
-    async init() { await this.fetchLogs(); },
+    async init() {
+        await Promise.all([this.fetchLogs(), this.fetchUsers(), this.fetchBranches()]);
+    },
+    async fetchUsers() {
+        try { const r = await window.POS.api('/api/users'); this.users = r?.data?.data || r?.data || []; } catch(e) { this.users = []; }
+    },
+    async fetchBranches() {
+        try { const r = await window.POS.api('/api/branches'); this.branches = r?.data?.data || r?.data || []; } catch(e) { this.branches = []; }
+    },
+    switchTab(key) { this.activeTab = key; this.fetchLogs(); },
     async fetchLogs(page = 1) {
         this.loading = true;
         try {
-            let url = '/api/activity?page=' + page;
-            if (this.filterModule) url += '&module=' + this.filterModule;
-            if (this.filterDateFrom) url += '&date_from=' + this.filterDateFrom;
-            if (this.filterDateTo) url += '&date_to=' + this.filterDateTo;
-            const r = await window.POS.api(url);
+            const params = new URLSearchParams({ page: String(page), per_page: '50' });
+            const tab = this.tabs.find(t => t.key === this.activeTab);
+            if (tab && tab.modules) params.set('modules', tab.modules);
+            if (this.filterModule) params.set('module', this.filterModule);
+            if (this.filterEvent) params.set('event', this.filterEvent);
+            if (this.filterUser) params.set('user_id', this.filterUser);
+            if (this.filterBranch) params.set('branch_id', this.filterBranch);
+            if (this.filterDateFrom) params.set('date_from', this.filterDateFrom);
+            if (this.filterDateTo) params.set('date_to', this.filterDateTo);
+            if (this.filterSearch) params.set('search', this.filterSearch);
+            const r = await window.POS.api('/api/activity?' + params.toString());
             this.logs = r?.data?.data || r?.data || [];
-            this.pagination = r?.data?.meta || r?.meta || { current_page: 1, last_page: 1 };
+            this.pagination = { current_page: r?.data?.current_page || 1, last_page: r?.data?.last_page || 1 };
         } catch(e) { this.logs = []; }
         finally { this.loading = false; }
+    },
+    viewDetail(log) { this.selectedLog = log; this.showDetail = true; },
+    eventLabel(event) {
+        if (!event) return '—';
+        return event.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     },
 }));
 
@@ -1591,6 +1859,9 @@ Alpine.data('purchasesManager', () => ({
     // Purchases
     purchases: [], purchasesLoading: false, purchasesPage: {}, purchaseSearch: '', purchaseStatusFilter: '',
     showPurchaseModal: false, purchaseSaving: false, purchaseError: '',
+    showPaymentModal: false, showSupplierStatementModal: false,
+    paymentForm: { amount: '', payment_method: 'cash', note: '' }, paymentSaving: false, paymentPurchase: null,
+    supplierStatement: null, supplierStatementLoading: false,
     purchaseForm: {supplier_id:'',warehouse_id:'',purchase_date:new Date().toISOString().split('T')[0],reference_number:'',discount:0,discount_type:0,shipping_cost:0,status:'pending',items:[{product_id:'',quantity:1,unit_cost:0,tax_id:null,discount:0,discount_type:0}]},
     supplierList: [], productList: [], warehouseList: [],
     // Returns
@@ -1610,9 +1881,12 @@ Alpine.data('purchasesManager', () => ({
     },
     get purchaseGrandTotal() {
         let sub = this.purchaseSubtotal;
-        let disc = this.purchaseForm.discount || 0;
+        let disc =         this.purchaseForm.discount || 0;
         if (this.purchaseForm.discount_type == 0) disc = sub * disc / 100;
         return Math.max(0, sub - disc + (this.purchaseForm.shipping_cost||0));
+    },
+    formatMoney(amount) {
+        return window.POS.formatCurrency(amount);
     },
 
     async init() {
@@ -1725,6 +1999,37 @@ Alpine.data('purchasesManager', () => ({
     },
     async cancelPurchase(id) { if(!confirm('Cancel this purchase?'))return; try { const res = await fetch('/api/purchases/'+id,{method:'DELETE',headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').getAttribute('content')}}); if(!res.ok){const e=await res.json();throw new Error(e.message||'Failed');} this.fetchPurchases(); } catch(e) { alert(e.message); } },
     async markPaid(id) { if(!confirm('Mark this purchase as fully paid?'))return; try { const res = await fetch('/api/purchases/'+id+'/mark-paid',{method:'POST',headers:{'Authorization':`Bearer ${localStorage.getItem('auth_token')}`,'Accept':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').getAttribute('content')}}); if(!res.ok){const e=await res.json();throw new Error(e.message||'Failed');} this.fetchPurchases(); } catch(e) { alert(e.message); } },
+    openPayment(purchase) {
+        this.paymentPurchase = purchase;
+        this.paymentForm = { amount: purchase.due_amount || '', payment_method: 'cash', note: '' };
+        this.showPaymentModal = true;
+    },
+    async savePayment() {
+        const amount = parseFloat(this.paymentForm.amount);
+        if (!amount || amount <= 0) { alert('Enter a valid amount.'); return; }
+        this.paymentSaving = true;
+        try {
+            await window.POS.api('/api/purchases/' + this.paymentPurchase.id + '/payment', {
+                method: 'POST',
+                body: JSON.stringify({ amount: amount, payment_method: this.paymentForm.payment_method, note: this.paymentForm.note }),
+            });
+            this.showPaymentModal = false;
+            this.fetchPurchases();
+            this.fetchReportSummary();
+            this.toastMsg('Payment recorded', 'success');
+        } catch (e) { alert(e.message || 'Failed to record payment'); }
+        finally { this.paymentSaving = false; }
+    },
+    async openSupplierStatement(supplierId) {
+        this.showSupplierStatementModal = true;
+        this.supplierStatementLoading = true;
+        this.supplierStatement = null;
+        try {
+            const r = await window.POS.api('/api/suppliers/' + supplierId + '/statement');
+            this.supplierStatement = r?.data || null;
+        } catch (e) { this.supplierStatement = null; }
+        finally { this.supplierStatementLoading = false; }
+    },
     // --- RETURNS ---
     async openReturnForm() {
         this.showPurchaseModal = false; this.showReceiveModal = false;

@@ -41,6 +41,22 @@
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7.5V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v10.5A2.25 2.25 0 006 18.75h5.25M15 7.5h1.875c1.035 0 1.875.84 1.875 1.875V10.5M15 7.5v2.25m0 0H12m3 1.5v3.75a2.25 2.25 0 002.25 2.25h1.875M12 12h3v3.75M12 12v3h3"/></svg>
                 </button>
                 <input type="file" id="bulkFileInput" @change="handleFileUpload($event)" accept=".csv,.json" class="hidden">
+
+                {{-- Cash Register Toggle --}}
+                <button @click="register.is_open ? openCloseRegisterModal() : openRegisterModal()" :title="registerInactiveMins != null && registerInactiveMins >= 60 ? 'Register inactive for ' + registerInactiveMins + ' minutes' : 'Cash register'" class="shrink-0 px-3 py-2.5 rounded-lg border transition text-sm flex items-center gap-1.5"
+                    :class="registerInactiveMins != null && registerInactiveMins >= 60 ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/40 text-amber-700 dark:text-amber-400' : (register.is_open ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400' : 'bg-gray-100 dark:bg-[#1a1f3d] border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:border-emerald-500/50')">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3"/></svg>
+                    <span class="hidden sm:inline" x-text="register.is_open ? 'Register' : 'Open Register'"></span>
+                    <span x-show="registerInactiveMins != null && registerInactiveMins >= 60" class="text-[9px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold" x-text="registerInactiveMins + 'm idle'"></span>
+                </button>
+                <button @click="openRegisterHistory()" title="Register history" class="shrink-0 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:border-blue-500/50 hover:text-blue-500 dark:hover:text-blue-400 transition text-sm flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span class="hidden sm:inline">History</span>
+                </button>
+                <button @click="openHoldOrders()" title="Open / Held orders" class="shrink-0 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:border-violet-500/50 hover:text-violet-500 dark:hover:text-violet-400 transition text-sm flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <span class="hidden sm:inline">Hold Orders</span>
+                </button>
                 <div x-show="uploading" x-cloak class="absolute inset-0 flex items-center justify-center bg-gray-900/50 rounded-lg z-10">
                     <svg class="animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
                 </div>
@@ -145,7 +161,7 @@
     <div x-show="cartOpen" @click="cartOpen = false" class="lg:hidden fixed inset-0 bg-black/60 z-35" x-cloak></div>
 
     {{-- RIGHT: Order Cart Panel --}}
-    <div class="w-72 bg-white dark:bg-[#1a1f3d] flex flex-col shrink-0 border-l border-gray-200 dark:border-white/10 fixed lg:relative inset-y-0 right-0 z-40 transition-transform duration-300 lg:translate-x-0 shadow-2xl lg:shadow-none" :class="cartOpen ? 'translate-x-0 pointer-events-auto' : 'translate-x-full pointer-events-none'" x-cloak style="overflow: visible;">
+    <div class="w-72 bg-white dark:bg-[#1a1f3d] flex flex-col shrink-0 border-l border-gray-200 dark:border-white/10 fixed lg:relative inset-y-0 right-0 z-40 transition-transform duration-300 lg:translate-x-0 pointer-events-auto shadow-2xl lg:shadow-none" :class="cartOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'" x-cloak style="overflow: visible;">
 
 
         {{-- Cart Header --}}
@@ -387,11 +403,62 @@
                 :disabled="items.length === 0"
                 class="w-full bg-red-500/10 dark:bg-red-500/15 hover:bg-red-500/20 dark:hover:bg-red-500/25 disabled:opacity-30 disabled:cursor-not-allowed text-red-500 dark:text-red-400 font-semibold py-2 rounded-lg transition text-sm"
             >New Sale</button>
+            <button
+                @click="holdCurrentOrder()"
+                :disabled="items.length === 0"
+                class="w-full bg-violet-500/10 dark:bg-violet-500/15 hover:bg-violet-500/20 dark:hover:bg-violet-500/25 disabled:opacity-30 disabled:cursor-not-allowed text-violet-500 dark:text-violet-400 font-semibold py-2 rounded-lg transition text-sm"
+            >Hold Order</button>
         </div>
     </div>
 
     {{-- Payment Modal --}}
     <x-pos.payment-modal />
+
+    {{-- Cash Register Modals --}}
+    <x-pos.register />
+
+    {{-- Hold Orders Modal --}}
+    <div x-show="showHoldOrders" x-cloak class="fixed inset-0 z-50 flex items-end sm:items-center justify-center" @keydown.escape="showHoldOrders = false">
+        <div class="absolute inset-0 bg-black/60" @click="showHoldOrders = false"></div>
+        <div class="relative bg-white dark:bg-[#1a1f3d] w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl max-h-[85vh] flex flex-col animate-slide-up sm:animate-none pb-[env(safe-area-inset-bottom,0px)]">
+            <div class="sm:hidden flex justify-center pt-3 pb-1 shrink-0"><div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div></div>
+            <div class="flex items-center justify-between px-5 pt-1 pb-3 border-b border-gray-200 dark:border-white/10 shrink-0">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Open / Held Orders</h3>
+                <button @click="showHoldOrders = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="overflow-y-auto flex-1 px-5 py-3">
+                <div x-show="holdOrdersLoading" class="text-center py-10 text-gray-400 text-sm">Loading...</div>
+                <template x-if="!holdOrdersLoading">
+                    <div class="space-y-2">
+                        <template x-if="!holdOrders.length">
+                            <div class="text-center py-10 text-gray-400 dark:text-white/40 text-sm">No open or held orders</div>
+                        </template>
+                        <template x-for="o in holdOrders" :key="o.id">
+                            <div class="bg-gray-50 dark:bg-[#0f1535] rounded-xl border border-gray-200 dark:border-white/10 p-4">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <span class="text-sm font-semibold text-gray-900 dark:text-white font-mono" x-text="o.number || 'Order'"></span>
+                                    <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                                        :class="o.status === 'held' ? 'bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400'"
+                                        x-text="o.status === 'held' ? 'Held' : 'Open'"></span>
+                                </div>
+                                <div class="flex items-center justify-between text-xs text-gray-500 dark:text-white/60 mb-2">
+                                    <span x-text="o.customer?.name || 'Walk-in'"></span>
+                                    <span x-text="o.pos_order_items_count + ' item(s)'"></span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm font-bold text-gray-900 dark:text-white" x-text="formatMoney(o.total || 0)"></span>
+                                    <div class="flex gap-2">
+                                        <button @click="resumeHoldOrder(o.id)" class="px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium rounded-lg transition">Resume</button>
+                                        <button @click="cancelHoldOrder(o.id)" class="px-3 py-1.5 bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 text-xs font-medium rounded-lg transition">Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
 
     {{-- Receipt Modal --}}
     <div x-show="showReceipt" class="fixed inset-0 z-[60] flex items-start justify-center pt-10" x-cloak @click.self="showReceipt = false; receiptData = null">

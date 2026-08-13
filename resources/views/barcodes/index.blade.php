@@ -154,7 +154,7 @@
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Barcode Value *</label>
                     <div class="flex gap-2">
                         <input type="text" x-model="form.value" placeholder="Enter or scan barcode number..." class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm font-mono">
-                        <button type="button" x-show="form.product_id && !form.value && !existingBarcode" @click="generateNewBarcode()" :disabled="genSaving" class="px-3 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap" x-text="genSaving ? '...' : 'Generate'"></button>
+                        <button type="button" @click="generateNewBarcode()" :disabled="!form.product_id || genSaving" class="px-3 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap" x-text="genSaving ? '...' : 'Generate'"></button>
                     </div>
                     <p x-show="existingBarcode" class="mt-1 text-xs text-green-600 dark:text-green-400">
                         <span x-text="'Existing: ' + existingBarcode"></span>

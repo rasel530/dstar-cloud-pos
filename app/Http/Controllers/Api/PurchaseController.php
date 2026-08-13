@@ -347,6 +347,48 @@ class PurchaseController extends Controller
         }
     }
 
+    public function addPayment(Request $request, string $id): JsonResponse
+    {
+        $validated = $request->validate([
+            'amount' => 'required|numeric|gt:0',
+            'payment_method' => 'nullable|string|max:50',
+            'note' => 'nullable|string|max:255',
+        ]);
+
+        $purchase = $this->findPurchase($id);
+
+        if ((float) $purchase->due_amount <= 0) {
+            return response()->json(['message' => 'No outstanding balance.'], 422);
+        }
+
+        $amount = min(round((float) $validated['amount'], 4), round((float) $purchase->due_amount, 4));
+        $newPaid = round((float) $purchase->paid_amount + $amount, 4);
+        $newDue = round((float) $purchase->grand_total - $newPaid, 4);
+        $newStatus = $newDue <= 0.0001 ? 'paid' : 'partial';
+
+        $purchase->update([
+            'paid_amount' => $newPaid,
+            'due_amount' => $newDue,
+            'payment_status' => $newStatus,
+        ]);
+
+        \App\Models\PurchasePayment::create([
+            'tenant_id' => $purchase->tenant_id,
+            'purchase_id' => $purchase->id,
+            'supplier_id' => $purchase->supplier_id,
+            'user_id' => auth()->id(),
+            'amount' => $amount,
+            'payment_method' => $validated['payment_method'] ?? null,
+            'note' => $validated['note'] ?? null,
+            'date' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Payment recorded.',
+            'data' => $purchase->fresh(),
+        ]);
+    }
+
     private function findPurchase(string $id): Purchase
     {
         return Purchase::where('tenant_id', auth()->user()->tenant_id)->findOrFail($id);

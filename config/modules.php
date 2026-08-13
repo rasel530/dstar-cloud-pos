@@ -22,5 +22,12 @@ return [
         'fiscal'     => ['label' => 'Fiscal',         'icon' => 'document-check',   'min_level' => 9],
         'activity'   => ['label' => 'Activity Log',  'icon' => 'clipboard-check',  'min_level' => 9],
         'settings'   => ['label' => 'Settings',      'icon' => 'cog',              'min_level' => 9],
+        'auth'       => ['label' => 'Security',       'icon' => 'shield-check',     'min_level' => 9],
+        'cash-register' => ['label' => 'Cash Register', 'icon' => 'cash',           'min_level' => 9],
+        'shifts'     => ['label' => 'Shifts',        'icon' => 'clock',            'min_level' => 9],
+        'payment-types' => ['label' => 'Payment Types', 'icon' => 'credit-card',   'min_level' => 9],
+        'suppliers'  => ['label' => 'Suppliers',     'icon' => 'truck',            'min_level' => 9],
+        'stock'      => ['label' => 'Stock',         'icon' => 'cube',             'min_level' => 9],
+        'warehouses' => ['label' => 'Warehouses',    'icon' => 'office-building',  'min_level' => 9],
     ],
 ];

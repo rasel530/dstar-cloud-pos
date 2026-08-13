@@ -26,10 +26,17 @@ class ReportController extends Controller
         $perPage = (int)($request->input('per_page', 25));
         $tenantId = auth()->user()->tenant_id;
         $branchId = $request->header('X-Active-Branch');
+        $status = $request->input('status', 'closed');
 
-        $baseQuery = function () use ($tenantId, $request) {
-            $q = \App\Models\PosOrder::with('customer')->where('tenant_id', $tenantId)
-                ;
+        $baseQuery = function () use ($tenantId, $request, $status) {
+            $q = \App\Models\PosOrder::with('customer')->where('tenant_id', $tenantId);
+            if ($status === 'all') {
+                $q->whereIn('status', ['open', 'closed', 'refunded']);
+            } elseif (in_array($status, ['open', 'closed', 'refunded'])) {
+                $q->where('status', $status);
+            } else {
+                $q->whereIn('status', ['closed', 'refunded']);
+            }
             if ($request->filled('start_date') && $request->filled('end_date')) {
                 $q->whereBetween('created_at', [$request->start_date . ' 00:00:00', $request->end_date . ' 23:59:59']);
             }
@@ -49,13 +56,20 @@ class ReportController extends Controller
                 'subtotal' => $tc['subtotal'],
                 'tax' => $tc['tax'],
                 'total' => $tc['total'],
+                'status' => $order->status,
             ];
         })->values()->toArray();
 
-        $totalSales = $allOrders->sum('total');
+        $closedOrders = $allOrders->where('status', 'closed');
+        $refundedOrders = $allOrders->where('status', 'refunded');
+        $openOrders = $allOrders->where('status', 'open');
+        $grossSales = $closedOrders->sum('total') + $refundedOrders->sum('total');
+        $totalRefunds = $refundedOrders->sum('total');
+        $netSales = $closedOrders->sum('total');
+
         $allOrdersWithItems = \App\Models\PosOrder::whereIn('id', $allOrders->pluck('id'))
             ->with('posOrderItems.product')->get();
-        $totalTax = $allOrdersWithItems->reduce(function ($carry, $order) use ($calc) {
+        $totalTax = $allOrdersWithItems->where('status', 'closed')->reduce(function ($carry, $order) use ($calc) {
             $tc = $calc->calculate($order);
             return $carry + $tc['tax'];
         }, 0);
@@ -63,11 +77,13 @@ class ReportController extends Controller
         return response()->json([
             'data' => [
                 'records' => $records,
-                'total_sales' => round((float) $totalSales, 2),
-                'total_orders' => $allOrders->count(),
+                'gross_sales' => round((float) $grossSales, 2),
+                'total_refunds' => round((float) $totalRefunds, 2),
+                'total_sales' => round((float) $netSales, 2),
+                'total_orders' => $closedOrders->count(),
                 'total_tax' => round((float) $totalTax, 2),
-                'avg_order' => $allOrders->count() > 0 ? round((float) $totalSales / $allOrders->count(), 2) : 0,
-                'chart_data' => $allOrders->groupBy(fn($d) => $d->created_at?->format('M d'))
+                'avg_order' => $closedOrders->count() > 0 ? round((float) $netSales / $closedOrders->count(), 2) : 0,
+                'chart_data' => $closedOrders->groupBy(fn($d) => $d->created_at?->format('M d'))
                     ->map(fn($group, $label) => ['label' => $label, 'value' => round((float) $group->sum('total'), 2)])
                     ->values()->toArray(),
                 'pagination' => [
@@ -86,16 +102,18 @@ class ReportController extends Controller
         $endDate = $request->input('end_date');
         $page = (int)($request->input('page', 1));
         $perPage = (int)($request->input('per_page', 25));
+        $status = $request->input('status', 'closed');
 
         $query = DB::table('pos_order_items')
             ->join('pos_orders', 'pos_orders.id', '=', 'pos_order_items.pos_order_id')
             ->join('products', 'products.id', '=', 'pos_order_items.product_id')
             ->where('pos_orders.tenant_id', auth()->user()->tenant_id)
+            ->when($status !== 'all', fn($q) => $q->where('pos_orders.status', $status))
             ->select(
                 'products.name',
                 DB::raw('SUM(pos_order_items.quantity) as quantity'),
                 DB::raw('SUM(pos_order_items.quantity * pos_order_items.price) as revenue'),
-                DB::raw('SUM(pos_order_items.quantity * pos_order_items.price) - SUM(COALESCE(products.cost, 0) * pos_order_items.quantity) as profit')
+                DB::raw('SUM(pos_order_items.quantity * pos_order_items.price) - SUM(COALESCE(pos_order_items.cost, 0) * pos_order_items.quantity) as profit')
             )
             ->groupBy('pos_order_items.product_id', 'products.name')
             ->orderByDesc('revenue');
@@ -142,10 +160,12 @@ class ReportController extends Controller
         $endDate = $request->input('end_date');
         $page = (int)($request->input('page', 1));
         $perPage = (int)($request->input('per_page', 25));
+        $status = $request->input('status', 'closed');
 
         $query = DB::table('pos_orders')
             ->join('customers', 'customers.id', '=', 'pos_orders.customer_id')
             ->where('pos_orders.tenant_id', auth()->user()->tenant_id)
+            ->when($status !== 'all', fn($q) => $q->where('pos_orders.status', $status))
             ->whereNotNull('pos_orders.customer_id')
             ->select(
                 'customers.name',
@@ -194,9 +214,11 @@ class ReportController extends Controller
     {
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
+        $status = $request->input('status', 'closed');
 
         $query = DB::table('pos_orders')
             ->where('tenant_id', auth()->user()->tenant_id)
+            ->when($status !== 'all', fn($q) => $q->where('status', $status))
             ->where('discount', '>', 0)
             ->select('created_at as date', 'number', 'discount', 'discount_type');
 
@@ -231,10 +253,11 @@ class ReportController extends Controller
         $endDate = $request->input('end_date');
         $page = (int)($request->input('page', 1));
         $perPage = (int)($request->input('per_page', 25));
+        $status = $request->input('status', 'closed');
 
         $allOrders = \App\Models\PosOrder::with('posOrderItems.product')
             ->where('tenant_id', auth()->user()->tenant_id)
-            ->where('total', '>', 0)
+            ->when($status !== 'all', fn($q) => $q->where('status', $status))
             ->orderBy('created_at', 'desc');
 
         if ($startDate && $endDate) {
@@ -302,7 +325,7 @@ class ReportController extends Controller
             ->orderByDesc('total_amount');
 
         if ($startDate && $endDate) {
-            $query->whereBetween('payments.date', [$startDate, $endDate]);
+            $query->whereBetween('payments.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
         }
 
         $items = $query->get();
@@ -329,10 +352,12 @@ class ReportController extends Controller
     {
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
+        $status = $request->input('status', 'closed');
 
         $query = DB::table('pos_orders')
             ->join('users', 'users.id', '=', 'pos_orders.user_id')
             ->where('pos_orders.tenant_id', auth()->user()->tenant_id)
+            ->when($status !== 'all', fn($q) => $q->where('pos_orders.status', $status))
             ->select(
                 DB::raw("CONCAT(COALESCE(users.first_name, ''), ' ', COALESCE(users.last_name, '')) as name"),
                 DB::raw('COUNT(*) as order_count'),
@@ -651,6 +676,96 @@ class ReportController extends Controller
                     'total'        => $paginator->total(),
                 ],
             ]
+        ]);
+    }
+
+    public function profitLoss(Request $request): JsonResponse
+    {
+        $tenantId = auth()->user()->tenant_id;
+        $branchId = $request->header('X-Active-Branch');
+        $start = $request->input('start_date');
+        $end = $request->input('end_date');
+        $status = $request->input('status', 'closed');
+
+        $ordersQuery = \App\Models\PosOrder::where('tenant_id', $tenantId)
+            ->when($status !== 'all', fn($q) => $q->where('status', $status));
+        if ($branchId && !\App\Services\SystemModeService::isSingleMode()) {
+            $ordersQuery->where('branch_id', $branchId);
+        }
+        if ($start && $end) {
+            $ordersQuery->whereBetween('created_at', [$start . ' 00:00:00', $end . ' 23:59:59']);
+        }
+        $orderIds = $ordersQuery->pluck('id');
+
+        $items = \DB::table('pos_order_items')
+            ->whereIn('pos_order_id', $orderIds)
+            ->selectRaw('COALESCE(SUM(price * quantity), 0) as gross_sales,
+                         COALESCE(SUM(cost * quantity), 0) as cogs')
+            ->first();
+
+        $grossSales = round((float) ($items->gross_sales ?? 0), 4);
+        $cogs = round((float) ($items->cogs ?? 0), 4);
+
+        $discount = round((float) $ordersQuery->sum('discount'), 4);
+        $netSales = round($grossSales - $discount, 4);
+        $grossProfit = round($netSales - $cogs, 4);
+
+        $salesCategoryIds = \App\Models\IncomeExpenseCategory::where('tenant_id', $tenantId)
+            ->where('name', 'Sales Revenue')->pluck('id');
+
+        $ieQuery = \App\Models\IncomeExpense::where('tenant_id', $tenantId);
+        if ($start && $end) {
+            $ieQuery->whereBetween('date', [$start, $end]);
+        }
+
+        $otherIncome = round((float) (clone $ieQuery)->where('type', 'income')
+            ->when($salesCategoryIds->isNotEmpty(), fn($q) => $q->whereNotIn('category_id', $salesCategoryIds))
+            ->sum('amount'), 4);
+
+        $operatingExpenses = round((float) (clone $ieQuery)->where('type', 'expense')->sum('amount'), 4);
+
+        $netProfit = round($grossProfit + $otherIncome - $operatingExpenses, 4);
+
+        return response()->json([
+            'data' => [
+                'gross_sales' => $grossSales,
+                'sales_discount' => $discount,
+                'net_sales' => $netSales,
+                'cogs' => $cogs,
+                'gross_profit' => $grossProfit,
+                'other_income' => $otherIncome,
+                'operating_expenses' => $operatingExpenses,
+                'net_profit' => $netProfit,
+            ],
+        ]);
+    }
+
+    public function customerDue(Request $request): JsonResponse
+    {
+        $tenantId = auth()->user()->tenant_id;
+        $branchId = $request->header('X-Active-Branch');
+
+        $query = \App\Models\Document::join('customers', 'customers.id', '=', 'documents.customer_id')
+            ->where('documents.tenant_id', $tenantId)
+            ->where('documents.due_amount', '>', 0)
+            ->selectRaw('
+                customers.id as customer_id,
+                customers.name as customer_name,
+                COUNT(documents.id) as invoice_count,
+                SUM(documents.due_amount) as total_due
+            ')
+            ->groupBy('customers.id', 'customers.name')
+            ->orderByDesc('total_due');
+
+        $result = $query->get();
+
+        $totalDue = round((float) $result->sum('total_due'), 4);
+
+        return response()->json([
+            'data' => [
+                'records' => $result,
+                'total_due' => $totalDue,
+            ],
         ]);
     }
 }

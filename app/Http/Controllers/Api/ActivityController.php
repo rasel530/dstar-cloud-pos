@@ -11,7 +11,7 @@ class ActivityController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = UserActivityLog::with('user:id,username,email,first_name,last_name')
+        $query = UserActivityLog::with(['user:id,username,email,first_name,last_name', 'branch:id,name'])
             ->where('tenant_id', auth()->user()->tenant_id);
 
         if ($request->filled('user_id')) {
@@ -20,6 +20,26 @@ class ActivityController extends Controller
         if ($request->filled('module')) {
             $query->where('module', $request->module);
         }
+        if ($request->filled('modules')) {
+            $modules = array_filter(array_map('trim', explode(',', $request->modules)));
+            if (!empty($modules)) {
+                $query->whereIn('module', $modules);
+            }
+        }
+        if ($request->filled('event')) {
+            $query->where('event', $request->event);
+        }
+        if ($request->filled('branch_id')) {
+            $query->where('branch_id', $request->branch_id);
+        }
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('action', 'ilike', "%{$s}%")
+                  ->orWhere('reference', 'ilike', "%{$s}%")
+                  ->orWhere('module', 'ilike', "%{$s}%");
+            });
+        }
         if ($request->filled('date_from')) {
             $query->whereDate('created_at', '>=', $request->date_from);
         }
@@ -27,7 +47,7 @@ class ActivityController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        $logs = $query->orderByDesc('created_at')->paginate(50);
+        $logs = $query->orderByDesc('created_at')->paginate($request->input('per_page', 50));
 
         return response()->json(['data' => $logs]);
     }

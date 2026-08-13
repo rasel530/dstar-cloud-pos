@@ -31,6 +31,12 @@
             <button @click="fetchTabData()" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition">
                 Apply
             </button>
+            <select x-model="statusFilter" @change="fetchTabData()" class="bg-gray-50 dark:bg-[#0f1535] border border-gray-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[140px]">
+                <option value="all">All Status</option>
+                <option value="closed">Closed</option>
+                <option value="open">Open</option>
+                <option value="refunded">Refunded</option>
+            </select>
             <select x-model="branchId" @change="fetchTabData()" x-show="$store.sys.isMulti()" class="bg-gray-50 dark:bg-[#0f1535] border border-gray-300 dark:border-white/10 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[160px]">
                 <option value="all">All Branches</option>
                 <template x-for="b in branches" :key="b.id">
@@ -83,8 +89,8 @@
                             <div class="p-4 sm:p-6">
                                 <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 mb-4 shrink-0">
                                     <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
-                                        <span class="text-xs text-gray-500 dark:text-white/50">Total Sales</span>
-                                        <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="$store.currency.symbol + parseFloat(tabData.total_sales || 0).toLocaleString('en-US', {minimumFractionDigits: 2})"></div>
+                                        <span class="text-xs text-gray-500 dark:text-white/50">Net Sales</span>
+                                        <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="formatMoney(tabData.total_sales || 0)"></div>
                                     </div>
                                     <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                         <span class="text-xs text-gray-500 dark:text-white/50">Orders</span>
@@ -92,11 +98,11 @@
                                     </div>
                                     <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                         <span class="text-xs text-gray-500 dark:text-white/50">Avg. Order</span>
-                                        <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="$store.currency.symbol + parseFloat(tabData.avg_order || 0).toFixed(2)"></div>
+                                        <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="formatMoney(tabData.avg_order || 0)"></div>
                                     </div>
                                     <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
-                                        <span class="text-xs text-gray-500 dark:text-white/50">Tax Collected</span>
-                                        <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="$store.currency.symbol + parseFloat(tabData.total_tax || 0).toFixed(2)"></div>
+                                        <span class="text-xs text-gray-500 dark:text-white/50">Refunds</span>
+                                        <div class="text-xl font-bold mt-1 text-rose-600 dark:text-rose-400" x-text="formatMoney(tabData.total_refunds || 0)"></div>
                                     </div>
                                 </div>
 
@@ -154,6 +160,142 @@
                                 </template>
                             </div>
                     </template>
+
+                    <!-- Payment Methods Tab -->
+                    <div x-show="activeTab === 'payments'" class="flex-1 flex flex-col">
+                        <div class="p-4 sm:p-6">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-5 mb-4 shrink-0">
+                                <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                    <span class="text-xs text-gray-500 dark:text-white/50">Total Collected</span>
+                                    <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="$store.currency.symbol + parseFloat(tabData.grand_total || 0).toFixed(2)"></div>
+                                </div>
+                                <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                    <span class="text-xs text-gray-500 dark:text-white/50">Payment Methods</span>
+                                    <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="(tabData.records || []).length"></div>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto bg-gray-50 dark:bg-[#0f1535] rounded-lg border border-gray-100 dark:border-white/5">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="border-b border-gray-100 dark:border-white/5">
+                                            <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Payment Method</th>
+                                            <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Transactions</th>
+                                            <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100 dark:divide-white/5">
+                                        <template x-for="r in tabData.records || []" :key="r.name">
+                                            <tr>
+                                                <td class="px-3 sm:px-6 py-3 text-gray-900 dark:text-white font-medium" x-text="r.name"></td>
+                                                <td class="px-3 sm:px-6 py-3 text-right text-gray-500 dark:text-white/60" x-text="r.count"></td>
+                                                <td class="px-3 sm:px-6 py-3 text-right text-gray-900 dark:text-white font-semibold" x-text="$store.currency.symbol + parseFloat(r.total_amount).toFixed(2)"></td>
+                                            </tr>
+                                        </template>
+                                        <template x-if="!tabData.records || !tabData.records.length">
+                                            <tr><td colspan="3" class="text-center py-12 text-gray-400 dark:text-white/30 text-sm">No payments for this period</td></tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Profit & Loss Tab -->
+                    <div x-show="activeTab === 'profit-loss'" class="flex-1 flex flex-col">
+                        <div class="p-4 sm:p-6">
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5 mb-5 shrink-0">
+                                <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                    <span class="text-xs text-gray-500 dark:text-white/50">Gross Sales</span>
+                                    <div class="text-lg sm:text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="formatMoney(tabData.gross_sales || 0)"></div>
+                                </div>
+                                <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                    <span class="text-xs text-gray-500 dark:text-white/50">Net Sales</span>
+                                    <div class="text-lg sm:text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="formatMoney(tabData.net_sales || 0)"></div>
+                                </div>
+                                <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                    <span class="text-xs text-gray-500 dark:text-white/50">COGS</span>
+                                    <div class="text-lg sm:text-xl font-bold mt-1 text-rose-600 dark:text-rose-400" x-text="formatMoney(tabData.cogs || 0)"></div>
+                                </div>
+                                <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                    <span class="text-xs text-gray-500 dark:text-white/50">Gross Profit</span>
+                                    <div class="text-lg sm:text-xl font-bold mt-1 text-emerald-600 dark:text-emerald-400" x-text="formatMoney(tabData.gross_profit || 0)"></div>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg border border-gray-100 dark:border-white/5 divide-y divide-gray-100 dark:divide-white/5 mb-5">
+                                <div class="flex justify-between px-4 sm:px-6 py-3 text-sm">
+                                    <span class="text-gray-500 dark:text-white/60">Gross Sales</span>
+                                    <span class="font-semibold text-gray-900 dark:text-white" x-text="formatMoney(tabData.gross_sales || 0)"></span>
+                                </div>
+                                <div class="flex justify-between px-4 sm:px-6 py-3 text-sm">
+                                    <span class="text-gray-500 dark:text-white/60">Sales Discount</span>
+                                    <span class="font-semibold text-rose-600 dark:text-rose-400" x-text="'- ' + formatMoney(tabData.sales_discount || 0)"></span>
+                                </div>
+                                <div class="flex justify-between px-4 sm:px-6 py-3 text-sm font-bold bg-gray-100 dark:bg-white/5">
+                                    <span class="text-gray-800 dark:text-white">Net Sales</span>
+                                    <span class="text-gray-900 dark:text-white" x-text="formatMoney(tabData.net_sales || 0)"></span>
+                                </div>
+                                <div class="flex justify-between px-4 sm:px-6 py-3 text-sm">
+                                    <span class="text-gray-500 dark:text-white/60">COGS</span>
+                                    <span class="font-semibold text-rose-600 dark:text-rose-400" x-text="'- ' + formatMoney(tabData.cogs || 0)"></span>
+                                </div>
+                                <div class="flex justify-between px-4 sm:px-6 py-3 text-sm font-bold">
+                                    <span class="text-gray-800 dark:text-white">Gross Profit</span>
+                                    <span class="text-emerald-600 dark:text-emerald-400" x-text="formatMoney(tabData.gross_profit || 0)"></span>
+                                </div>
+                                <div class="flex justify-between px-4 sm:px-6 py-3 text-sm">
+                                    <span class="text-gray-500 dark:text-white/60">Other Income</span>
+                                    <span class="font-semibold text-emerald-600 dark:text-emerald-400" x-text="'+ ' + formatMoney(tabData.other_income || 0)"></span>
+                                </div>
+                                <div class="flex justify-between px-4 sm:px-6 py-3 text-sm">
+                                    <span class="text-gray-500 dark:text-white/60">Operating Expenses</span>
+                                    <span class="font-semibold text-rose-600 dark:text-rose-400" x-text="'- ' + formatMoney(tabData.operating_expenses || 0)"></span>
+                                </div>
+                                <div class="flex justify-between px-4 sm:px-6 py-4 text-base font-bold bg-gray-100 dark:bg-white/5">
+                                    <span class="text-gray-900 dark:text-white">Net Profit</span>
+                                    <span :class="(tabData.net_profit || 0) < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'" x-text="formatMoney(tabData.net_profit || 0)"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Customer Due Tab -->
+                    <div x-show="activeTab === 'customer-due'" class="flex-1 flex flex-col">
+                        <div class="p-4 sm:p-6">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5 mb-4 shrink-0">
+                                <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                    <span class="text-xs text-gray-500 dark:text-white/50">Total Outstanding</span>
+                                    <div class="text-xl font-bold mt-1 text-rose-600 dark:text-rose-400" x-text="formatMoney(tabData.total_due || 0)"></div>
+                                </div>
+                                <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                    <span class="text-xs text-gray-500 dark:text-white/50">Customers with Due</span>
+                                    <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="(tabData.records || []).length"></div>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto bg-gray-50 dark:bg-[#0f1535] rounded-lg border border-gray-100 dark:border-white/5">
+                                <table class="w-full text-sm">
+                                    <thead>
+                                        <tr class="border-b border-gray-100 dark:border-white/5">
+                                            <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Customer</th>
+                                            <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Invoices</th>
+                                            <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Due Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100 dark:divide-white/5">
+                                        <template x-for="r in tabData.records || []" :key="r.customer_id">
+                                            <tr>
+                                                <td class="px-3 sm:px-6 py-3 text-gray-900 dark:text-white font-medium" x-text="r.customer_name"></td>
+                                                <td class="px-3 sm:px-6 py-3 text-right text-gray-500 dark:text-white/60" x-text="r.invoice_count"></td>
+                                                <td class="px-3 sm:px-6 py-3 text-right text-rose-600 dark:text-rose-400 font-semibold" x-text="formatMoney(r.total_due)"></td>
+                                            </tr>
+                                        </template>
+                                        <template x-if="!tabData.records || !tabData.records.length">
+                                            <tr><td colspan="3" class="text-center py-12 text-gray-400 dark:text-white/30 text-sm">No outstanding customer dues</td></tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Best Selling Tab -->
                     <div x-show="activeTab === 'bestselling'" class="flex-1 flex flex-col">

@@ -32,6 +32,8 @@ use App\Http\Controllers\Api\{
     SettingsController,
     FloorPlanController,
     FiscalItemController,
+    CashRegisterController,
+    ShiftController,
 };
 
 // ---- Public Routes ----
@@ -61,12 +63,16 @@ Route::middleware(['auth:sanctum', 'user.enabled', 'throttle:api', 'track.activi
         Route::apiResource('products', ProductController::class);
     Route::apiResource('product-groups', ProductGroupController::class);
 
-    // Customers
-    Route::apiResource('customers', CustomerController::class);
+// Customers
+Route::post('customers/{customer}/payment', [CustomerController::class, 'addPayment']);
+Route::get('customers/{customer}/statement', [CustomerController::class, 'statement']);
+Route::get('customers/{customer}/payments', [CustomerController::class, 'payments']);
+Route::apiResource('customers', CustomerController::class);
     Route::post('customers/quick', [CustomerController::class, 'quickStore']);
 
     // POS
     Route::get('orders', [PosController::class, 'index']);
+    Route::get('orders/hold-list', [PosController::class, 'holdOrders']);
     Route::post('orders', [PosController::class, 'store']);
     Route::get('orders/{order}', [PosController::class, 'show']);
     Route::post('orders/{order}/items', [PosController::class, 'addItem']);
@@ -75,8 +81,22 @@ Route::middleware(['auth:sanctum', 'user.enabled', 'throttle:api', 'track.activi
     Route::post('orders/{order}/refund', [PosController::class, 'refund']);
     Route::post('orders/{order}/checkout', [PosController::class, 'checkout']);
     Route::post('orders/{order}/close', [PosController::class, 'closeOrder']);
+    Route::post('orders/{order}/hold', [PosController::class, 'holdOrder']);
+    Route::post('orders/{order}/resume', [PosController::class, 'resumeOrder']);
+    Route::post('orders/{order}/cancel', [PosController::class, 'cancelOrder']);
     Route::post('orders/{order}/transfer', [PosController::class, 'transferItems']);
     Route::get('receipts/{order}', [PosController::class, 'receipt']);
+
+    // Cash Register
+    Route::get('cash-register/status', [CashRegisterController::class, 'status']);
+    Route::post('cash-register/open', [CashRegisterController::class, 'open']);
+    Route::post('cash-register/close', [CashRegisterController::class, 'close']);
+    Route::post('cash-register/cash-in-out', [CashRegisterController::class, 'cashInOut']);
+    Route::get('cash-register/history', [CashRegisterController::class, 'history']);
+    Route::get('cash-register/{id}', [CashRegisterController::class, 'show']);
+
+    // Shifts
+    Route::apiResource('shifts', ShiftController::class);
 
     // Documents
     Route::get('documents', [DocumentController::class, 'index']);
@@ -107,12 +127,15 @@ Route::middleware(['auth:sanctum', 'user.enabled', 'throttle:api', 'track.activi
 
         // Purchases
         Route::get('purchases/next-number', [PurchaseController::class, 'nextNumber']);
-        Route::post('purchases/{purchase}/receive', [PurchaseController::class, 'receive']);
-        Route::post('purchases/{purchase}/mark-paid', [PurchaseController::class, 'markPaid']);
-        Route::apiResource('purchases', PurchaseController::class);
+Route::post('purchases/{purchase}/receive', [PurchaseController::class, 'receive']);
+Route::post('purchases/{purchase}/mark-paid', [PurchaseController::class, 'markPaid']);
+Route::post('purchases/{purchase}/payment', [PurchaseController::class, 'addPayment']);
+Route::apiResource('purchases', PurchaseController::class);
         Route::apiResource('purchase-returns', PurchaseReturnController::class)->only(['index', 'store', 'show']);
-        Route::get('suppliers/quick-list', [SupplierController::class, 'quickList']);
-        Route::apiResource('suppliers', SupplierController::class);
+Route::get('suppliers/quick-list', [SupplierController::class, 'quickList']);
+Route::get('suppliers/{supplier}/statement', [SupplierController::class, 'statement']);
+Route::get('suppliers/{supplier}/payments', [SupplierController::class, 'payments']);
+Route::apiResource('suppliers', SupplierController::class);
 
         // Purchase Reports
         Route::prefix('reports/purchases')->group(function () {
@@ -201,8 +224,10 @@ Route::middleware(['auth:sanctum', 'user.enabled', 'throttle:api', 'track.activi
         Route::get('reports/payments', [ReportController::class, 'paymentTypeBreakdown']);
         Route::get('reports/employees', [ReportController::class, 'employeeSalesReport']);
         Route::get('reports/employee-sales', [ReportController::class, 'employeeSalesDetail']);
-        Route::get('reports/profit-margin', [ReportController::class, 'profitMarginReport']);
-        Route::get('reports/inventory-valuation', [ReportController::class, 'inventoryValuation']);
+Route::get('reports/profit-margin', [ReportController::class, 'profitMarginReport']);
+Route::get('reports/inventory-valuation', [ReportController::class, 'inventoryValuation']);
+Route::get('reports/profit-loss', [ReportController::class, 'profitLoss']);
+Route::get('reports/customer-due', [ReportController::class, 'customerDue']);
 
         // Printers
         Route::apiResource('printers', PrinterController::class);

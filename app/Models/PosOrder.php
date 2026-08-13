@@ -31,6 +31,9 @@ class PosOrder extends Model
         'service_type',
         'table_number',
         'status',
+        'held_at',
+        'closed_at',
+        'expired_at',
     ];
 
     protected function casts(): array
@@ -43,6 +46,9 @@ class PosOrder extends Model
             'change_amount' => 'decimal:4',
             'tax_amount' => 'decimal:4',
             'service_type' => 'integer',
+            'held_at' => 'datetime',
+            'closed_at' => 'datetime',
+            'expired_at' => 'datetime',
         ];
     }
 

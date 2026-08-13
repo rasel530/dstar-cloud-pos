@@ -115,9 +115,9 @@
                 <span x-show="sidebarOpen" x-cloak class="whitespace-nowrap">Theme</span>
             </button>
 
-            <form method="POST" action="{{ route('logout') }}" class="w-full">
+            <form method="POST" action="{{ route('logout') }}" class="w-full" onsubmit="return handleLogout(event)">
                 @csrf
-                <button type="submit" onclick="localStorage.removeItem('auth_token')" class="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-gray-400 hover:bg-white/5 hover:text-white transition-colors text-sm">
+                <button type="submit" class="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-gray-400 hover:bg-white/5 hover:text-white transition-colors text-sm">
                     <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9"/>
                     </svg>
@@ -325,6 +325,30 @@
         if (sysMode === 'single' && el.getAttribute('title') === 'Branches') el.style.display = 'none';
     });
 })();
+
+async function handleLogout(event) {
+    event.preventDefault();
+    const form = event.target.closest('form');
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+        try {
+            const res = await fetch('/api/cash-register/status', {
+                headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/json' }
+            });
+            if (res.ok) {
+                const d = await res.json();
+                if (d?.data?.is_open) {
+                    const proceed = confirm('Your cash register is still open. Logging out will leave the register open. You must close the register at the end of your shift.\n\nContinue logout?');
+                    if (!proceed) return false;
+                }
+            }
+        } catch (e) { /* ignore network errors */ }
+    }
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('pos_cart');
+    form.submit();
+    return false;
+}
 </script>
 
 @stack('scripts')

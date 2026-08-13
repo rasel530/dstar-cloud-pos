@@ -132,4 +132,51 @@ class SupplierController extends Controller
 
         return 'SUP-' . str_pad((string) $next, 4, '0', STR_PAD_LEFT);
     }
+
+    public function statement(Request $request, string $id): \Illuminate\Http\JsonResponse
+    {
+        $supplier = Customer::where('tenant_id', auth()->user()->tenant_id)
+            ->where('is_supplier', true)
+            ->findOrFail($id);
+
+        $purchases = \App\Models\Purchase::where('supplier_id', $id)
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->where('status', '!=', 'cancelled')
+            ->orderBy('purchase_date')
+            ->get();
+
+        $totalPurchased = round((float) $purchases->sum('grand_total'), 4);
+        $totalPaid = round((float) $purchases->sum('paid_amount'), 4);
+        $totalDue = round((float) $purchases->sum('due_amount'), 4);
+
+        $paymentRecords = \App\Models\PurchasePayment::whereIn('purchase_id', $purchases->pluck('id'))
+            ->orderByDesc('created_at')
+            ->get();
+
+        return response()->json([
+            'data' => [
+                'supplier' => $supplier,
+                'purchases' => $purchases,
+                'payments' => $paymentRecords,
+                'summary' => [
+                    'total_purchased' => $totalPurchased,
+                    'total_paid' => $totalPaid,
+                    'total_due' => $totalDue,
+                ],
+            ],
+        ]);
+    }
+
+    public function payments(Request $request, string $id): \Illuminate\Http\JsonResponse
+    {
+        $supplier = Customer::where('tenant_id', auth()->user()->tenant_id)
+            ->where('is_supplier', true)
+            ->findOrFail($id);
+
+        $payments = \App\Models\PurchasePayment::where('supplier_id', $id)
+            ->orderByDesc('created_at')
+            ->paginate(25);
+
+        return response()->json(['data' => $payments]);
+    }
 }

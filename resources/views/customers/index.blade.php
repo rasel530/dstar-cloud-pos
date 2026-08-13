@@ -52,6 +52,7 @@
                                 <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase tracking-wider px-6 py-3">Phone</th>
                                 <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase tracking-wider px-6 py-3">Email</th>
                                 <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase tracking-wider px-6 py-3">Loyalty Pts</th>
+                                <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase tracking-wider px-6 py-3">Balance</th>
                                 <th class="text-center text-xs font-medium text-gray-500 dark:text-white/50 uppercase tracking-wider px-6 py-3">Status</th>
                                 <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase tracking-wider px-6 py-3">Actions</th>
                             </tr>
@@ -74,6 +75,7 @@
                                             x-text="customer.loyalty_points || 0"
                                         ></span>
                                     </td>
+                                    <td class="px-6 py-3 text-right font-semibold" :class="parseFloat(customer.outstanding_balance || 0) > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-400 dark:text-white/50'" x-text="parseFloat(customer.outstanding_balance || 0) > 0 ? formatMoney(customer.outstanding_balance) : '—'"></td>
                                     <td class="px-6 py-3 text-center">
                                         <button
                                             @click="toggleStatus(customer)"
@@ -88,6 +90,12 @@
                                     </td>
                                     <td class="px-6 py-3 text-right">
                                         <div class="flex items-center justify-end gap-1">
+                                            <button @click="openPayment(customer)" :disabled="parseFloat(customer.outstanding_balance || 0) <= 0" :title="parseFloat(customer.outstanding_balance || 0) > 0 ? 'Add Payment' : 'No outstanding balance'" class="p-1.5 rounded-lg transition" :class="parseFloat(customer.outstanding_balance || 0) > 0 ? 'hover:bg-gray-100 dark:hover:bg-white/5 text-emerald-500 hover:text-emerald-400' : 'text-gray-300 dark:text-white/20 cursor-not-allowed'">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></svg>
+                                            </button>
+                                            <button @click="openStatement(customer)" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-400 dark:text-white/50 hover:text-blue-400 transition" title="Statement">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                            </button>
                                             <button @click="openEdit(customer)" class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-400 dark:text-white/50 hover:text-blue-400 transition" title="Edit">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
@@ -175,6 +183,102 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    {{-- Payment Modal --}}
+    <div x-show="showPaymentModal" x-cloak class="fixed inset-0 z-50 flex items-end sm:items-center justify-center" @keydown.escape="showPaymentModal = false">
+        <div class="absolute inset-0 bg-black/60" @click="showPaymentModal = false"></div>
+        <div class="relative bg-white dark:bg-[#1a1f3d] w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl shadow-2xl max-h-[85vh] overflow-y-auto animate-slide-up sm:animate-none pb-[env(safe-area-inset-bottom,0px)]">
+            <div class="sm:hidden flex justify-center pt-3 pb-1"><div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div></div>
+            <div class="flex items-center justify-between px-5 pt-1 pb-3">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Add Payment</h3>
+                <button @click="showPaymentModal = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="px-5 space-y-4 pb-2">
+                <div class="text-sm text-gray-500 dark:text-white/60">Customer: <span class="font-semibold text-gray-900 dark:text-white" x-text="paymentCustomer?.name"></span></div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount</label>
+                    <input type="number" x-model="paymentForm.amount" step="0.01" min="0" inputmode="decimal" placeholder="0.00" class="w-full px-3 py-3 bg-gray-50 dark:bg-[#0f1535] border-2 border-gray-200 dark:border-white/20 rounded-xl text-gray-900 dark:text-white text-xl font-bold focus:border-emerald-500 outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Payment Method</label>
+                    <select x-model="paymentForm.payment_method" class="w-full px-3 py-2.5 bg-gray-50 dark:bg-[#0f1535] border border-gray-200 dark:border-white/20 rounded-xl text-sm text-gray-900 dark:text-white">
+                        <option value="cash">Cash</option>
+                        <option value="card">Card</option>
+                        <option value="bkash">bKash</option>
+                        <option value="nagad">Nagad</option>
+                        <option value="bank">Bank Transfer</option>
+                    </select>
+                </div>
+            </div>
+            <div class="px-5 pt-3 pb-5 space-y-2">
+                <button @click="savePayment()" :disabled="paymentSaving" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold rounded-xl transition text-sm">
+                    <span x-show="!paymentSaving">Record Payment</span>
+                    <span x-show="paymentSaving">Saving...</span>
+                </button>
+                <button @click="showPaymentModal = false" class="w-full py-2.5 text-gray-400 hover:text-gray-600 text-sm font-medium rounded-lg transition">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- Statement Modal --}}
+    <div x-show="showStatementModal" x-cloak class="fixed inset-0 z-50 flex items-end sm:items-center justify-center" @keydown.escape="showStatementModal = false">
+        <div class="absolute inset-0 bg-black/60" @click="showStatementModal = false"></div>
+        <div class="relative bg-white dark:bg-[#1a1f3d] w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl max-h-[85vh] flex flex-col animate-slide-up sm:animate-none pb-[env(safe-area-inset-bottom,0px)]">
+            <div class="sm:hidden flex justify-center pt-3 pb-1 shrink-0"><div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div></div>
+            <div class="flex items-center justify-between px-5 pt-1 pb-3 border-b border-gray-200 dark:border-white/10 shrink-0">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white" x-text="'Statement: ' + (statement?.customer?.name || '')"></h3>
+                <button @click="showStatementModal = false" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="overflow-y-auto flex-1 px-5 py-3">
+                <div x-show="statementLoading" class="text-center py-10 text-gray-400 text-sm">Loading...</div>
+                <template x-if="!statementLoading && statement">
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-3 text-center border border-gray-100 dark:border-white/5">
+                                <span class="block text-xs text-gray-500 dark:text-white/50">Invoiced</span>
+                                <span class="text-sm font-bold text-gray-900 dark:text-white" x-text="formatMoney(statement.summary?.total_invoiced || 0)"></span>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-3 text-center border border-gray-100 dark:border-white/5">
+                                <span class="block text-xs text-gray-500 dark:text-white/50">Paid</span>
+                                <span class="text-sm font-bold text-emerald-600 dark:text-emerald-400" x-text="formatMoney(statement.summary?.total_paid || 0)"></span>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-3 text-center border border-gray-100 dark:border-white/5">
+                                <span class="block text-xs text-gray-500 dark:text-white/50">Due</span>
+                                <span class="text-sm font-bold text-rose-600 dark:text-rose-400" x-text="formatMoney(statement.summary?.total_due || 0)"></span>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-semibold text-gray-500 dark:text-white/50 uppercase mb-2">Invoices</h4>
+                            <div class="space-y-1.5">
+                                <template x-for="inv in statement.invoices || []" :key="inv.id">
+                                    <div class="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-[#0f1535] rounded-lg text-sm border border-gray-100 dark:border-white/5">
+                                        <span class="text-gray-700 dark:text-gray-300 font-mono text-xs" x-text="inv.number"></span>
+                                        <span class="text-gray-500 dark:text-white/60" x-text="inv.date"></span>
+                                        <span class="font-semibold text-gray-900 dark:text-white" x-text="formatMoney(inv.total)"></span>
+                                        <span class="font-semibold" :class="parseFloat(inv.due_amount) > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'" x-text="parseFloat(inv.due_amount) > 0 ? 'Due ' + formatMoney(inv.due_amount) : 'Paid'"></span>
+                                    </div>
+                                </template>
+                                <p x-show="!statement.invoices?.length" class="text-xs text-gray-400 py-2 text-center">No invoices</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-semibold text-gray-500 dark:text-white/50 uppercase mb-2">Payments</h4>
+                            <div class="space-y-1.5">
+                                <template x-for="p in statement.payments || []" :key="p.id">
+                                    <div class="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-[#0f1535] rounded-lg text-sm border border-gray-100 dark:border-white/5">
+                                        <span class="text-gray-500 dark:text-white/60" x-text="p.payment_type?.name || 'Payment'"></span>
+                                        <span class="text-gray-400 dark:text-white/40 text-xs" x-text="new Date(p.created_at).toLocaleDateString()"></span>
+                                        <span class="font-semibold text-emerald-600 dark:text-emerald-400" x-text="'+ ' + formatMoney(p.amount)"></span>
+                                    </div>
+                                </template>
+                                <p x-show="!statement.payments?.length" class="text-xs text-gray-400 py-2 text-center">No payments yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
         </div>
     </div>
 </div>

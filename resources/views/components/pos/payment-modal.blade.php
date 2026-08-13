@@ -18,16 +18,32 @@
                 <span x-text="$store.currency.symbol"></span><span x-text="grandTotal.toFixed(2)"></span>
             </div>
 
-            <div class="flex gap-2">
-                <template x-for="pt in quickPaymentTypes" :key="pt.id || pt.code">
-                    <button @click="paymentType = pt; tenderAmount = grandTotal"
-                        class="flex-1 py-3 rounded-xl text-white font-bold text-xs uppercase tracking-wide transition active:scale-[0.97]"
-                        :class="(paymentType?.id || paymentType?.code) === (pt.id || pt.code) ? '' : 'opacity-50'"
-                        :style="{ backgroundColor: pt.color === 'emerald' ? '#059669' : pt.color === 'blue' ? '#2563eb' : pt.color === 'violet' ? '#7c3aed' : pt.color === 'amber' ? '#d97706' : pt.color === 'rose' ? '#e11d48' : pt.color === 'cyan' ? '#0891b2' : pt.color === 'gray' ? '#4b5563' : pt.color === 'green' ? '#16a34a' : pt.color === 'red' ? '#dc2626' : pt.color === 'indigo' ? '#4f46e5' : pt.color === 'teal' ? '#0d9488' : pt.color === 'orange' ? '#ea580c' : pt.color === 'pink' ? '#db2777' : '#059669' }"
-                        x-text="pt.name?.toUpperCase() || pt.code?.toUpperCase()">
-                    </button>
-                </template>
-            </div>
+            <template x-if="quickPaymentTypes.length <= 3">
+                <div class="flex gap-2">
+                    <template x-for="pt in quickPaymentTypes" :key="pt.id || pt.code">
+                        <button @click="paymentType = pt; tenderAmount = grandTotal"
+                            class="flex-1 py-3 rounded-xl text-white font-bold text-xs uppercase tracking-wide transition active:scale-[0.97]"
+                            :class="(paymentType?.id || paymentType?.code) === (pt.id || pt.code) ? '' : 'opacity-50'"
+                            :style="{ backgroundColor: pt.color === 'emerald' ? '#059669' : pt.color === 'blue' ? '#2563eb' : pt.color === 'violet' ? '#7c3aed' : pt.color === 'amber' ? '#d97706' : pt.color === 'rose' ? '#e11d48' : pt.color === 'cyan' ? '#0891b2' : pt.color === 'gray' ? '#4b5563' : pt.color === 'green' ? '#16a34a' : pt.color === 'red' ? '#dc2626' : pt.color === 'indigo' ? '#4f46e5' : pt.color === 'teal' ? '#0d9488' : pt.color === 'orange' ? '#ea580c' : pt.color === 'pink' ? '#db2777' : '#059669' }"
+                            x-text="pt.name?.toUpperCase() || pt.code?.toUpperCase()">
+                        </button>
+                    </template>
+                </div>
+            </template>
+
+            <template x-if="quickPaymentTypes.length > 3">
+                <div class="grid gap-2" :class="quickPaymentTypes.length > 6 ? 'grid-cols-3' : 'grid-cols-2'">
+                    <template x-for="(pt, idx) in quickPaymentTypes" :key="pt.id || pt.code">
+                        <button @click="paymentType = pt; tenderAmount = grandTotal"
+                            class="py-2.5 rounded-xl text-white font-bold text-[11px] uppercase tracking-wide transition active:scale-[0.97] flex items-center justify-center gap-1.5"
+                            :class="(paymentType?.id || paymentType?.code) === (pt.id || pt.code) ? '' : 'opacity-50'"
+                            :style="{ backgroundColor: pt.color === 'emerald' ? '#059669' : pt.color === 'blue' ? '#2563eb' : pt.color === 'violet' ? '#7c3aed' : pt.color === 'amber' ? '#d97706' : pt.color === 'rose' ? '#e11d48' : pt.color === 'cyan' ? '#0891b2' : pt.color === 'gray' ? '#4b5563' : pt.color === 'green' ? '#16a34a' : pt.color === 'red' ? '#dc2626' : pt.color === 'indigo' ? '#4f46e5' : pt.color === 'teal' ? '#0d9488' : pt.color === 'orange' ? '#ea580c' : pt.color === 'pink' ? '#db2777' : '#059669' }">
+                            <span class="text-[9px] font-mono bg-white/20 rounded px-1 py-0.5" x-text="'F'+(idx+1)"></span>
+                            <span x-text="pt.name?.toUpperCase() || pt.code?.toUpperCase()"></span>
+                        </button>
+                    </template>
+                </div>
+            </template>
 
             <div x-show="paymentType?.code === 'cash' || paymentType?.name?.toLowerCase() === 'cash' || (typeof paymentType === 'string' && paymentType.toLowerCase() === 'cash')">
                 <input type="number" x-model="tenderAmount" step="0.01" inputmode="decimal"

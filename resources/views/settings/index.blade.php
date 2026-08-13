@@ -50,6 +50,10 @@
             <svg class="w-4 h-4 inline-block mr-1.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zm0 9.75c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zm9.75-9.75c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5zm0 9.75c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5z"/></svg>
             Barcode
         </button>
+        <button @click="activeTab = 'cash-register'" :class="activeTab === 'cash-register' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-slate-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 -mb-[1px] transition-colors">
+            <svg class="w-4 h-4 inline-block mr-1.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"/></svg>
+            Cash Register
+        </button>
     </div>
 
     <div class="flex-1 overflow-auto">
@@ -477,7 +481,68 @@
             </div>
         </div>
 
-    <div x-show="activeTab !== 'payment-methods' && activeTab !== 'barcode'" class="flex items-center justify-between bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 px-6 py-4">
+        {{-- ==================== CASH REGISTER TAB ==================== --}}
+        <div x-show="activeTab === 'cash-register'" x-cloak class="space-y-5">
+            <div class="bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-6">
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Shifts</h3>
+                <p class="text-xs text-gray-500 dark:text-white/40 mb-4">Manage working shifts used when opening the cash register.</p>
+                <div class="space-y-2 mb-4">
+                    <template x-for="(s, idx) in shifts" :key="s.id">
+                        <div class="flex items-center gap-2 px-3 py-2.5 bg-gray-50 dark:bg-[#0f1535] rounded-lg border border-gray-200 dark:border-white/10">
+                            <span class="text-sm text-gray-700 dark:text-gray-300 flex-1" x-text="s.name + (s.start_time ? ' (' + s.start_time + (s.end_time ? ' - ' + s.end_time : '') + ')' : '')"></span>
+                            <button @click="moveShift(idx, -1)" :disabled="idx === 0" class="text-gray-400 hover:text-gray-600 disabled:opacity-20 text-xs font-bold px-1">▲</button>
+                            <button @click="moveShift(idx, 1)" :disabled="idx === shifts.length - 1" class="text-gray-400 hover:text-gray-600 disabled:opacity-20 text-xs font-bold px-1">▼</button>
+                            <button @click="deleteShift(s.id)" class="text-red-500 hover:text-red-700 text-xs font-medium px-1">Delete</button>
+                        </div>
+                    </template>
+                    <p x-show="!shifts.length" class="text-xs text-gray-400 px-2">No shifts yet</p>
+                </div>
+                <div class="flex gap-2 mb-4">
+                    <input type="text" x-model="shiftForm.name" placeholder="Shift name (e.g. Morning)" class="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                    <input type="time" x-model="shiftForm.start_time" class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                    <input type="time" x-model="shiftForm.end_time" class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                    <button @click="addShift()" class="px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">Add</button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div class="bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-6">
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Cash In Reasons</h3>
+                    <p class="text-xs text-gray-500 dark:text-white/40 mb-4">Reasons for adding cash to the drawer.</p>
+                    <div class="space-y-2 mb-4">
+                        <template x-for="(r, idx) in cashInReasons" :key="'in' + idx">
+                            <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-[#0f1535] rounded-lg border border-gray-200 dark:border-white/10">
+                                <span class="text-sm text-gray-700 dark:text-gray-300 flex-1" x-text="r"></span>
+                                <button @click="removeCashReason('in', idx)" class="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" x-model="newCashInReason" placeholder="New reason" class="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                        <button @click="addCashReason('in')" class="px-3 py-2 bg-emerald-600 text-white text-sm rounded-lg hover:bg-emerald-700">Add</button>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-6">
+                    <h3 class="text-base font-semibold text-gray-900 dark:text-white mb-1">Cash Out Reasons</h3>
+                    <p class="text-xs text-gray-500 dark:text-white/40 mb-4">Reasons for removing cash from the drawer.</p>
+                    <div class="space-y-2 mb-4">
+                        <template x-for="(r, idx) in cashOutReasons" :key="'out' + idx">
+                            <div class="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-[#0f1535] rounded-lg border border-gray-200 dark:border-white/10">
+                                <span class="text-sm text-gray-700 dark:text-gray-300 flex-1" x-text="r"></span>
+                                <button @click="removeCashReason('out', idx)" class="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" x-model="newCashOutReason" placeholder="New reason" class="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white">
+                        <button @click="addCashReason('out')" class="px-3 py-2 bg-rose-600 text-white text-sm rounded-lg hover:bg-rose-700">Add</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <div x-show="activeTab !== 'payment-methods' && activeTab !== 'barcode' && activeTab !== 'cash-register'" class="flex items-center justify-between bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 px-6 py-4">
 
 @endsection
 @push('scripts')
@@ -498,6 +563,14 @@
 
             // Barcode settings
             barcode: { default_type: 'CODE_128', auto_generate: true, show_product_name: true, show_price: true, show_sku: false, show_company_name: true },
+
+            // Cash register reasons
+            cashInReasons: [],
+            cashOutReasons: [],
+            newCashInReason: '',
+            newCashOutReason: '',
+            shifts: [],
+            shiftForm: { name: '', start_time: '', end_time: '' },
 
             form: {
                 company_name: '',
@@ -533,6 +606,7 @@
             async init() {
                 await this.loadSettings();
                 this.fetchPaymentTypes();
+                this.fetchShifts();
             },
 
             async loadSettings() {
@@ -585,6 +659,13 @@
                             }
                         }
                     });
+                    const parseList = (v) => {
+                        if (Array.isArray(v)) return v;
+                        if (typeof v === 'string') { try { const p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch (e) { return []; } }
+                        return [];
+                    };
+                    if (settings.cash_in_reasons !== undefined) this.cashInReasons = parseList(settings.cash_in_reasons);
+                    if (settings.cash_out_reasons !== undefined) this.cashOutReasons = parseList(settings.cash_out_reasons);
                     }
                 } catch (e) {
                     console.error('Failed to load settings:', e);
@@ -725,6 +806,67 @@
                 this.saveStatus = type === 'success' ? 'saved' : 'error';
                 setTimeout(() => { this.saveStatus = null; }, 3000);
                 alert(msg);
+            },
+
+            async fetchShifts() {
+                try {
+                    const d = await window.POS.api('/api/shifts');
+                    this.shifts = d?.data || [];
+                } catch(e) { this.shifts = []; }
+            },
+
+            async addShift() {
+                const name = this.shiftForm.name.trim();
+                if (!name) { alert('Shift name is required.'); return; }
+                try {
+                    await window.POS.api('/api/shifts', {
+                        method: 'POST',
+                        body: JSON.stringify({ name, start_time: this.shiftForm.start_time || null, end_time: this.shiftForm.end_time || null }),
+                    });
+                    this.shiftForm = { name: '', start_time: '', end_time: '' };
+                    await this.fetchShifts();
+                    this.toastMsg('Shift added!', 'success');
+                } catch(e) { alert(e.message || 'Failed to add shift'); }
+            },
+
+            async deleteShift(id) {
+                if (!confirm('Delete this shift?')) return;
+                try {
+                    await window.POS.api('/api/shifts/' + id, { method: 'DELETE' });
+                    await this.fetchShifts();
+                } catch(e) { alert(e.message); }
+            },
+
+            moveShift(fromIdx, direction) {
+                const toIdx = fromIdx + direction;
+                if (toIdx < 0 || toIdx >= this.shifts.length) return;
+                const arr = [...this.shifts];
+                [arr[fromIdx], arr[toIdx]] = [arr[toIdx], arr[fromIdx]];
+                this.shifts = arr;
+            },
+
+            addCashReason(type) {
+                const value = (type === 'in' ? this.newCashInReason : this.newCashOutReason).trim();
+                if (!value) return;
+                if (type === 'in') { this.cashInReasons.push(value); this.newCashInReason = ''; }
+                else { this.cashOutReasons.push(value); this.newCashOutReason = ''; }
+                this.saveCashReasons();
+            },
+
+            removeCashReason(type, idx) {
+                if (type === 'in') this.cashInReasons.splice(idx, 1);
+                else this.cashOutReasons.splice(idx, 1);
+                this.saveCashReasons();
+            },
+
+            async saveCashReasons() {
+                try {
+                    const settings = [
+                        { key: 'cash_in_reasons', value: JSON.stringify(this.cashInReasons) },
+                        { key: 'cash_out_reasons', value: JSON.stringify(this.cashOutReasons) },
+                    ];
+                    await window.POS.api('/api/settings', { method: 'POST', body: JSON.stringify({ settings }) });
+                } catch(e) { alert('Failed to save reasons: ' + e.message); }
             },
 
         }));
