@@ -7,22 +7,26 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 ## Features
 
 ### Point of Sale (POS)
+- **Browse / Build Modes** -- segmented toggle: **Browse** (full product grid) or **Build Order** (large editable cart in the middle with search-to-add; calculation/payment stays in the right sidebar)
 - **Product Grid** -- customizable grid layout (2-6 columns) with category filtering
 - **Cart Management** -- add/remove items, adjust quantities, apply discounts (flat/percentage/promo)
+- **Cart Price Edit** -- inline line-item price override (pencil icon) for users with "Can Edit POS Price" permission; enforces 5× product-price cap + 2-decimal rounding
 - **Order Types** -- Dine-in, Takeaway, and Table Management (all toggleable from Settings)
 - **Customer Selection** -- search existing customers or create walk-in customers inline
 - **Payment Processing** -- dynamic payment methods (Cash, Card, Check, bKash, Nagad, Rocket, Bank Transfer, Customer Due) with reorderable shortcuts
 - **Barcode Scanning** -- scan barcode + Enter auto-adds product to cart (fast checkout flow)
-- **Automated Receipt Printing** -- plain-text ESC/POS receipts auto-printed to thermal printers on checkout (fault-tolerant, never blocks the order)
-- **Keyboard Shortcuts** -- `F1` Cash, `F2` Card, `F3` Check, `F4` New Sale, `F8` Print, `Esc` Close, `Shift+?` Shortcut help (with in-app help modal)
-- **Receipt Generation** -- printable HTML receipts + thermal text receipts with configurable header/footer
+- **Automated Receipt Printing** -- plain-text ESC/POS receipts auto-printed to thermal printers on checkout (runs in background after response — never blocks the receipt display)
+- **Fast Receipt Display** -- checkout response returns in ~0.3s; "Processing..." overlay shown, receipt appears instantly
+- **Keyboard Shortcuts** -- `F1`-`F5` payment methods, `F8` Print, `Esc` Close, `Shift+?` Shortcut help
+- **Receipt Generation** -- printable HTML receipts + thermal text receipts with centered headers/company name and configurable header/footer
 - **Order Loading** -- load and edit existing orders
 - **Virtual Keyboard** -- on-screen keyboard for touch devices
 
 ### Orders
-- Full order history with search and status filtering
+- Full order history with search (order number / customer name, case-insensitive) and status filtering
 - Order status management (Open, Closed, Cancelled, Refunded)
 - View, Complete, and Refund orders
+- Table / Name column shown only when Table Management is enabled in Settings
 - Download receipts as PDF
 - Responsive: card-based layout on mobile, table on desktop
 
@@ -146,6 +150,23 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 ---
 
 ## Recent Updates & Bug Fixes
+
+### Latest Release
+
+1. **Cart Line-Item Price Edit (Admin-Controlled)** — super/admin can enable "Can Edit POS Price" per user (`/users` → Edit). Cashiers with permission can click the pencil icon on any cart line and edit the price inline (Browse + Build modes). Enforces max 5× product price, 2-decimal rounding, green custom-price indicator, Esc to cancel.
+2. **POS Browse/Build Mode Toggle** — redesigned POS layout with a mode toggle: **Browse** (full product grid) and **Build Order** (large editable cart in the middle + calculation/payment in the right sidebar). Search dropdown in Build mode adds products directly to the cart.
+3. **Orders Search** — search orders by order number or customer name (case-insensitive) directly from the Orders page.
+4. **Checkout Item Sync Fix** — resumed/held orders now sync items exactly to the cart before checkout (prevents duplicate items appearing on the receipt).
+5. **Discount Calculation Fix** — discount (% or flat) is applied to the subtotal BEFORE tax (Subtotal → Discount → Taxable Amount → Tax → Grand Total). Verified against your example.
+6. **Discount Reset** — discount clears automatically after checkout (robust against exceptions).
+7. **Hold Orders Resume Fix** — resume works for both held and open orders; cart loads reliably.
+8. **Receipt Large Totals** — 5-6+ digit totals fit on one line (HTML + ESC/POS text + PDF).
+9. **Receipt Centering (Thermal)** — ESC/POS text receipt now centers company name/headers with full-width balanced padding + left-align command; logo, QR, and text center on the paper.
+10. **Fast Receipt Display** — checkout auto-print moved to a background (`terminating()`) callback + "Processing..." overlay. Receipt now appears in ~0.3s instead of ~2.5s.
+11. **Sidebar Width Increased** — right sidebar now 400px on desktop (was 320px) for comfortable totals/payment display.
+12. **Table / Name Column (Conditional)** — the Orders page hides the "Table / Name" column automatically when Table Management is disabled in Settings (desktop + mobile).
+13. **Table Number Display Fix** — orders without a table no longer show "Table: --"; loading an order puts the correct table number (not the order number) in the POS table field.
+14. **User Permission System** — per-user `can_edit_price` permission flag managed from the Users page.
 
 ### Major Features (this release)
 

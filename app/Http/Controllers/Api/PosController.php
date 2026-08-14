@@ -633,6 +633,7 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
             'receipt_header' => $settings['receipt_header'] ?? '',
             'receipt_footer' => $settings['receipt_footer'] ?? 'Thank you for your purchase!',
             'logo' => $settings['logo'] ?? '',
+            'receipt_logo' => $settings['receipt_logo'] ?? '',
             'order_status' => $order->status,
             'receipt_html' => (new \App\Services\Printing\ReceiptBuilder)->build($receiptOrder, $company, $settings),
             'receipt_text' => (new \App\Services\Printing\ReceiptBuilder)->buildText($receiptOrder, $company, $settings),

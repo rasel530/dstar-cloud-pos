@@ -241,13 +241,14 @@
             <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Receipt Settings</h2>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Logo</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Application Logo</label>
+                    <p class="text-xs text-gray-400 dark:text-white/40 mb-2">Shown across the app: sidebar, login, and other application screens.</p>
                     <div class="flex items-center gap-4">
                         <div class="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 dark:border-white/10 flex items-center justify-center bg-gray-50 dark:bg-[#0f1535] overflow-hidden">
                             <template x-if="!form.logo_preview">
                                 <svg class="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z"/></svg>
                             </template>
-                            <img x-show="form.logo_preview" :src="form.logo_preview" class="w-full h-full object-cover">
+                            <img x-show="form.logo_preview" :src="form.logo_preview" class="w-full h-full object-contain">
                         </div>
                         <div>
                             <label class="inline-flex items-center px-4 py-2 rounded-lg bg-slate-100 dark:bg-[#0f1535] text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600 cursor-pointer transition-colors">
@@ -256,6 +257,26 @@
                                 <input type="file" accept="image/*" class="hidden" @change="handleLogoUpload($event)">
                             </label>
                             <button x-show="form.logo_preview" @click="form.logo_preview = null; form.logo = null" class="ml-2 text-xs text-red-500 hover:text-red-600 transition-colors">Remove</button>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Receipt / PDF Logo</label>
+                    <p class="text-xs text-gray-400 dark:text-white/40 mb-2">Used only on printed receipts and PDF exports (e.g. black/white logo).</p>
+                    <div class="flex items-center gap-4">
+                        <div class="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 dark:border-white/10 flex items-center justify-center bg-gray-50 dark:bg-[#0f1535] overflow-hidden">
+                            <template x-if="!form.receipt_logo_preview">
+                                <svg class="w-8 h-8 text-gray-400 dark:text-gray-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z"/></svg>
+                            </template>
+                            <img x-show="form.receipt_logo_preview" :src="form.receipt_logo_preview" class="w-full h-full object-contain">
+                        </div>
+                        <div>
+                            <label class="inline-flex items-center px-4 py-2 rounded-lg bg-slate-100 dark:bg-[#0f1535] text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-slate-200 dark:hover:bg-slate-600 cursor-pointer transition-colors">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
+                                Upload Receipt Logo
+                                <input type="file" accept="image/*" class="hidden" @change="handleReceiptLogoUpload($event)">
+                            </label>
+                            <button x-show="form.receipt_logo_preview" @click="form.receipt_logo_preview = null; form.receipt_logo = null" class="ml-2 text-xs text-red-500 hover:text-red-600 transition-colors">Remove</button>
                         </div>
                     </div>
                 </div>
@@ -589,6 +610,8 @@
                 receipt_footer: '',
                 logo: null,
                 logo_preview: null,
+                receipt_logo: null,
+                receipt_logo_preview: null,
                 receipt_copies: 1,
                 paper_width: 80,
                 receipt_auto_print: 'false',
@@ -666,6 +689,8 @@
                     };
                     if (settings.cash_in_reasons !== undefined) this.cashInReasons = parseList(settings.cash_in_reasons);
                     if (settings.cash_out_reasons !== undefined) this.cashOutReasons = parseList(settings.cash_out_reasons);
+                    if (this.form.logo) this.form.logo_preview = this.form.logo;
+                    if (this.form.receipt_logo) this.form.receipt_logo_preview = this.form.receipt_logo;
                     }
                 } catch (e) {
                     console.error('Failed to load settings:', e);
@@ -677,7 +702,7 @@
                 this.saveStatus = null;
                 try {
                     const settings = [];
-                    const entries = Object.entries(this.form).filter(([k]) => !k.startsWith('_'));
+                    const entries = Object.entries(this.form).filter(([k]) => !k.startsWith('_') && !k.endsWith('_preview'));
                     for (const [key, value] of entries) {
                         settings.push({
                             key: key,
@@ -724,10 +749,47 @@
             handleLogoUpload(event) {
                 const file = event.target.files[0];
                 if (!file) return;
+                this.optimizeImage(file, 512, (dataUrl) => {
+                    this.form.logo_preview = dataUrl;
+                    this.form.logo = dataUrl;
+                });
+            },
+
+            handleReceiptLogoUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                this.optimizeImage(file, 320, (dataUrl) => {
+                    this.form.receipt_logo_preview = dataUrl;
+                    this.form.receipt_logo = dataUrl;
+                });
+            },
+
+            optimizeImage(file, maxDim, callback) {
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    this.form.logo_preview = e.target.result;
-                    this.form.logo = e.target.result;
+                    const img = new Image();
+                    img.onload = () => {
+                        try {
+                            let { width, height } = img;
+                            const scale = Math.min(1, maxDim / Math.max(width, height));
+                            width = Math.max(1, Math.round(width * scale));
+                            height = Math.max(1, Math.round(height * scale));
+                            const canvas = document.createElement('canvas');
+                            canvas.width = width;
+                            canvas.height = height;
+                            const ctx = canvas.getContext('2d');
+                            if (!ctx) { callback(e.target.result); return; }
+                            ctx.imageSmoothingEnabled = true;
+                            ctx.imageSmoothingQuality = 'high';
+                            ctx.drawImage(img, 0, 0, width, height);
+                            const isPng = file.type === 'image/png';
+                            callback(canvas.toDataURL(isPng ? 'image/png' : 'image/jpeg', 0.85));
+                        } catch (err) {
+                            callback(e.target.result);
+                        }
+                    };
+                    img.onerror = () => callback(e.target.result);
+                    img.src = e.target.result;
                 };
                 reader.readAsDataURL(file);
             },

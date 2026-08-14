@@ -74,7 +74,7 @@ class ReceiptBuilder
         $footerText = htmlspecialchars($settings['receipt_footer'] ?? 'Thank you for your purchase!');
         $extraFooter = $settings['receipt_extra_footer'] ?? '';
         $receiptTitle = htmlspecialchars($settings['receipt_title'] ?? 'RECEIPT');
-        $logoUrl = $settings['logo'] ?? '';
+        $logoUrl = !empty($settings['receipt_logo'] ?? '') ? $settings['receipt_logo'] : ($settings['logo'] ?? '');
         $currencySymbol = htmlspecialchars(
             $settings['currency_symbol']
             ?? config('business.currency_symbols.' . ($settings['currency'] ?? 'USD'))
