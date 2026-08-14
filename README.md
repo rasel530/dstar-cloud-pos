@@ -112,9 +112,9 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 - Pagination support
 
 ### Settings
-- **General** — Company name, logo, currency, contact info
+- **General** — Company name, application logo, currency, contact info
 - **POS** — Grid columns/rows, tax rate, rounding rules, sound effects, payment confirmation, Dine-in/Takeaway/Table toggles
-- **Receipt** — Auto-print settings, header/footer customization
+- **Receipt** — Auto-print settings, header/footer customization, **dual logo upload** (Application Logo + Receipt/PDF Logo)
 - **Notifications** — Duration and position configuration
 - **System** — Single Company vs Multi-Branch mode
 - **Payment Methods** — Full CRUD for payment types (Cash, Card, Check, bKash, Nagad, Rocket, Bank, Customer Due) with Quick Pay toggle, shortcut keys, enable/disable, reorderable (drag up/down)
@@ -167,6 +167,11 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 12. **Table / Name Column (Conditional)** — the Orders page hides the "Table / Name" column automatically when Table Management is disabled in Settings (desktop + mobile).
 13. **Table Number Display Fix** — orders without a table no longer show "Table: --"; loading an order puts the correct table number (not the order number) in the POS table field.
 14. **User Permission System** — per-user `can_edit_price` permission flag managed from the Users page.
+15. **Dual Logo System (Application + Receipt/PDF)** — Settings → Receipt → Receipt Settings now has **two** logo uploads: an **Application Logo** (colorful, shown across the app: sidebar, login, etc.) and a **Receipt / PDF Logo** (black/white, used only on printed receipts and PDF exports). Receipts/PDFs prefer the receipt logo and fall back to the application logo when it's empty.
+16. **Logo Auto-Optimization** — both logos are resized and compressed on upload (client-side canvas): app logo max 512px, receipt logo max 320px; PNG keeps transparency, other formats saved as JPEG @ 85%. A 2000×2000 upload becomes ~21KB (512px) / ~2.3KB (320px).
+17. **POS Cart — One-Row Mobile Layout** — browse-mode and build-mode cart items render as a single row on mobile (name + price + qty stepper + line total + remove), so the quantity increment/decrement controls no longer push the product name to a second line, and the pencil (price edit), "× qty", and "−" icons never overlap.
+18. **Stepper Column Alignment** — the qty increment/decrement column is aligned across all cart items (fixed-width line-total column) regardless of product name length or price width.
+19. **Full-Width Mobile Cart Drawer** — the cart drawer uses the full phone width on mobile (`w-full sm:w-80 lg:w-100`) for comfortable one-row items; tablets and desktop keep the 320px/400px panel.
 
 ### Major Features (this release)
 
@@ -424,6 +429,58 @@ npm run build
 # Start the development server
 php artisan serve --port=8000
 ```
+
+---
+
+## Deployment (Live Server)
+
+The live application runs on Namecheap Stellar Business shared hosting at **https://dstar-pos.online**.
+
+### Server Layout
+
+```
+/home/dstaixqj/public_html/
+├── .htaccess              # URL rewriting + gzip + 1-year asset caching
+├── .user.ini              # PHP limits + OPCache (validate_timestamps=0)
+├── index.php              # Laravel entry → requires ../laravel-app/
+├── build/                 # Vite compiled assets (CSS/JS)
+├── storage/               # Logs, cache, sessions
+└── laravel-app/           # Laravel application (app, vendor, config, resources, .env)
+    └── public/build/      # Mirrored build assets (Laravel manifest lookup)
+```
+
+### Incremental Update (no data loss)
+
+```powershell
+# Upload only changed files via FTPS (explicit)
+$creds  = "dstar@dstar-pos.online:&6zveFnF[?[Akf.b"
+$FTP    = "ftp://business903.web-hosting.com"
+$CURL   = "curl.exe -k --ssl-reqd --retry 3 --user $creds"
+
+# App code → laravel-app/
+& $CURL -T app/Http/Controllers/Api/PosController.php "$FTP/laravel-app/app/Http/Controllers/Api/PosController.php"
+& $CURL -T resources/views/pos/index.blade.php   "$FTP/laravel-app/resources/views/pos/index.blade.php"
+
+# Build assets → build/ and laravel-app/public/build/
+& $CURL -T public/build/manifest.json                    "$FTP/build/manifest.json"
+& $CURL -T public/build/manifest.json                    "$FTP/laravel-app/public/build/manifest.json"
+& $CURL -T public/build/assets/app-*.css                 "$FTP/build/assets/"
+& $CURL -T public/build/assets/app-*.js                  "$FTP/build/assets/"
+```
+
+### Post-Deploy Optimization (required after every deploy)
+
+The live server runs `opcache.validate_timestamps=0`, so new PHP code is **not** picked up until OPCache is reset. Run a temporary script via HTTPS that:
+
+1. Calls `opcache_reset()` (must run in the **web** SAPI, not CLI).
+2. Clears old hashed build assets that `manifest.json` no longer references.
+3. Clears stale session/cache files under `storage/framework`.
+4. Rebuilds caches: `php artisan config:cache`, `route:cache`, `view:cache`, `event:cache`, `optimize`.
+5. Deletes itself.
+
+> **Never** restore the full database dump for code updates — use Laravel migrations only. DB is PostgreSQL at `127.0.0.200:5432` (SSH tunnel to the live host), database `dstaixqj_pos_db`.
+
+---
 
 ## Project Structure
 
