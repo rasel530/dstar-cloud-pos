@@ -428,57 +428,6 @@ npm run build
 
 # Start the development server
 php artisan serve --port=8000
-```
-
----
-
-## Deployment (Live Server)
-
-The live application runs on Namecheap Stellar Business shared hosting at **https://dstar-pos.online**.
-
-### Server Layout
-
-```
-/home/dstaixqj/public_html/
-├── .htaccess              # URL rewriting + gzip + 1-year asset caching
-├── .user.ini              # PHP limits + OPCache (validate_timestamps=0)
-├── index.php              # Laravel entry → requires ../laravel-app/
-├── build/                 # Vite compiled assets (CSS/JS)
-├── storage/               # Logs, cache, sessions
-└── laravel-app/           # Laravel application (app, vendor, config, resources, .env)
-    └── public/build/      # Mirrored build assets (Laravel manifest lookup)
-```
-
-### Incremental Update (no data loss)
-
-```powershell
-# Upload only changed files via FTPS (explicit)
-$creds  = "dstar@dstar-pos.online:&6zveFnF[?[Akf.b"
-$FTP    = "ftp://business903.web-hosting.com"
-$CURL   = "curl.exe -k --ssl-reqd --retry 3 --user $creds"
-
-# App code → laravel-app/
-& $CURL -T app/Http/Controllers/Api/PosController.php "$FTP/laravel-app/app/Http/Controllers/Api/PosController.php"
-& $CURL -T resources/views/pos/index.blade.php   "$FTP/laravel-app/resources/views/pos/index.blade.php"
-
-# Build assets → build/ and laravel-app/public/build/
-& $CURL -T public/build/manifest.json                    "$FTP/build/manifest.json"
-& $CURL -T public/build/manifest.json                    "$FTP/laravel-app/public/build/manifest.json"
-& $CURL -T public/build/assets/app-*.css                 "$FTP/build/assets/"
-& $CURL -T public/build/assets/app-*.js                  "$FTP/build/assets/"
-```
-
-### Post-Deploy Optimization (required after every deploy)
-
-The live server runs `opcache.validate_timestamps=0`, so new PHP code is **not** picked up until OPCache is reset. Run a temporary script via HTTPS that:
-
-1. Calls `opcache_reset()` (must run in the **web** SAPI, not CLI).
-2. Clears old hashed build assets that `manifest.json` no longer references.
-3. Clears stale session/cache files under `storage/framework`.
-4. Rebuilds caches: `php artisan config:cache`, `route:cache`, `view:cache`, `event:cache`, `optimize`.
-5. Deletes itself.
-
-> **Never** restore the full database dump for code updates — use Laravel migrations only. DB is PostgreSQL at `127.0.0.200:5432` (SSH tunnel to the live host), database `dstaixqj_pos_db`.
 
 ---
 
