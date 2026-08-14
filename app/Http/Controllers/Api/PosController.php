@@ -413,8 +413,12 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
 
         $receipt = $this->buildReceipt($order, $doc);
 
-        // Auto-print to physical thermal printer if configured
-        $this->dispatchAutoPrint($order, $receipt);
+        // Auto-print to physical thermal printer AFTER the client gets the receipt (non-blocking)
+        app()->terminating(function () use ($order, $receipt) {
+            try {
+                $this->dispatchAutoPrint($order, $receipt);
+            } catch (\Exception $e) { /* printing is non-critical */ }
+        });
 
         return response()->json(["data" => [
             "document" => $doc,

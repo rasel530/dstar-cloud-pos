@@ -79,6 +79,8 @@ app.post('/print/escpos', async (req, res) => {
 
         // Initialize printer
         commands += '\x1B\x40'; // ESC @ - Initialize
+        commands += '\x1B\x61\x00'; // ESC a 0 - Left align (spaces in content center the text)
+        commands += '\x1B\x20\x00'; // ESC SP - Set character spacing to 0
 
         // Content (already formatted as plain text with \n for newlines)
         const lines = (content || '').split('\n');

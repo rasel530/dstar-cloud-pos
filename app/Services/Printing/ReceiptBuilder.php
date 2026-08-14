@@ -402,7 +402,8 @@ class ReceiptBuilder
     {
         $len = mb_strwidth($text);
         if ($len >= $width) return $text;
-        $pad = intdiv($width - $len, 2);
-        return str_repeat(' ', $pad) . $text;
+        $left = intdiv($width - $len, 2);
+        $right = $width - $len - $left;
+        return str_repeat(' ', $left) . $text . str_repeat(' ', $right);
     }
 }

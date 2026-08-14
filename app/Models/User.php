@@ -33,6 +33,7 @@ class User extends Authenticatable
         'password',
         'access_level',
         'is_enabled',
+        'can_edit_price',
         'pin_code',
         'pin_attempts',
         'pin_locked_until',
@@ -55,6 +56,7 @@ class User extends Authenticatable
             'pin_locked_until'  => 'datetime',
             'access_level'      => 'integer',
             'is_enabled'        => 'boolean',
+            'can_edit_price'    => 'boolean',
             'last_login_at'     => 'datetime',
         ];
     }

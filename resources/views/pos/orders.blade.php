@@ -51,7 +51,7 @@
                 <thead class="sticky top-0 bg-gray-50 dark:bg-[#0f1535] border-b border-gray-200 dark:border-white/10">
                     <tr class="text-gray-500 dark:text-white/50 text-xs uppercase tracking-wider">
                         <th class="text-left px-6 py-3">Order #</th>
-                        <th class="text-left px-6 py-3">Table / Name</th>
+                        <th x-show="tableManagementEnabled" class="text-left px-6 py-3">Table / Name</th>
                         <th class="text-left px-6 py-3">Customer</th>
                         <th class="text-center px-6 py-3">Items</th>
                         <th class="text-right px-6 py-3">Total</th>
@@ -62,8 +62,8 @@
                 <tbody>
                     <template x-for="order in orders" :key="order.id">
                         <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5 transition group">
-                            <td class="px-6 py-3 font-mono text-blue-400" x-text="'#' + (order.number || order.id?.substring(0, 8) || '--')"></td>
-                            <td class="px-6 py-3" x-text="order.table_number || order.number || '--'"></td>
+                                <td class="px-6 py-3 font-mono text-blue-400" x-text="'#' + (order.number || order.id?.substring(0, 8) || '--')"></td>
+                                <td x-show="tableManagementEnabled" class="px-6 py-3" x-text="order.table_number || '—'"></td>
                             <td class="px-6 py-3 text-gray-500 dark:text-white/70" x-text="order.customer?.name || 'Walk-in'"></td>
                             <td class="px-6 py-3 text-center" x-text="order.pos_order_items_count || order.pos_order_items?.length || 0"></td>
                             <td class="px-6 py-3 text-right font-mono font-bold" x-text="order.total != null && order.total > 0 ? formatMoney(order.total) : '--'"></td>
@@ -118,7 +118,7 @@
                             <span class="text-sm font-mono font-bold text-gray-900 dark:text-white" x-text="order.total != null && order.total > 0 ? formatMoney(order.total) : '--'"></span>
                         </div>
                         <div class="grid grid-cols-2 gap-2 text-xs text-gray-500 dark:text-white/50 mb-3">
-                            <div><span class="text-gray-400">Table:</span> <span x-text="order.table_number || '--'"></span></div>
+                            <div x-show="tableManagementEnabled && order.table_number"><span class="text-gray-400">Table:</span> <span x-text="order.table_number"></span></div>
                             <div><span class="text-gray-400">Items:</span> <span x-text="order.pos_order_items_count || order.pos_order_items?.length || 0"></span></div>
                             <div class="col-span-2"><span class="text-gray-400">Customer:</span> <span x-text="order.customer?.name || 'Walk-in'"></span></div>
                         </div>

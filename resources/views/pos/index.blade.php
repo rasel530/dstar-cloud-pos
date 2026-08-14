@@ -187,10 +187,21 @@
                 <template x-for="(item, idx) in items" :key="idx">
                     <div class="flex items-center gap-3 bg-white dark:bg-[#1a1f3d] rounded-xl border border-gray-200 dark:border-white/10 p-3 shadow-sm">
                         <span class="bg-blue-500 text-white w-7 h-7 rounded-full text-sm flex items-center justify-center font-bold shrink-0" x-text="item.qty"></span>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm sm:text-base font-medium text-gray-800 dark:text-white/90 truncate" x-text="item.name"></p>
-                            <p class="text-[11px] sm:text-xs text-gray-400 dark:text-white/50 font-mono" x-text="formatMoney(item.price) + ' × ' + item.qty"></p>
-                        </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm sm:text-base font-medium text-gray-800 dark:text-white/90 truncate" x-text="item.name"></p>
+                        <p class="text-[11px] sm:text-xs text-gray-400 dark:text-white/50 font-mono flex items-center gap-1">
+                            <template x-if="editingPriceIdx === idx">
+                                <input type="number" x-model="editingPriceValue" min="0" step="0.01" @keydown.enter="commitPrice(idx)" @keydown.escape="cancelPriceEdit()" @blur="commitPrice(idx)" x-init="$nextTick(() => $el.focus())" class="w-20 h-6 text-xs sm:text-sm rounded-md border border-emerald-500 dark:border-emerald-400 bg-white dark:bg-white/10 text-gray-900 dark:text-white px-1.5 font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none">
+                            </template>
+                            <template x-if="editingPriceIdx !== idx">
+                                <button @click="startEditPrice(idx)" class="flex items-center gap-1 group" title="Edit price">
+                                    <span :class="isCustomPrice(idx) ? 'text-emerald-500 dark:text-emerald-400 font-semibold' : ''" x-text="formatMoney(item.price)"></span>
+                                    <svg x-show="canEditPrice" class="w-3.5 h-3.5 text-gray-400 dark:text-white/40 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
+                                </button>
+                            </template>
+                            <span x-text="'× ' + item.qty"></span>
+                        </p>
+                    </div>
                         <div class="flex items-center gap-1.5 shrink-0">
                             <button @click="updateQty(idx, item.qty - 1)" :disabled="item.qty <= 1" class="w-8 h-8 rounded-lg bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-white/60 hover:bg-gray-200 dark:hover:bg-white/15 disabled:opacity-30 disabled:cursor-not-allowed text-base font-bold flex items-center justify-center transition-colors">-</button>
                             <input type="number" x-model.number="item.qty" @input.debounce.300ms="updateQty(idx, item.qty)" min="1" class="w-14 h-8 text-center text-sm rounded-lg bg-gray-50 dark:bg-white/10 border border-gray-200 dark:border-white/15 text-gray-800 dark:text-white/90 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-blue-500">
@@ -340,7 +351,18 @@
                         ></span>
                         <div class="flex-1 min-w-0">
                             <p class="text-sm font-medium text-gray-800 dark:text-white/90 truncate" x-text="item.name"></p>
-                            <p class="text-[11px] text-gray-400 dark:text-white/50 font-mono" x-text="formatMoney(item.price) + ' × ' + item.qty"></p>
+                            <p class="text-[11px] text-gray-400 dark:text-white/50 font-mono flex items-center gap-1">
+                                <template x-if="editingPriceIdx === idx">
+                                    <input type="number" x-model="editingPriceValue" min="0" step="0.01" @keydown.enter="commitPrice(idx)" @keydown.escape="cancelPriceEdit()" @blur="commitPrice(idx)" x-init="$nextTick(() => $el.focus())" class="w-16 h-5 text-xs rounded border border-emerald-500 dark:border-emerald-400 bg-white dark:bg-white/10 text-gray-900 dark:text-white px-1 font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none focus:outline-none">
+                                </template>
+                                <template x-if="editingPriceIdx !== idx">
+                                    <button @click="startEditPrice(idx)" class="flex items-center gap-0.5 group" title="Edit price">
+                                        <span :class="isCustomPrice(idx) ? 'text-emerald-500 dark:text-emerald-400 font-semibold' : ''" x-text="formatMoney(item.price)"></span>
+                                        <svg x-show="canEditPrice" class="w-3 h-3 text-gray-400 dark:text-white/40 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125"/></svg>
+                                    </button>
+                                </template>
+                                <span x-text="'× ' + item.qty"></span>
+                            </p>
                         </div>
                         <p class="text-sm font-mono font-semibold text-gray-900 dark:text-white shrink-0 tabular-nums" x-text="formatMoney(item.price * item.qty)"></p>
                         <button @click="removeItem(idx)" class="text-gray-300 dark:text-white/30 hover:text-red-400 dark:hover:text-red-400 text-base leading-none shrink-0 transition-colors p-0.5" title="Remove">&times;</button>
@@ -468,6 +490,13 @@
 
     {{-- Payment Modal --}}
     <x-pos.payment-modal />
+
+    {{-- Processing Overlay --}}
+    <div x-show="processingPayment && !showPayment && !showReceipt" x-cloak class="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-black/60">
+        <div class="w-10 h-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+        <p class="text-white text-sm font-medium">Processing payment...</p>
+        <p class="text-white/60 text-xs mt-1">Please wait</p>
+    </div>
 
     {{-- Cash Register Modals --}}
     <x-pos.register />

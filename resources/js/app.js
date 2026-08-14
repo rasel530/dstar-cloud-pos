@@ -89,6 +89,7 @@ Alpine.data('layoutData', () => ({
             .then(data => {
                 this.user = data.data || data;
                 if (this.user.access_level !== undefined) localStorage.setItem('access_level', this.user.access_level);
+                if (this.user.can_edit_price !== undefined) localStorage.setItem('can_edit_price', this.user.can_edit_price ? '1' : '0');
                 if (this.user.system_mode !== undefined) {
                     this.systemMode = this.user.system_mode;
                     localStorage.setItem('system_mode', this.user.system_mode);
@@ -254,6 +255,8 @@ window.POS = {
     cartOpen: false, mode: 'browse', showCartSheet: false,
     hasBranch: true,
     items: [], searchTerm: '', searchResults: [], activeCategory: null, products: [],
+    canEditPrice: localStorage.getItem('can_edit_price') === '1',
+    editingPriceIdx: null, editingPriceValue: '',
     categories: [], selectedCustomer: null, defaultCustomer: null,
     serviceType: 0, tableNumber: '',
     showCustomerSearch: false, customerSearch: '', searchedCustomers: [],
@@ -361,6 +364,7 @@ window.POS = {
             this.loadPaymentTypes(),
             this.loadRegisterStatus(),
             this.loadRegisterConfig(),
+            this.loadUserPermission(),
         ]);
         window.addEventListener('branch-changed', () => {
             this.items = [];
@@ -467,8 +471,15 @@ window.POS = {
             this.register = { is_open: false, register: null, summary: null };
         }
     },
-    async loadRegisterConfig() {
+    async loadUserPermission() {
         try {
+            const d = await window.POS.api('/api/auth/me');
+            const u = d?.data || d;
+            this.canEditPrice = u.can_edit_price === true || u.can_edit_price === 1;
+            localStorage.setItem('can_edit_price', this.canEditPrice ? '1' : '0');
+        } catch (e) { /* keep current */ }
+    },
+    async loadRegisterConfig() {        try {
             const [shiftsRes, settingsRes] = await Promise.all([
                 window.POS.api('/api/shifts'),
                 window.POS.api('/api/settings'),
@@ -573,7 +584,7 @@ window.POS = {
                 const storedDiscount = parseFloat(order.discount) || 0;
                 this.discountType = 'flat';
                 this.discountValue = storedDiscount;
-                this.tableNumber = order.number || '';
+                this.tableNumber = order.table_number || '';
                 this.selectedCustomer = order.customer || null;
                 this.serviceType = order.service_type || 0;
         } catch (e) { this.toastMsg('Failed to load order', 'error'); }
@@ -750,7 +761,7 @@ window.POS = {
             return;
         }
         const existing = this.items.find(i => i.id === product.id);
-        if (existing) { existing.qty++; } else { this.items.push({ id: product.id, name: product.name, price: parseFloat(product.price), qty: 1 });
+        if (existing) { existing.qty++; } else { this.items.push({ id: product.id, product_id: product.id, name: product.name, price: parseFloat(product.price), qty: 1 });
             if (this.posSettings.sound_effects) POS_SOUNDS.addItem(); }
         this.showToast('Added: ' + product.name);
         this.refreshPromoDiscounts();
@@ -804,12 +815,42 @@ window.POS = {
     removeItem(idx) { const item = this.items[idx]; this.items.splice(idx, 1); this.showToast('Removed: ' + item.name);
             if (this.posSettings.sound_effects) POS_SOUNDS.removeItem(); this.refreshPromoDiscounts(); this.saveCart(); },
     updateQty(idx, qty) { if (qty < 1) return; this.items[idx].qty = qty; this.refreshPromoDiscounts(); this.saveCart(); },
+    startEditPrice(idx) {
+        if (!this.canEditPrice) return;
+        this._priceCancel = false;
+        this.editingPriceIdx = idx;
+        this.editingPriceValue = this.items[idx].price;
+    },
+    commitPrice(idx) {
+        if (this._priceCancel) { this._priceCancel = false; this.editingPriceIdx = null; this.editingPriceValue = ''; return; }
+        const v = parseFloat(this.editingPriceValue);
+        const product = this.products.find(p => p.id === this.items[idx].product_id);
+        const maxPrice = product ? (parseFloat(product.price) * 5) : null;
+        if (isNaN(v) || v < 0) { this.editingPriceIdx = null; this.editingPriceValue = ''; return; }
+        if (maxPrice !== null && v > maxPrice) {
+            alert('Price cannot exceed 5x the product price (' + this.formatMoney(maxPrice) + ').');
+            this.editingPriceIdx = null;
+            this.editingPriceValue = '';
+            return;
+        }
+        this.items[idx].price = Math.round(v * 100) / 100;
+        this.editingPriceIdx = null;
+        this.editingPriceValue = '';
+        this.refreshPromoDiscounts();
+        this.saveCart();
+    },
+    cancelPriceEdit() { this._priceCancel = true; this.editingPriceIdx = null; this.editingPriceValue = ''; },
+    isCustomPrice(idx) {
+        const item = this.items[idx];
+        const product = this.products.find(p => p.id === item.product_id);
+        return product ? (parseFloat(item.price) !== parseFloat(product.price)) : false;
+    },
     newSale() { if (this.items.length && !confirm('Clear order?')) return; this.items = []; this.discountType = 'percent'; this.discountValue = 0; this.promoDiscount = 0; this.selectedCustomer = null; this.orderTotal = null; this.existingOrderId = null; this.saveCart(); },
     setMode(m) { this.mode = m; this.searchTerm = ''; this.searchResults = []; if (m === 'browse') this.loadProducts(); },
     saveCart() {
         try {
             const cart = {
-                items: this.items.map(i => ({ id: i.id, name: i.name, price: i.price, qty: i.qty })),
+                items: this.items.map(i => ({ id: i.id, product_id: i.product_id, name: i.name, price: i.price, qty: i.qty })),
                 discountType: this.discountType,
                 discountValue: this.discountValue,
                 selectedCustomer: this.selectedCustomer ? { id: this.selectedCustomer.id, name: this.selectedCustomer.name } : null,
@@ -1315,7 +1356,7 @@ Alpine.data('customersManager', () => ({
 // --- Orders List Component ---
 Alpine.data('ordersList', () => ({
     orders: [], loading: true, statusFilter: 'all', searchQuery: '',
-    currentPage: 1, totalPages: 1, totalOrders: 0,
+    currentPage: 1, totalPages: 1, totalOrders: 0, tableManagementEnabled: false,
     get gridStyle() {
         const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
@@ -1324,7 +1365,14 @@ Alpine.data('ordersList', () => ({
         return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
     },
 
-    async init() { await this.fetchOrders(); },
+    async init() { await Promise.all([this.fetchOrders(), this.fetchSettings()]); },
+    async fetchSettings() {
+        try {
+            const data = await window.POS.api('/api/settings');
+            const s = data?.data || {};
+            this.tableManagementEnabled = s.table_management_enabled === 'true' || s.table_management_enabled === true;
+        } catch(e) {}
+    },
     async fetchOrders(page = 1) {
         this.loading = true;
         try {
@@ -1458,7 +1506,7 @@ Alpine.data('usersManager', () => ({
     users: [], loading: true, pagination: {}, roles: [], branches: [], currentUserId: null,
     showModal: false, editing: false, saving: false, editId: null, showPwd: false, uploadingStock: false,
     error: '',
-    form: { first_name: '', last_name: '', username: '', employee_number: '', email: '', password: '', pin_code: '', access_level: 0, is_enabled: true, branch_id: '', branch_ids: [] },
+    form: { first_name: '', last_name: '', username: '', employee_number: '', email: '', password: '', pin_code: '', access_level: 0, is_enabled: true, can_edit_price: false, branch_id: '', branch_ids: [] },
     get gridStyle() {
         const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
@@ -1483,12 +1531,12 @@ Alpine.data('usersManager', () => ({
         try { const r = await window.POS.api('/api/users?page=' + page + '&per_page=15'); this.users = r.data?.data || r.data || []; this.pagination = r.meta || r.data?.meta || { current_page: 1, last_page: 1, total: 0, per_page: 15 }; } catch (e) { this.users = []; } finally { this.loading = false; }
     },
     openAdd() { this.editing = false; this.editId = null; this.error = ''; this.showPwd = false; this.form = { first_name: '', last_name: '', username: '', employee_number: '', email: '', password: '', pin_code: '', access_level: 0, is_enabled: true, branch_id: '', branch_ids: [] }; this.showModal = true; },
-    openEdit(u) { this.editing = true; this.editId = u.id; this.error = ''; this.showPwd = false; this.form = { first_name: u.first_name || '', last_name: u.last_name || '', username: u.username || '', employee_number: u.employee_number || '', email: u.email || '', password: '', pin_code: '', access_level: u.access_level ?? 0, is_enabled: u.is_enabled ?? true, branch_id: u.branch_id || '', branch_ids: u.branches ? u.branches.map(b => b.id) : [] }; this.showModal = true; },
+    openEdit(u) { this.editing = true; this.editId = u.id; this.error = ''; this.showPwd = false; this.form = { first_name: u.first_name || '', last_name: u.last_name || '', username: u.username || '', employee_number: u.employee_number || '', email: u.email || '', password: '', pin_code: '', access_level: u.access_level ?? 0, is_enabled: u.is_enabled ?? true, can_edit_price: !!u.can_edit_price, branch_id: u.branch_id || '', branch_ids: u.branches ? u.branches.map(b => b.id) : [] }; this.showModal = true; },
     async save() {
         this.saving = true; this.error = '';
         try {
             const method = this.editing ? 'PUT' : 'POST', url = this.editing ? '/api/users/' + this.editId : '/api/users';
-            const payload = { first_name: this.form.first_name, last_name: this.form.last_name, username: this.form.username, email: this.form.email, access_level: parseInt(this.form.access_level), is_enabled: this.form.is_enabled, branch_id: this.form.branch_id || null, branch_ids: this.form.branch_ids };
+            const payload = { first_name: this.form.first_name, last_name: this.form.last_name, username: this.form.username, email: this.form.email, access_level: parseInt(this.form.access_level), is_enabled: this.form.is_enabled, can_edit_price: !!this.form.can_edit_price, branch_id: this.form.branch_id || null, branch_ids: this.form.branch_ids };
             if (this.form.employee_number) payload.employee_number = parseInt(this.form.employee_number);
             if (this.form.password) payload.password = this.form.password;
             if (this.form.pin_code && this.form.pin_code.length === 4) payload.pin_code = this.form.pin_code;
