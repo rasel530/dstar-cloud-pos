@@ -49,8 +49,11 @@
                 <input type="number" x-model="tenderAmount" step="0.01" inputmode="decimal"
                     class="w-full bg-gray-50 dark:bg-[#0f1535] border-2 border-gray-200 dark:border-white/20 rounded-xl px-4 py-3 text-gray-900 dark:text-white text-xl text-center font-bold focus:border-emerald-500 outline-none"
                     placeholder="Enter amount" @keydown.enter="processPayment()" autofocus>
-                <div x-show="parseFloat(tenderAmount || 0) >= grandTotal" class="text-center mt-1.5 text-emerald-600 dark:text-emerald-400 text-sm font-medium">
+                <div x-show="parseFloat(tenderAmount || 0) > grandTotal" class="text-center mt-1.5 text-emerald-600 dark:text-emerald-400 text-sm font-medium">
                     Change: <span class="font-bold" x-text="$store.currency.symbol + (parseFloat(tenderAmount || 0) - grandTotal).toFixed(2)"></span>
+                </div>
+                <div x-show="parseFloat(tenderAmount || 0) < grandTotal" class="text-center mt-1.5 text-rose-600 dark:text-rose-400 text-sm font-medium">
+                    Amount Due: <span class="font-bold" x-text="$store.currency.symbol + (grandTotal - parseFloat(tenderAmount || 0)).toFixed(2)"></span>
                 </div>
             </div>
 

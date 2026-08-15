@@ -275,6 +275,12 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
         $finalTotal = $calc['total'];
 
         $tenantId = $user->tenant_id;
+
+        // Apply the same rounding rule as the POS frontend so the charged total,
+        // change and amount due always match what the cashier sees on screen.
+        $roundingRule = (string) (\App\Models\ApplicationSetting::where('tenant_id', $tenantId)->where('key', 'rounding_rule')->value('value') ?? 'none');
+        $finalTotal = $this->applyRoundingRule((float) $finalTotal, $roundingRule);
+
         $branchId = $request->header('X-Active-Branch') ?: $order->branch_id;
         if ($branchId && !\App\Models\Tenant::where('id', $branchId)->exists()) {
             $branchId = $user->branch_id ?? $user->tenant_id;
@@ -654,6 +660,18 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
             'pdf_html' => (new \App\Services\Printing\ReceiptBuilder)->buildPdf($receiptOrder, $company, $settings),
             'receipt_text' => (new \App\Services\Printing\ReceiptBuilder)->buildText($receiptOrder, $company, $settings),
         ];
+    }
+
+    private function applyRoundingRule(float $amount, string $rule): float
+    {
+        switch ($rule) {
+            case 'nearest_001': return round($amount * 100) / 100;
+            case 'nearest_005': return round($amount * 20) / 20;
+            case 'nearest_010': return round($amount * 10) / 10;
+            case 'nearest_050': return round($amount * 2) / 2;
+            case 'nearest_1': return round($amount);
+            default: return $amount;
+        }
     }
 
     /**
