@@ -31,14 +31,15 @@
 <div class="flex h-screen overflow-hidden">
 
     <aside class="flex flex-col bg-[#0a0f28] text-white shrink-0 w-56 -translate-x-full pointer-events-none fixed lg:relative inset-y-0 left-0 z-40 lg:translate-x-0 lg:pointer-events-auto" :class="[sidebarOpen ? 'translate-x-0 !pointer-events-auto' : 'lg:w-16', 'transition-[width,translate,transform] duration-300']">
-        <div class="flex flex-col items-center justify-center h-20 px-2 border-b border-white/10 overflow-hidden">
+        <div class="flex items-center justify-center h-20 px-2 sm:px-3 border-b border-white/10 overflow-hidden">
             <template x-if="companyLogo">
-                <img :src="companyLogo" class="h-8 max-w-[100px] object-contain" alt="Logo">
+                <div class="w-full max-w-[190px] bg-white rounded-xl flex items-center justify-center px-2 py-1.5 shadow-sm shrink-0 transition-all duration-300" :class="sidebarOpen ? 'h-[60px]' : 'h-10'">
+                    <img :src="companyLogo" class="max-w-full max-h-full object-contain" alt="Logo">
+                </div>
             </template>
             <template x-if="!companyLogo">
-                <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm flex-shrink-0 ring-2 ring-white/20">{{ Str::substr(config('app.name', 'AL'), 0, 1) }}</div>
+                <div class="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm flex-shrink-0 ring-2 ring-white/20">{{ Str::substr(config('app.name', 'AL'), 0, 1) }}</div>
             </template>
-            <span class="mt-1.5 text-xs font-semibold text-white/80 whitespace-nowrap truncate max-w-full" x-show="sidebarOpen" x-cloak x-text="companyName || '{{ config('app.name', 'POS System') }}'"></span>
         </div>
 
         <nav class="flex-1 py-4 space-y-1 px-2 overflow-y-auto scrollbar-thin">
