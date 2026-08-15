@@ -222,8 +222,8 @@ class CustomerController extends Controller
 
         $documents = \App\Models\Document::where('customer_id', $id)
             ->where('tenant_id', auth()->user()->tenant_id)
-            ->orderBy('date')
-            ->orderBy('created_at')
+            ->orderByDesc('date')
+            ->orderByDesc('created_at')
             ->get();
 
         $totalInvoiced = round((float) $documents->sum('total'), 4);

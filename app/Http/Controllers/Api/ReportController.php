@@ -46,8 +46,12 @@ class ReportController extends Controller
         $allOrders = $baseQuery()->get();
         $paginator = $baseQuery()->with('posOrderItems.product')->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
 
+        $docDues = \App\Models\Document::where('tenant_id', $tenantId)
+            ->whereIn('order_number', $paginator->pluck('number'))
+            ->pluck('due_amount', 'order_number');
+
         $calc = new \App\Services\Pricing\TaxCalculator;
-        $records = $paginator->map(function ($order) use ($calc) {
+        $records = $paginator->map(function ($order) use ($calc, $docDues) {
             $tc = $calc->calculate($order);
             return [
                 'id' => $order->number,
@@ -56,6 +60,7 @@ class ReportController extends Controller
                 'subtotal' => $tc['subtotal'],
                 'tax' => $tc['tax'],
                 'total' => $tc['total'],
+                'due_amount' => round((float) ($docDues[$order->number] ?? 0), 2),
                 'status' => $order->status,
             ];
         })->values()->toArray();
@@ -168,11 +173,13 @@ class ReportController extends Controller
             ->when($status !== 'all', fn($q) => $q->where('pos_orders.status', $status))
             ->whereNotNull('pos_orders.customer_id')
             ->select(
+                'customers.id as customer_id',
                 'customers.name',
                 DB::raw('COUNT(*) as order_count'),
-                DB::raw('SUM(pos_orders.total) as total_spent')
+                DB::raw('SUM(pos_orders.total) as total_spent'),
+                DB::raw("COALESCE((SELECT SUM(d.due_amount) FROM documents d WHERE d.customer_id = pos_orders.customer_id AND d.tenant_id = '" . auth()->user()->tenant_id . "'), 0) as total_due")
             )
-            ->groupBy('pos_orders.customer_id', 'customers.name')
+            ->groupBy('pos_orders.customer_id', 'customers.id', 'customers.name')
             ->orderByDesc('total_spent');
 
         if ($startDate && $endDate) {
@@ -186,9 +193,11 @@ class ReportController extends Controller
 
         $records = $pagedItems->map(function ($item) {
             return [
+                'customer_id' => $item->customer_id,
                 'name' => $item->name,
                 'order_count' => (int) $item->order_count,
                 'total_spent' => round((float) $item->total_spent, 2),
+                'total_due' => round((float) $item->total_due, 2),
             ];
         })->values()->toArray();
 
@@ -317,6 +326,7 @@ class ReportController extends Controller
             ->join('payment_types', 'payment_types.id', '=', 'payments.payment_type_id')
             ->where('payments.tenant_id', auth()->user()->tenant_id)
             ->select(
+                'payment_types.id',
                 'payment_types.name',
                 DB::raw('COUNT(*) as count'),
                 DB::raw('SUM(payments.amount) as total_amount')
@@ -330,11 +340,19 @@ class ReportController extends Controller
 
         $items = $query->get();
 
-        $records = $items->map(function ($item) {
+        $creditPaymentTypeId = DB::table('payment_types')->where('code', 'due')->value('id');
+        $outstandingDue = round((float) DB::table('documents')
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->sum('due_amount'), 2);
+
+        $records = $items->map(function ($item) use ($creditPaymentTypeId, $outstandingDue) {
+            $isDue = $creditPaymentTypeId && (int) $item->id === (int) $creditPaymentTypeId;
             return [
                 'name' => $item->name,
                 'count' => (int) $item->count,
                 'total_amount' => round((float) $item->total_amount, 2),
+                'is_due' => $isDue,
+                'due_amount' => $isDue ? $outstandingDue : 0,
             ];
         })->values()->toArray();
 
@@ -623,10 +641,17 @@ class ReportController extends Controller
         $orderCount = $getBaseQuery()->count();
         $allOrderIds = $getBaseQuery()->pluck('id');
         $itemCount = \App\Models\PosOrderItem::whereIn('pos_order_id', $allOrderIds)->sum('quantity');
+        $dueAmount = (float) \App\Models\Document::where('customer_id', $customer->id)
+            ->where('tenant_id', $tenantId)
+            ->sum('due_amount');
 
         $paginator = $getBaseQuery()->with(['posOrderItems.product'])->orderByDesc('created_at')->paginate($perPage, ['*'], 'page', $page);
 
-        $items = $paginator->map(function ($order) {
+        $docDues = \App\Models\Document::where('tenant_id', $tenantId)
+            ->whereIn('order_number', $paginator->pluck('number'))
+            ->pluck('due_amount', 'order_number');
+
+        $items = $paginator->map(function ($order) use ($docDues) {
             return [
                 'id'            => $order->id,
                 'number'        => $order->number,
@@ -635,6 +660,7 @@ class ReportController extends Controller
                 'discount'      => round((float) $order->discount, 2),
                 'tax'           => round((float) $order->tax_amount, 2),
                 'total'         => round((float) $order->total, 2),
+                'due_amount'    => round((float) ($docDues[$order->number] ?? 0), 2),
                 'payment'       => $order->payment_method ?? 'cash',
                 'service_type'  => (int) $order->service_type,
                 'table_number'  => $order->table_number ?? '',
@@ -666,6 +692,7 @@ class ReportController extends Controller
                     'total_spent'  => round($totalSpent, 2),
                     'item_count'   => (int) $itemCount,
                     'avg_order'    => $orderCount > 0 ? round($totalSpent / $orderCount, 2) : 0,
+                    'due_amount'   => round($dueAmount, 2),
                     'top_products' => $topProducts,
                 ],
                 'orders' => $items,
@@ -745,16 +772,16 @@ class ReportController extends Controller
         $tenantId = auth()->user()->tenant_id;
         $branchId = $request->header('X-Active-Branch');
 
-        $query = \App\Models\Document::join('customers', 'customers.id', '=', 'documents.customer_id')
+        $query = \App\Models\Document::leftJoin('customers', 'customers.id', '=', 'documents.customer_id')
             ->where('documents.tenant_id', $tenantId)
             ->where('documents.due_amount', '>', 0)
             ->selectRaw('
-                customers.id as customer_id,
-                customers.name as customer_name,
+                COALESCE(CAST(documents.customer_id AS TEXT), \'walk-in\') as customer_id,
+                COALESCE(customers.name, \'Walk-in Customer\') as customer_name,
                 COUNT(documents.id) as invoice_count,
                 SUM(documents.due_amount) as total_due
             ')
-            ->groupBy('customers.id', 'customers.name')
+            ->groupBy('documents.customer_id', 'customers.name')
             ->orderByDesc('total_due');
 
         $result = $query->get();

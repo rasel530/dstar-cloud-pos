@@ -22,6 +22,7 @@ class PosController extends Controller
                 "customer",
                 "user",
                 "posOrderItems.product",
+                "document",
             ])
             ->withCount("posOrderItems");
 
@@ -56,6 +57,10 @@ class PosController extends Controller
         }
 
         $orders = $query->orderBy("created_at", "desc")->paginate(25);
+        $orders->getCollection()->transform(function ($order) {
+            $order->setAttribute('due_amount', round((float) ($order->document->due_amount ?? 0), 2));
+            return $order;
+        });
 
         return response()->json(["data" => $orders]);
     }
@@ -130,9 +135,7 @@ class PosController extends Controller
             ]);
         }
 
-        $order->load(["posOrderItems.product", "customer"]);
-
-        return response()->json(["data" => $order], 201);
+        return response()->json(["data" => ["id" => $order->id]], 201);
     }
 
     public function closeOrder(Request $request, $order)
@@ -305,10 +308,12 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
         if ($isCredit && !$effectiveCustomerId) {
             return response()->json(['message' => 'Customer Due (credit) requires a registered customer. Please select a customer first.'], 422);
         }
-        $docPaidAmount = $isCredit ? 0 : $finalTotal;
-        $docDueAmount = $isCredit ? $finalTotal : 0;
-        $docPaidStatus = $isCredit ? 0 : 1;
-        $paymentAmount = $isCredit ? 0 : $finalTotal;
+        $appliedPaid = $isCredit ? 0 : min($paidAmount, $finalTotal);
+        $dueAmount = $isCredit ? $finalTotal : max(0, $finalTotal - $appliedPaid);
+        $docPaidAmount = $appliedPaid;
+        $docDueAmount = $dueAmount;
+        $docPaidStatus = $isCredit ? 0 : ($dueAmount > 0.0001 ? 2 : 1);
+        $paymentAmount = $appliedPaid;
 
         $doc = Document::create([
             "tenant_id" => $user->tenant_id,
@@ -416,14 +421,22 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
         // Auto-print to physical thermal printer AFTER the client gets the receipt (non-blocking)
         app()->terminating(function () use ($order, $receipt) {
             try {
+                // Flush the response to the client BEFORE the (possibly slow/unreachable)
+                // thermal print call, so payment never waits on the print proxy.
+                if (function_exists('fastcgi_finish_request')) {
+                    fastcgi_finish_request();
+                }
                 $this->dispatchAutoPrint($order, $receipt);
             } catch (\Exception $e) { /* printing is non-critical */ }
         });
 
+        // The receipt modal only renders receipt_html; the PDF button re-fetches
+        // /api/receipts/{id} on demand, so skip the heavy PDF/text/logo payloads here.
+        $modalReceipt = $receipt;
+        unset($modalReceipt['pdf_html'], $modalReceipt['receipt_text'], $modalReceipt['logo'], $modalReceipt['receipt_logo']);
+
         return response()->json(["data" => [
-            "document" => $doc,
-            "order" => $order,
-            "receipt" => $receipt,
+            "receipt" => $modalReceipt,
         ]]);
     }
 
@@ -595,7 +608,8 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
             'tax_amount' => round($order->tax_amount ?? 0, 2),
             'discount' => round($order->discount ?? 0, 2),
             'total' => round($order->total ?? 0, 2),
-            'paid_amount' => round($order->paid_amount ?? 0, 2),
+            'paid_amount' => round((float) ($doc->paid_amount ?? 0), 2),
+            'due_amount' => round((float) ($doc->due_amount ?? 0), 2),
             'change_amount' => round($order->change_amount ?? 0, 2),
             'payment_method' => $order->payment_method ?? 'cash',
             'cashier' => $cashierName,
@@ -625,6 +639,7 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
             'discount' => $receiptOrder['discount'],
             'grand_total' => $receiptOrder['total'],
             'paid_amount' => $receiptOrder['paid_amount'],
+            'due_amount' => $receiptOrder['due_amount'],
             'change_amount' => $receiptOrder['change_amount'],
             'payment_method' => $receiptOrder['payment_method'],
             'service_type' => (int) ($order->service_type ?? 0),
@@ -636,6 +651,7 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
             'receipt_logo' => $settings['receipt_logo'] ?? '',
             'order_status' => $order->status,
             'receipt_html' => (new \App\Services\Printing\ReceiptBuilder)->build($receiptOrder, $company, $settings),
+            'pdf_html' => (new \App\Services\Printing\ReceiptBuilder)->buildPdf($receiptOrder, $company, $settings),
             'receipt_text' => (new \App\Services\Printing\ReceiptBuilder)->buildText($receiptOrder, $company, $settings),
         ];
     }

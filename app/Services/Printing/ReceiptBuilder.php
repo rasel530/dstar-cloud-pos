@@ -40,6 +40,7 @@ class ReceiptBuilder
         $discountAmount = number_format($document['discount'] ?? 0, 2);
         $grandTotal = number_format($document['grand_total'] ?? $document['total'] ?? 0, 2);
         $paidAmount = number_format($document['paid_amount'] ?? 0, 2);
+        $dueAmount = number_format($document['due_amount'] ?? 0, 2);
         $changeAmount = number_format($document['change_amount'] ?? 0, 2);
 
         $cashierName = htmlspecialchars($document['cashier'] ?? '');
@@ -124,6 +125,9 @@ class ReceiptBuilder
                 $paidChange .= '<p><span>Change</span><span>' . $currencySymbol . $changeAmount . '</span></p>';
             }
         }
+        if ((float) $dueAmount > 0) {
+            $paidChange .= '<p><span>Due</span><span>' . $currencySymbol . $dueAmount . '</span></p>';
+        }
 
         $qrCode = $this->qrCodeHtml($documentNumber, $documentDate, $grandTotal, $customerName, $paymentMethod, $settings);
 
@@ -158,14 +162,15 @@ class ReceiptBuilder
                 table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 6px; }
                 table th { font-size: {$bodyFontSize}; text-align: left; border-bottom: 1px solid #000; padding: 2px 0; }
                 table td { font-size: {$bodyFontSize}; padding: 2px 0; vertical-align: top; text-align: left; overflow: hidden; word-break: break-word; }
+                table tbody td { font-weight: bold; }
                 th.item, td.name { width: 44%; }
                 th.qty, td.qty { width: 18%; }
                 th.price, td.price { width: 18%; }
                 th.total, td.total { width: 20%; }
                 .totals { border-top: 1px dashed #000; padding-top: 4px; margin-bottom: 8px; }
-                .totals p { font-size: {$bodyFontSize}; display: flex; align-items: baseline; }
-                .totals p span:first-child { width: 58%; text-align: right; padding-right: 4px; }
-                .totals p span:last-child { width: 42%; text-align: left; white-space: nowrap; }
+                .totals p { font-size: {$bodyFontSize}; display: flex; align-items: baseline; justify-content: space-between; }
+                .totals p span:first-child { text-align: left; }
+                .totals p span:last-child { text-align: right; white-space: nowrap; }
                 .totals .grand-total { font-size: {$h2FontSize}; font-weight: bold; border-top: 2px solid #000; padding-top: 4px; margin-top: 4px; }
                 .totals .grand-total span:last-child { white-space: nowrap; }
                 .payment-line { text-align: center; margin-top: 4px; font-weight: bold; }
@@ -259,6 +264,272 @@ class ReceiptBuilder
         return $this->build($document, $company, $settings);
     }
 
+    /**
+     * Build a world-standard A4 invoice/receipt HTML for PDF download/print.
+     * Separate design from the thermal receipt: S.No column, "Unit Price" label,
+     * bordered bold item table, right-aligned totals, centered header.
+     */
+    public function buildPdf(array $document, array $company, array $settings): string
+    {
+        $items = $document['items'] ?? [];
+        $payments = $document['payments'] ?? [];
+
+        $itemRows = '';
+        $sno = 0;
+        foreach ($items as $item) {
+            $sno++;
+            $qty = number_format($item['quantity'] ?? 0, 2);
+            $unitPrice = number_format($item['price'] ?? 0, 2);
+            $lineTotal = number_format(($item['quantity'] ?? 0) * ($item['price'] ?? 0), 2);
+            $productName = htmlspecialchars($item['product_name'] ?? $item['name'] ?? 'Item');
+            $itemRows .= <<<ROW
+            <tr>
+                <td class="sno">{$sno}</td>
+                <td class="item">{$productName}</td>
+                <td class="num">{$qty}</td>
+                <td class="num">{$unitPrice}</td>
+                <td class="num">{$lineTotal}</td>
+            </tr>
+            ROW;
+        }
+
+        $companyName = htmlspecialchars($company['name'] ?? $settings['company_name'] ?? 'Company Name');
+        $companyAddress = htmlspecialchars($company['address'] ?? $settings['company_address'] ?? '');
+        $companyPhone = htmlspecialchars($company['phone'] ?? $settings['company_phone'] ?? '');
+        $companyEmail = htmlspecialchars($company['email'] ?? $settings['company_email'] ?? '');
+        $companyInfo = trim(implode(' · ', array_filter([$companyAddress, $companyPhone, $companyEmail])));
+
+        $documentNumber = htmlspecialchars($document['number'] ?? '');
+        $documentDate = htmlspecialchars($document['date'] ?? date('Y-m-d H:i:s'));
+        $documentType = htmlspecialchars($document['document_type']['name'] ?? $document['type'] ?? 'Receipt');
+        $orderStatus = $document['order_status'] ?? null;
+
+        $subtotal = number_format($document['subtotal'] ?? 0, 2);
+        $taxAmount = number_format($document['tax_amount'] ?? 0, 2);
+        $discountAmount = number_format($document['discount'] ?? 0, 2);
+        $grandTotal = number_format($document['grand_total'] ?? $document['total'] ?? 0, 2);
+        $paidAmount = number_format($document['paid_amount'] ?? 0, 2);
+        $dueAmount = number_format($document['due_amount'] ?? 0, 2);
+        $changeAmount = number_format($document['change_amount'] ?? 0, 2);
+
+        $customerName = htmlspecialchars($document['customer'] ?? 'Walk-in Customer');
+        $customerPhone = htmlspecialchars($document['customer_phone'] ?? '');
+        $cashierName = htmlspecialchars($document['cashier'] ?? '');
+
+        $paymentMethod = '';
+        if (!empty($payments)) {
+            $methodNames = [];
+            foreach ($payments as $payment) {
+                $methodNames[] = htmlspecialchars($payment['payment_type']['name'] ?? $payment['method'] ?? $document['payment_method'] ?? 'Unknown');
+            }
+            $paymentMethod = implode(', ', array_unique($methodNames));
+        }
+        if (empty($paymentMethod)) {
+            $paymentMethod = htmlspecialchars($document['payment_method'] ?? '');
+        }
+
+        $currencySymbol = htmlspecialchars(
+            $settings['currency_symbol']
+            ?? config('business.currency_symbols.' . ($settings['currency'] ?? 'USD'))
+            ?? '$'
+        );
+        $headerText = htmlspecialchars($settings['receipt_header'] ?? '');
+        $footerText = htmlspecialchars($settings['receipt_footer'] ?? 'Thank you for your purchase!');
+        $extraFooter = $settings['receipt_extra_footer'] ?? '';
+        $logoUrl = !empty($settings['receipt_logo'] ?? '') ? $settings['receipt_logo'] : ($settings['logo'] ?? '');
+
+        $serviceType = (int) ($document['service_type'] ?? 0);
+        $tableNumber = htmlspecialchars($document['table_number'] ?? '');
+        $dineInEnabled = ($settings['dine_in_enabled'] ?? 'true') !== 'false';
+        $takeawayEnabled = ($settings['takeaway_enabled'] ?? 'true') !== 'false';
+        $tableMgmtEnabled = ($settings['table_management_enabled'] ?? 'true') !== 'false';
+
+        $serviceLine = '';
+        if ($serviceType === 0 && $dineInEnabled) {
+            $serviceLine = 'Dine-in' . ($tableNumber && $tableMgmtEnabled ? ' · Table ' . $tableNumber : '');
+        } elseif ($serviceType === 1 && $takeawayEnabled) {
+            $serviceLine = 'Takeaway';
+        }
+
+        $statusText = 'PAID';
+        if ($orderStatus === 'refunded') {
+            $statusText = 'REFUNDED';
+        } elseif (!empty($orderStatus)) {
+            $statusText = strtoupper(htmlspecialchars($orderStatus));
+        }
+
+        $totals = '';
+        $totals .= $this->pdfTotalRow('Subtotal', $currencySymbol . $subtotal);
+        if ((float) $taxAmount > 0) {
+            $totals .= $this->pdfTotalRow('Tax', $currencySymbol . $taxAmount);
+        }
+        if ((float) $discountAmount > 0) {
+            $totals .= $this->pdfTotalRow('Discount', '-' . $currencySymbol . $discountAmount);
+        }
+        $totals .= $this->pdfTotalRow('GRAND TOTAL', $currencySymbol . $grandTotal, true);
+        if ((float) $paidAmount > 0) {
+            $totals .= $this->pdfTotalRow('Paid', $currencySymbol . $paidAmount);
+            if ((float) $changeAmount > 0) {
+                $totals .= $this->pdfTotalRow('Change', $currencySymbol . $changeAmount);
+            }
+        }
+        if ((float) $dueAmount > 0) {
+            $totals .= $this->pdfTotalRow('Amount Due', $currencySymbol . $dueAmount);
+        }
+
+        $logoHtml = '';
+        if (!empty($logoUrl)) {
+            $logoHtml = '<div class="logo"><img src="' . htmlspecialchars($logoUrl) . '" alt="Logo"></div>';
+        }
+        $companyInfoHtml = $companyInfo !== '' ? '<div class="company-info">' . $companyInfo . '</div>' : '';
+        $refundedBadge = $orderStatus === 'refunded' ? '<div class="refunded">REFUNDED</div>' : '';
+        $cashierHtml = $cashierName !== '' ? '<div><strong>Cashier:</strong> ' . $cashierName . '</div>' : '';
+        $serviceHtml = $serviceLine !== '' ? '<div><strong>Service:</strong> ' . $serviceLine . '</div>' : '';
+        $paymentHtml = $paymentMethod !== '' ? '<div><strong>Payment:</strong> ' . $paymentMethod . '</div>' : '';
+        $qrCode = $this->qrCodeHtml($documentNumber, $documentDate, $grandTotal, $customerName, $paymentMethod, $settings);
+
+        return <<<HTML
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>{$documentNumber}</title>
+            <style>
+                @page { size: A4; margin: 12mm; }
+                * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                body {
+                    font-family: 'Helvetica Neue', Arial, sans-serif;
+                    font-size: 13px;
+                    color: #111;
+                    max-width: 794px;
+                    margin: 0 auto;
+                    padding: 28px;
+                    line-height: 1.5;
+                }
+                .top { text-align: center; margin-bottom: 16px; }
+                .top .logo img { max-width: 150px; max-height: 80px; object-fit: contain; display: block; margin: 0 auto 8px; }
+                .top .company-name { font-size: 20px; font-weight: 800; letter-spacing: 0.5px; }
+                .top .company-info { font-size: 12px; color: #444; margin-top: 3px; }
+                .title {
+                    text-align: center; font-size: 18px; font-weight: 800;
+                    border-top: 3px solid #111; border-bottom: 3px solid #111;
+                    padding: 6px 0; margin-bottom: 16px; letter-spacing: 3px;
+                }
+                .meta { display: flex; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+                .meta .label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #666; margin-bottom: 2px; }
+                .meta .bill-to { font-weight: 700; }
+                .meta .right { text-align: right; font-weight: 600; }
+                .meta .right div { margin-bottom: 2px; }
+                .refunded {
+                    text-align: center; border: 2px dashed #c00; color: #c00;
+                    font-weight: 800; letter-spacing: 4px; padding: 6px; margin-bottom: 14px;
+                }
+                table.items { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; margin-bottom: 18px; }
+                table.items th, table.items td {
+                    padding: 7px 8px;
+                    text-align: left;
+                    font-weight: 700;
+                    word-break: break-word;
+                    border-right: 1px solid #333;
+                    border-bottom: 1px solid #333;
+                }
+                table.items th { border-top: 1px solid #333; background: #eee; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+                table.items th:first-child, table.items td:first-child { border-left: 1px solid #333; }
+                table.items th.sno, table.items td.sno { width: 7%; text-align: center; }
+                table.items th.item, table.items td.item { width: 45%; }
+                table.items th.num, table.items td.num { text-align: right; white-space: nowrap; }
+                .totals { max-width: 420px; margin-left: auto; }
+                .totals .row { display: flex; justify-content: space-between; padding: 3px 0; font-weight: 700; }
+                .totals .row.grand {
+                    border-top: 2px solid #111; border-bottom: 2px solid #111;
+                    margin-top: 4px; padding: 7px 0; font-size: 15px;
+                }
+                .payment-line { text-align: center; margin-top: 14px; font-weight: 700; }
+                .footer { text-align: center; margin-top: 22px; padding-top: 10px; border-top: 2px solid #111; font-size: 12px; color: #333; }
+                .footer p { margin-bottom: 2px; }
+                .qr-code { text-align: center; margin-top: 12px; }
+                .qr-code img { max-width: 110px; max-height: 110px; }
+                @media print { body { max-width: 100%; padding: 0; } }
+                @media (max-width: 560px) {
+                    body { padding: 14px; }
+                    .meta { flex-direction: column; }
+                    .meta .right { text-align: left; }
+                    table.items th, table.items td { padding: 5px 4px; font-size: 12px; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="top">
+                {$logoHtml}
+                <div class="company-name">{$companyName}</div>
+                {$companyInfoHtml}
+            </div>
+
+            <div class="title">{$documentType}</div>
+
+            {$refundedBadge}
+
+            <div class="meta">
+                <div class="bill-to">
+                    <div class="label">Bill To</div>
+                    <div>{$customerName}</div>
+                    {$this->optionalPdfLine($customerPhone)}
+                </div>
+                <div class="right">
+                    <div><strong>{$documentType} No:</strong> {$documentNumber}</div>
+                    <div><strong>Date:</strong> {$documentDate}</div>
+                    {$cashierHtml}
+                    {$serviceHtml}
+                    {$paymentHtml}
+                    <div><strong>Status:</strong> {$statusText}</div>
+                </div>
+            </div>
+
+            <table class="items">
+                <thead>
+                    <tr>
+                        <th class="sno">S. No</th>
+                        <th class="item">Item</th>
+                        <th class="num">Quantity</th>
+                        <th class="num">Unit Price</th>
+                        <th class="num">Total</th>
+                    </tr>
+                </thead>
+                <tbody>{$itemRows}</tbody>
+            </table>
+
+            <div class="totals">
+                {$totals}
+            </div>
+
+            <div class="payment-line">Payment Method: {$paymentMethod}</div>
+
+            <div class="footer">
+                <p>{$footerText}</p>
+                <p>{$extraFooter}</p>
+                <p>Powered by {$companyName}</p>
+            </div>
+
+            {$qrCode}
+        </body>
+        </html>
+        HTML;
+    }
+
+    private function pdfTotalRow(string $label, string $value, bool $grand = false): string
+    {
+        $class = $grand ? 'row grand' : 'row';
+        return '<div class="' . $class . '"><span>' . $label . '</span><span>' . $value . '</span></div>';
+    }
+
+    private function optionalPdfLine(string $content): string
+    {
+        $content = trim($content);
+        if ($content === '') return '';
+        return '<div>' . $content . '</div>';
+    }
+
     private function qrCodeHtml(string $receiptNumber, string $date, string $total, string $customer, string $method, array $settings): string
     {
         $qrEnabled = trim($settings['receipt_qr_enabled'] ?? '', '"\'');
@@ -338,6 +609,7 @@ class ReceiptBuilder
         $total = number_format($document['grand_total'] ?? $document['total'] ?? 0, 2);
         $paid = number_format($document['paid_amount'] ?? 0, 2);
         $change = number_format($document['change_amount'] ?? 0, 2);
+        $due = number_format($document['due_amount'] ?? max(0, (float) ($document['grand_total'] ?? $document['total'] ?? 0) - (float) ($document['paid_amount'] ?? 0)), 2);
         $currency = $settings['currency_symbol'] ?? '$';
         $header = $settings['receipt_header'] ?? '';
         $footer = $settings['receipt_footer'] ?? 'Thank you!';
@@ -389,6 +661,7 @@ class ReceiptBuilder
         $out .= $d . "\n";
         $out .= sprintf("%-{$labW}s %{$valW}s\n", 'PAID:', $currency . $paid);
         if ((float)$change > 0) $out .= sprintf("%-{$labW}s %{$valW}s\n", 'CHANGE:', $currency . $change);
+        if ((float)$due > 0) $out .= sprintf("%-{$labW}s %{$valW}s\n", 'DUE:', $currency . $due);
         $out .= $d . "\n";
         $out .= sprintf("Payment: %s\n", strtoupper($paymentMethod));
         $out .= str_repeat('=', $w) . "\n";

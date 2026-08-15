@@ -35,7 +35,7 @@
 
         {{-- ==================== DASHBOARD TAB ==================== --}}
         <div x-show="activeTab === 'dashboard'" x-cloak>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-6">
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
                     <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Total Income</p>
                     <p class="text-2xl font-bold text-emerald-600 mt-1" x-text="(Alpine.store('currency')?.symbol || '$') + Number(dashboard.summary?.total_income || 0).toFixed(2)"></p>
@@ -51,6 +51,11 @@
                 <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
                     <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Total Entries</p>
                     <p class="text-2xl font-bold text-gray-900 dark:text-white mt-1" x-text="dashboard.summary?.total_count || 0"></p>
+                </div>
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5">
+                    <p class="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Customer Due</p>
+                    <p class="text-2xl font-bold text-rose-600 mt-1" x-text="(Alpine.store('currency')?.symbol || '$') + Number(dashboard.due_summary?.total_due || 0).toFixed(2)"></p>
+                    <p class="text-xs text-gray-400 mt-1" x-text="(dashboard.due_summary?.customers || 0) + ' customer(s) with due'"></p>
                 </div>
             </div>
 

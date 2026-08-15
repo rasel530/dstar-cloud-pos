@@ -24,7 +24,7 @@ class PrintJobDispatcher
         try {
             $response = Http::withHeaders([
                 'X-Proxy-Token' => $this->proxyToken,
-            ])->timeout(10)->post("{$this->proxyUrl}/print/escpos", [
+            ])->timeout(2)->connectTimeout(1)->post("{$this->proxyUrl}/print/escpos", [
                 'printerName' => $printerKey,
                 'content' => $content,
                 'cutPaper' => true,
@@ -85,7 +85,7 @@ class PrintJobDispatcher
         try {
             $response = Http::withHeaders([
                 'X-Proxy-Token' => $this->proxyToken,
-            ])->timeout(10)->post("{$this->proxyUrl}/print/escpos", [
+            ])->timeout(2)->connectTimeout(1)->post("{$this->proxyUrl}/print/escpos", [
                 'printerName' => $printerName,
                 'content' => $testContent,
                 'cutPaper' => true,

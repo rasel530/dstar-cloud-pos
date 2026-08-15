@@ -997,8 +997,9 @@ window.POS = {
         if (!w) return;
         window.POS.api(this.receiptApiUrl).then(r => {
             const receipt = r?.data;
-            if (receipt?.receipt_html) {
-                w.document.write(receipt.receipt_html);
+            const html = receipt?.pdf_html || receipt?.receipt_html;
+            if (html) {
+                w.document.write(html);
                 w.document.close();
                 setTimeout(() => { w.print(); }, 600);
             } else { w.close(); }
@@ -1412,10 +1413,11 @@ Alpine.data('ordersList', () => ({
         try {
             const data = await window.POS.api('/api/receipts/' + order.id);
             const receipt = data?.data;
-            if (!receipt?.receipt_html) { alert('Receipt not available'); return; }
+            const html = receipt?.pdf_html || receipt?.receipt_html;
+            if (!html) { alert('Receipt not available'); return; }
             const w = window.open('', '_blank');
             if (!w) return;
-            w.document.write(receipt.receipt_html);
+            w.document.write(html);
             w.document.close();
             setTimeout(() => { w.print(); }, 600);
         } catch (e) { alert('Failed to load receipt'); }
@@ -1429,6 +1431,7 @@ Alpine.data('ordersList', () => ({
 Alpine.data('reportsManager', () => ({
     activeTab: 'sales', tabData: {}, loading: false, dateFrom: '', dateTo: '',
     customerId: '', customers: [], employeeId: '', employees: [], branchId: '', branches: [], pagination: {}, custPage: 1, statusFilter: 'closed',
+    customerDue: { total_due: 0, customers: 0 },
     formatMoney(amount) {
         const sym = window.POS?.currency?.symbol || (Alpine.store('currency')?.symbol ?? '$');
         return sym + Number(amount || 0).toFixed(Alpine.store('currency')?.decimalPlaces ?? 2);
@@ -1456,7 +1459,14 @@ Alpine.data('reportsManager', () => ({
         return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
     },
 
-    async init() { await Promise.all([this.fetchTabData(), this.fetchCustomers(), this.fetchEmployees(), this.fetchBranches()]); },
+    async init() { await Promise.all([this.fetchTabData(), this.fetchCustomers(), this.fetchEmployees(), this.fetchBranches(), this.fetchCustomerDue()]); },
+    async fetchCustomerDue() {
+        try {
+            const r = await window.POS.api('/api/reports/customer-due');
+            const d = r.data || r || {};
+            this.customerDue = { total_due: Number(d.total_due || 0), customers: (d.records || []).length };
+        } catch (e) { this.customerDue = { total_due: 0, customers: 0 }; }
+    },
     async fetchCustomers() {
         try { const r = await window.POS.api('/api/customers?per_page=500'); this.customers = r.data?.data || r.data || []; } catch(e) { this.customers = []; }
     },
@@ -1491,10 +1501,11 @@ Alpine.data('reportsManager', () => ({
         try {
             const data = await window.POS.api('/api/receipts/' + orderId);
             const receipt = data?.data;
-            if (!receipt?.receipt_html) { alert('Receipt not available'); return; }
+            const html = receipt?.pdf_html || receipt?.receipt_html;
+            if (!html) { alert('Receipt not available'); return; }
             const w = window.open('', '_blank');
             if (!w) return;
-            w.document.write(receipt.receipt_html);
+            w.document.write(html);
             w.document.close();
             setTimeout(() => { w.print(); }, 600);
         } catch (e) { alert('Failed to load receipt'); }

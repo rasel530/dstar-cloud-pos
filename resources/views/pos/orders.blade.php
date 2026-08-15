@@ -55,6 +55,7 @@
                         <th class="text-left px-6 py-3">Customer</th>
                         <th class="text-center px-6 py-3">Items</th>
                         <th class="text-right px-6 py-3">Total</th>
+                        <th class="text-right px-6 py-3">Due</th>
                         <th class="text-center px-6 py-3">Status</th>
                         <th class="text-center px-6 py-3 sticky right-0 bg-gray-50 dark:bg-[#0f1535] z-10">Actions</th>
                     </tr>
@@ -67,6 +68,10 @@
                             <td class="px-6 py-3 text-gray-500 dark:text-white/70" x-text="order.customer?.name || 'Walk-in'"></td>
                             <td class="px-6 py-3 text-center" x-text="order.pos_order_items_count || order.pos_order_items?.length || 0"></td>
                             <td class="px-6 py-3 text-right font-mono font-bold" x-text="order.total != null && order.total > 0 ? formatMoney(order.total) : '--'"></td>
+                            <td class="px-6 py-3 text-right">
+                                <span x-show="parseFloat(order.due_amount) > 0" class="font-mono font-bold text-rose-600 dark:text-rose-400" x-text="formatMoney(order.due_amount)"></span>
+                                <span x-show="!(parseFloat(order.due_amount) > 0)" class="text-gray-400 dark:text-white/30">—</span>
+                            </td>
                             <td class="px-6 py-3 text-center">
                                 <span
                                     x-text="order.status"
@@ -120,6 +125,7 @@
                         <div class="grid grid-cols-2 gap-2 text-xs text-gray-500 dark:text-white/50 mb-3">
                             <div x-show="tableManagementEnabled && order.table_number"><span class="text-gray-400">Table:</span> <span x-text="order.table_number"></span></div>
                             <div><span class="text-gray-400">Items:</span> <span x-text="order.pos_order_items_count || order.pos_order_items?.length || 0"></span></div>
+                            <div><span class="text-gray-400">Due:</span> <span class="font-semibold" :class="parseFloat(order.due_amount) > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-400 dark:text-white/40'" x-text="parseFloat(order.due_amount) > 0 ? formatMoney(order.due_amount) : '—'"></span></div>
                             <div class="col-span-2"><span class="text-gray-400">Customer:</span> <span x-text="order.customer?.name || 'Walk-in'"></span></div>
                         </div>
                         <div class="flex items-center gap-1 border-t border-gray-100 dark:border-white/10 pt-3">

@@ -19,8 +19,8 @@
     <div class="flex-1 flex flex-col overflow-hidden">
         {{-- Search Bar --}}
         <div class="px-4 pt-4 pb-3 shrink-0">
-            <div class="relative flex gap-2">
-                <div class="relative flex-1">
+            <div class="relative flex flex-wrap gap-2">
+                <div class="relative w-full min-w-[200px] sm:flex-1 sm:min-w-[260px]">
                     <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-white/30 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     <input
                         type="text"
@@ -30,12 +30,12 @@
                         @keydown.enter.prevent="handleBarcodeSearch()"
                         placeholder="Search product, code or scan barcode..."
                         autofocus
-                        class="w-full bg-gray-100 dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/10 rounded-lg pl-11 pr-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 dark:focus:border-blue-500 transition"
+                        class="w-full bg-gray-100 dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/10 rounded-lg pl-11 pr-4 py-3 sm:py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 dark:focus:border-blue-500 transition"
                     >
                 </div>
                 <button @click="document.getElementById('bulkFileInput').click()" title="Upload products CSV" class="shrink-0 px-3 py-2.5 rounded-lg bg-gray-100 dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-500/50 transition text-sm flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
-                    <span class="hidden sm:inline">Import</span>
+                    <span class="hidden xl:inline">Import</span>
                 </button>
                 <button @click="showShortcutsHelp = !showShortcutsHelp" title="Keyboard shortcuts (Shift+?)" class="shrink-0 px-3 py-2.5 rounded-lg bg-gray-100 dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-500/50 transition text-sm">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7.5V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v10.5A2.25 2.25 0 006 18.75h5.25M15 7.5h1.875c1.035 0 1.875.84 1.875 1.875V10.5M15 7.5v2.25m0 0H12m3 1.5v3.75a2.25 2.25 0 002.25 2.25h1.875M12 12h3v3.75M12 12v3h3"/></svg>
@@ -46,16 +46,16 @@
                 <button @click="register.is_open ? openCloseRegisterModal() : openRegisterModal()" :title="registerInactiveMins != null && registerInactiveMins >= 60 ? 'Register inactive for ' + registerInactiveMins + ' minutes' : 'Cash register'" class="shrink-0 px-3 py-2.5 rounded-lg border transition text-sm flex items-center gap-1.5"
                     :class="registerInactiveMins != null && registerInactiveMins >= 60 ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/40 text-amber-700 dark:text-amber-400' : (register.is_open ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400' : 'bg-gray-100 dark:bg-[#1a1f3d] border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:border-emerald-500/50')">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3"/></svg>
-                    <span class="hidden sm:inline" x-text="register.is_open ? 'Register' : 'Open Register'"></span>
+                    <span class="hidden xl:inline" x-text="register.is_open ? 'Register' : 'Open Register'"></span>
                     <span x-show="registerInactiveMins != null && registerInactiveMins >= 60" class="text-[9px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold" x-text="registerInactiveMins + 'm idle'"></span>
                 </button>
                 <button @click="openRegisterHistory()" title="Register history" class="shrink-0 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:border-blue-500/50 hover:text-blue-500 dark:hover:text-blue-400 transition text-sm flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <span class="hidden sm:inline">History</span>
+                    <span class="hidden xl:inline">History</span>
                 </button>
                 <button @click="openHoldOrders()" title="Open / Held orders" class="shrink-0 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:border-violet-500/50 hover:text-violet-500 dark:hover:text-violet-400 transition text-sm flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    <span class="hidden sm:inline">Hold Orders</span>
+                    <span class="hidden xl:inline">Hold Orders</span>
                 </button>
                 <div x-show="uploading" x-cloak class="absolute inset-0 flex items-center justify-center bg-gray-900/50 rounded-lg z-10">
                     <svg class="animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>

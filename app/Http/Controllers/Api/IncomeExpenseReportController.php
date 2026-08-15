@@ -80,11 +80,21 @@ class IncomeExpenseReportController extends Controller
             ->limit(5)
             ->get();
 
+        $customerDue = DB::table('documents')
+            ->where('tenant_id', $tenantId)
+            ->where('due_amount', '>', 0)
+            ->selectRaw('COALESCE(SUM(due_amount), 0) as total_due, COUNT(DISTINCT COALESCE(CAST(customer_id AS TEXT), \'walk-in\')) as customer_count')
+            ->first();
+
         return response()->json(['data' => [
             'summary' => $summary,
             'top_income_categories' => $topIncomeCategories,
             'top_expense_categories' => $topExpenseCategories,
             'recent_entries' => $recentEntries,
+            'due_summary' => [
+                'total_due' => round((float) ($customerDue->total_due ?? 0), 2),
+                'customers' => (int) ($customerDue->customer_count ?? 0),
+            ],
         ]]);
     }
 

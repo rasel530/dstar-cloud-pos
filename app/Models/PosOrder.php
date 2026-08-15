@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class PosOrder extends Model
 {
@@ -80,5 +81,10 @@ class PosOrder extends Model
     public function posVoids(): HasMany
     {
         return $this->hasMany(PosVoid::class);
+    }
+
+    public function document(): HasOne
+    {
+        return $this->hasOne(Document::class, 'order_number', 'number');
     }
 }

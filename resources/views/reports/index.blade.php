@@ -87,7 +87,7 @@
                     <template x-if="activeTab === 'sales'">
                         <div class="flex flex-col flex-1 overflow-auto">
                             <div class="p-4 sm:p-6">
-                                <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5 mb-4 shrink-0">
+                                <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-5 mb-4 shrink-0">
                                     <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                         <span class="text-xs text-gray-500 dark:text-white/50">Net Sales</span>
                                         <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="formatMoney(tabData.total_sales || 0)"></div>
@@ -103,6 +103,11 @@
                                     <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                         <span class="text-xs text-gray-500 dark:text-white/50">Refunds</span>
                                         <div class="text-xl font-bold mt-1 text-rose-600 dark:text-rose-400" x-text="formatMoney(tabData.total_refunds || 0)"></div>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                        <span class="text-xs text-gray-500 dark:text-white/50">Outstanding Due</span>
+                                        <div class="text-xl font-bold mt-1 text-rose-600 dark:text-rose-400" x-text="formatMoney(customerDue.total_due || 0)"></div>
+                                        <div class="text-[11px] text-gray-400 dark:text-white/40" x-text="(customerDue.customers || 0) + ' customer(s)'"></div>
                                     </div>
                                 </div>
 
@@ -138,6 +143,7 @@
                                                     <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Subtotal</th>
                                                     <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Tax</th>
                                                     <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Total</th>
+                                                    <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Due</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -149,6 +155,7 @@
                                                         <td class="px-3 sm:px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.subtotal || 0).toFixed(2)"></td>
                                                         <td class="px-3 sm:px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.tax || 0).toFixed(2)"></td>
                                                         <td class="px-3 sm:px-6 py-3 text-right font-mono font-semibold text-gray-900 dark:text-white" x-text="$store.currency.symbol + parseFloat(row.total || 0).toFixed(2)"></td>
+                                                        <td class="px-3 sm:px-6 py-3 text-right font-mono" :class="parseFloat(row.due_amount) > 0 ? 'text-rose-600 dark:text-rose-400 font-semibold' : 'text-gray-400 dark:text-white/40'" x-text="$store.currency.symbol + parseFloat(row.due_amount || 0).toFixed(2)"></td>
                                                     </tr>
                                                 </template>
                                             </tbody>
@@ -173,6 +180,10 @@
                                     <span class="text-xs text-gray-500 dark:text-white/50">Payment Methods</span>
                                     <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="(tabData.records || []).length"></div>
                                 </div>
+                                <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                    <span class="text-xs text-gray-500 dark:text-white/50">Outstanding Due</span>
+                                    <div class="text-xl font-bold mt-1 text-rose-600 dark:text-rose-400" x-text="formatMoney(customerDue.total_due || 0)"></div>
+                                </div>
                             </div>
                             <div class="overflow-x-auto bg-gray-50 dark:bg-[#0f1535] rounded-lg border border-gray-100 dark:border-white/5">
                                 <table class="w-full text-sm">
@@ -188,7 +199,10 @@
                                             <tr>
                                                 <td class="px-3 sm:px-6 py-3 text-gray-900 dark:text-white font-medium" x-text="r.name"></td>
                                                 <td class="px-3 sm:px-6 py-3 text-right text-gray-500 dark:text-white/60" x-text="r.count"></td>
-                                                <td class="px-3 sm:px-6 py-3 text-right text-gray-900 dark:text-white font-semibold" x-text="$store.currency.symbol + parseFloat(r.total_amount).toFixed(2)"></td>
+                                                <td class="px-3 sm:px-6 py-3 text-right text-gray-900 dark:text-white font-semibold">
+                                                    <span x-show="!r.is_due" x-text="$store.currency.symbol + parseFloat(r.total_amount).toFixed(2)"></span>
+                                                    <span x-show="r.is_due" class="text-rose-600 dark:text-rose-400" x-text="'Due ' + $store.currency.symbol + parseFloat(r.due_amount || 0).toFixed(2)"></span>
+                                                </td>
                                             </tr>
                                         </template>
                                         <template x-if="!tabData.records || !tabData.records.length">
@@ -203,7 +217,7 @@
                     <!-- Profit & Loss Tab -->
                     <div x-show="activeTab === 'profit-loss'" class="flex-1 flex flex-col">
                         <div class="p-4 sm:p-6">
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5 mb-5 shrink-0">
+                            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-5 mb-5 shrink-0">
                                 <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                     <span class="text-xs text-gray-500 dark:text-white/50">Gross Sales</span>
                                     <div class="text-lg sm:text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="formatMoney(tabData.gross_sales || 0)"></div>
@@ -219,6 +233,10 @@
                                 <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                     <span class="text-xs text-gray-500 dark:text-white/50">Gross Profit</span>
                                     <div class="text-lg sm:text-xl font-bold mt-1 text-emerald-600 dark:text-emerald-400" x-text="formatMoney(tabData.gross_profit || 0)"></div>
+                                </div>
+                                <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                    <span class="text-xs text-gray-500 dark:text-white/50">Outstanding Due</span>
+                                    <div class="text-lg sm:text-xl font-bold mt-1 text-rose-600 dark:text-rose-400" x-text="formatMoney(customerDue.total_due || 0)"></div>
                                 </div>
                             </div>
                             <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg border border-gray-100 dark:border-white/5 divide-y divide-gray-100 dark:divide-white/5 mb-5">
@@ -351,7 +369,7 @@
                     <div x-show="activeTab === 'customers'" class="flex-1 flex flex-col">
                         <template x-if="tabData.records && tabData.records.length">
                             <div>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5 p-6">
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-5 p-6">
                                     <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                         <span class="text-xs text-gray-500 dark:text-white/50">Total Orders</span>
                                         <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="tabData.total_orders || 0"></div>
@@ -359,6 +377,11 @@
                                     <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                         <span class="text-xs text-gray-500 dark:text-white/50">Total Spent</span>
                                         <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="$store.currency.symbol + parseFloat(tabData.total_spent || 0).toFixed(2)"></div>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                        <span class="text-xs text-gray-500 dark:text-white/50">Outstanding Due</span>
+                                        <div class="text-xl font-bold mt-1 text-rose-600 dark:text-rose-400" x-text="formatMoney(customerDue.total_due || 0)"></div>
+                                        <div class="text-[11px] text-gray-400 dark:text-white/40" x-text="(customerDue.customers || 0) + ' customer(s)'"></div>
                                     </div>
                                 </div>
                                 <div class="overflow-x-auto">
@@ -369,6 +392,7 @@
                                                 <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Name</th>
                                                 <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Orders</th>
                                                 <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Total Spent</th>
+                                                <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Due</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -389,6 +413,7 @@
                                                     <td class="px-3 sm:px-6 py-3 font-medium text-gray-900 dark:text-white" x-text="row.name || '--'"></td>
                                                     <td class="px-3 sm:px-6 py-3 text-right text-gray-700 dark:text-gray-300" x-text="row.order_count || 0"></td>
                                                     <td class="px-3 sm:px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.total_spent || 0).toFixed(2)"></td>
+                                                    <td class="px-3 sm:px-6 py-3 text-right font-mono" :class="parseFloat(row.total_due) > 0 ? 'text-rose-600 dark:text-rose-400 font-semibold' : 'text-gray-400 dark:text-white/40'" x-text="$store.currency.symbol + parseFloat(row.total_due || 0).toFixed(2)"></td>
                                                 </tr>
                                             </template>
                                         </tbody>
@@ -419,7 +444,7 @@
                                             <p class="text-sm text-gray-500 dark:text-gray-400" x-text="tabData.customer.email || tabData.customer.phone || '--'"></p>
                                         </div>
                                     </div>
-                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 shrink-0">
+                                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4 mb-4 shrink-0">
                                         <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                             <span class="text-xs text-gray-500 dark:text-white/50">Total Orders</span>
                                             <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="tabData.summary.order_count || 0"></div>
@@ -435,6 +460,10 @@
                                         <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                             <span class="text-xs text-gray-500 dark:text-white/50">Total Items</span>
                                             <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="tabData.summary.item_count || 0"></div>
+                                        </div>
+                                        <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                            <span class="text-xs text-gray-500 dark:text-white/50">Outstanding Due</span>
+                                            <div class="text-xl font-bold mt-1 text-rose-600 dark:text-rose-400" x-text="$store.currency.symbol + parseFloat(tabData.summary.due_amount || 0).toFixed(2)"></div>
                                         </div>
                                     </div>
                                     <template x-if="tabData.summary.top_products && tabData.summary.top_products.length">
@@ -456,6 +485,7 @@
                                                 <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Date</th>
                                                 <th class="text-center text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Items</th>
                                                 <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Total</th>
+                                                <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Due</th>
                                                 <th class="text-center text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Payment</th>
                                                 <th class="text-center text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Receipt</th>
                                             </tr>
@@ -467,6 +497,7 @@
                                                     <td class="px-3 sm:px-6 py-3 text-gray-500 dark:text-gray-400 text-xs" x-text="order.date"></td>
                                                     <td class="px-3 sm:px-6 py-3 text-center text-gray-700 dark:text-gray-300" x-text="order.item_count"></td>
                                                     <td class="px-3 sm:px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(order.total || 0).toFixed(2)"></td>
+                                                    <td class="px-3 sm:px-6 py-3 text-right font-mono" :class="parseFloat(order.due_amount) > 0 ? 'text-rose-600 dark:text-rose-400 font-semibold' : 'text-gray-400 dark:text-white/40'" x-text="$store.currency.symbol + parseFloat(order.due_amount || 0).toFixed(2)"></td>
                                                     <td class="px-3 sm:px-6 py-3 text-center text-xs text-gray-500 dark:text-gray-400" x-text="order.payment + (order.service_type === 0 ? ' (Dine-in)' : order.service_type === 1 ? ' (Takeaway)' : '')"></td>
                                                     <td class="px-3 sm:px-6 py-3 text-center">
                                                         <button @click="downloadCustReceipt(order.id)" class="text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 p-1 rounded transition-colors" title="Download Receipt">
