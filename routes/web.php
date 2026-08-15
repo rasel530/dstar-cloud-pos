@@ -7,6 +7,10 @@ Route::view('/login', 'auth.login')->name('login');
 Route::view('/setup-pin', 'auth.setup-pin')->name('setup-pin');
 Route::post('/logout', function () { session()->flush(); return redirect('/login'); })->name('logout');
 
+// Cached logo assets (public — used by login + sidebar)
+Route::get('/logo', [App\Http\Controllers\LogoController::class, 'appLogo']);
+Route::get('/receipt-logo', [App\Http\Controllers\LogoController::class, 'receiptLogo']);
+
 // POS
 Route::view('/pos', 'pos.index')->name('pos.index');
 Route::view('/pos/orders', 'pos.orders')->name('orders.index');

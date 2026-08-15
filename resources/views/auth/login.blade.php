@@ -50,7 +50,7 @@
 
         <div class="flex flex-col items-center mb-8">
             @if($companyLogo)
-                <img src="{{ $companyLogo }}" class="h-16 max-w-[200px] object-contain mb-4" alt="Logo">
+                <img src="/logo" class="h-16 max-w-[200px] object-contain mb-4" alt="Logo">
             @else
                 <div class="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center mb-4 ring-2 ring-white/20 dark:ring-white/10">
                     <span class="text-white text-xl font-bold">{{ Str::substr($companyName, 0, 1) }}</span>

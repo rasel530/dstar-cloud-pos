@@ -252,7 +252,7 @@
                                 Upload Logo
                                 <input type="file" accept="image/*" class="hidden" @change="handleLogoUpload($event)">
                             </label>
-                            <button x-show="form.logo_preview" @click="form.logo_preview = null; form.logo = null" class="ml-2 text-xs text-red-500 hover:text-red-600 transition-colors">Remove</button>
+                            <button x-show="form.logo_preview" @click="form.logo_preview = null; form.logo = ''" class="ml-2 text-xs text-red-500 hover:text-red-600 transition-colors">Remove</button>
                         </div>
                     </div>
                 </div>
@@ -272,7 +272,7 @@
                                 Upload Receipt Logo
                                 <input type="file" accept="image/*" class="hidden" @change="handleReceiptLogoUpload($event)">
                             </label>
-                            <button x-show="form.receipt_logo_preview" @click="form.receipt_logo_preview = null; form.receipt_logo = null" class="ml-2 text-xs text-red-500 hover:text-red-600 transition-colors">Remove</button>
+                            <button x-show="form.receipt_logo_preview" @click="form.receipt_logo_preview = null; form.receipt_logo = ''" class="ml-2 text-xs text-red-500 hover:text-red-600 transition-colors">Remove</button>
                         </div>
                     </div>
                 </div>
@@ -684,8 +684,12 @@
                     };
                     if (settings.cash_in_reasons !== undefined) this.cashInReasons = parseList(settings.cash_in_reasons);
                     if (settings.cash_out_reasons !== undefined) this.cashOutReasons = parseList(settings.cash_out_reasons);
-                    if (this.form.logo) this.form.logo_preview = this.form.logo;
-                    if (this.form.receipt_logo) this.form.receipt_logo_preview = this.form.receipt_logo;
+                    // Logos are served as cached assets; show their URLs in the preview,
+                    // keep form.logo null until the user uploads a new one.
+                    this.form.logo = null;
+                    this.form.receipt_logo = null;
+                    this.form.logo_preview = settings.logo_url || null;
+                    this.form.receipt_logo_preview = settings.receipt_logo_url || null;
                     }
                 } catch (e) {
                     console.error('Failed to load settings:', e);
@@ -697,7 +701,7 @@
                 this.saveStatus = null;
                 try {
                     const settings = [];
-                    const entries = Object.entries(this.form).filter(([k]) => !k.startsWith('_') && !k.endsWith('_preview'));
+                    const entries = Object.entries(this.form).filter(([k, value]) => !k.startsWith('_') && !k.endsWith('_preview') && value !== null);
                     for (const [key, value] of entries) {
                         settings.push({
                             key: key,

@@ -226,7 +226,8 @@
                 try {
                     const data = await window.POS.api('/api/settings');
                     if (data?.data) {
-                        if (data.data.logo) this.companyLogo = data.data.logo;
+                        if (data.data.logo_url) this.companyLogo = data.data.logo_url;
+                        else if (data.data.logo) this.companyLogo = data.data.logo;
                         if (data.data.company_name) this.companyName = data.data.company_name;
                     }
                 } catch (e) { /* ignore */ }

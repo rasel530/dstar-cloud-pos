@@ -27,6 +27,14 @@ class SettingsController extends Controller
 
         $settings = array_merge($globalSettings, $tenantSettings);
 
+        // Logo data URLs bloat this endpoint (~180KB). Serve the logos as cached
+        // assets instead and expose their URLs.
+        $hasLogo = !empty($settings['logo'] ?? '') && str_starts_with($settings['logo'] ?? '', 'data:image');
+        $hasReceiptLogo = !empty($settings['receipt_logo'] ?? '') && str_starts_with($settings['receipt_logo'] ?? '', 'data:image');
+        unset($settings['logo'], $settings['logo_preview'], $settings['receipt_logo'], $settings['receipt_logo_preview']);
+        $settings['logo_url'] = $hasLogo ? '/logo' : '';
+        $settings['receipt_logo_url'] = $hasReceiptLogo ? '/receipt-logo' : '';
+
         return response()->json(['data' => $settings]);
     }
 
