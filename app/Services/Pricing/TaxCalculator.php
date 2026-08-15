@@ -33,6 +33,8 @@ class TaxCalculator
                     ? floatval(preg_replace('/[^0-9.]/', '', (string) $fiscalVat))
                     : (float) $globalRate;
 
+                // If the product's fiscal VAT is 0/invalid, apply the global tax rate instead.
+                if ($rate <= 0) $rate = (float) $globalRate;
                 if ($rate <= 0) continue;
 
                 $itemTotal = $item->quantity * $item->price;

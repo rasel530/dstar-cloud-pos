@@ -364,7 +364,7 @@ class ReceiptBuilder
             $totals .= $this->pdfTotalRow('Tax', $currencySymbol . $taxAmount);
         }
         if ((float) $discountAmount > 0) {
-            $totals .= $this->pdfTotalRow('Discount', '-' . $currencySymbol . $discountAmount);
+            $totals .= $this->pdfTotalRow('Discount', $currencySymbol . $discountAmount);
         }
         $totals .= $this->pdfTotalRow('GRAND TOTAL', $currencySymbol . $grandTotal, true);
         if ((float) $paidAmount > 0) {

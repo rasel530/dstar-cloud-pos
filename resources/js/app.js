@@ -281,7 +281,7 @@ window.POS = {
     _productCache: {}, _promoCache: { ts: 0, data: 0 },
     get hasBranch() { return !!(localStorage.getItem('active_branch_id')) || (localStorage.getItem('system_mode') === 'single'); },
     posSettings: {
-        grid_columns: 4, grid_rows: 4, default_tax_rate: 10, rounding_rule: 'none',
+        grid_columns: 4, grid_rows: 4, rounding_rule: 'none',
         sound_effects: true, payment_confirmation: true,
         notification_duration: 3, notification_position: 'bottom-center',
         receipt_auto_print: false,
@@ -306,9 +306,9 @@ window.POS = {
             const discountShare = subtotal > 0 ? discountAmount * (itemTotal / subtotal) : 0;
             const taxable = itemTotal - discountShare;
             if (product && product.plu && this.fiscalItems[product.plu]) {
-                const vatStr = this.fiscalItems[product.plu];
-                const rate = parseFloat(vatStr.replace(/[^0-9.]/g, ''));
+                const rate = parseFloat((this.fiscalItems[product.plu] || '').replace(/[^0-9.]/g, ''));
                 if (rate > 0) total += taxable * (rate / 100);
+                else if (this.taxRate > 0) total += taxable * (this.taxRate / 100);
             } else if (this.taxIsFixed) {
                 total = this.taxRate;
             } else if (this.taxRate > 0) {
@@ -406,7 +406,6 @@ window.POS = {
                 const s = data.data;
                 if (s.grid_columns) this.posSettings.grid_columns = parseInt(s.grid_columns) || 4;
                 if (s.grid_rows) this.posSettings.grid_rows = parseInt(s.grid_rows) || 4;
-                if (s.default_tax_rate) this.posSettings.default_tax_rate = parseFloat(s.default_tax_rate) || 10;
                 if (s.rounding_rule) this.posSettings.rounding_rule = s.rounding_rule;
                 if (s.sound_effects !== undefined) this.posSettings.sound_effects = s.sound_effects === 'true' || s.sound_effects === true;
                 if (s.payment_confirmation !== undefined) this.posSettings.payment_confirmation = s.payment_confirmation === 'true' || s.payment_confirmation === true;
@@ -662,10 +661,10 @@ window.POS = {
                 this.taxRate = parseFloat(enabled[0].rate);
                 this.taxIsFixed = !!enabled[0].is_fixed;
             } else {
-                this.taxRate = this.posSettings.default_tax_rate || 0;
+                this.taxRate = 0;
                 this.taxIsFixed = false;
             }
-        } catch (e) { this.taxRate = this.posSettings.default_tax_rate || 0; this.taxIsFixed = false; }
+        } catch (e) { this.taxRate = 0; this.taxIsFixed = false; }
     },
     async loadProducts(append = false) {
         try {

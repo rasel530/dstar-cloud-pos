@@ -129,12 +129,8 @@
         </div>
 
         <div class="bg-white dark:bg-[#1a1f3d] rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-6">
-            <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Pricing & Tax</h2>
+            <h2 class="text-base font-semibold text-gray-900 dark:text-white mb-4">Pricing & Rounding</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Default Tax Rate (%)</label>
-                    <input type="number" x-model.number="form.default_tax_rate" min="0" max="100" step="0.01" class="w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1535] text-gray-900 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors">
-                </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Rounding Rule</label>
                     <select x-model="form.rounding_rule" class="w-full rounded-lg border border-gray-300 dark:border-white/10 bg-white dark:bg-[#0f1535] text-gray-900 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:border-blue-500 transition-colors">
@@ -602,7 +598,6 @@
                 timezone: 'UTC',
                 grid_columns: '4',
                 grid_rows: '4',
-                default_tax_rate: 10,
                 rounding_rule: 'none',
                 sound_effects: true,
                 payment_confirmation: true,
