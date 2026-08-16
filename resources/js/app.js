@@ -1009,6 +1009,31 @@ window.POS = {
     truncate(str, len) { if (!str) return ''; return str.length > len ? str.substring(0, len) + '\u2026' : str; },
     colorForProduct(product) { const colors = ['#3b82f6','#8b5cf6','#06b6d4','#f59e0b','#10b981','#ef4444','#ec4899','#6366f1','#14b8a6','#f97316']; const c = product?.color; if (c && c.startsWith('#')) return c; let hash = 0; const str = product?.name || ''; for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash); return colors[Math.abs(hash) % colors.length]; },
     textColorForProduct(product) { const bg = this.colorForProduct(product); if (!bg || !bg.startsWith('#')) return '#ffffff'; const r = parseInt(bg.slice(1,3), 16); const g = parseInt(bg.slice(3,5), 16); const b = parseInt(bg.slice(5,7), 16); const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255; return lum > 0.60 ? '#111827' : '#ffffff'; },
+
+    stockLevel(stock) { if (stock === null || stock === undefined) return 'none'; if (stock <= 0) return 'out'; if (stock <= 10) return 'low'; return 'in'; },
+
+    stockBadgeClass(stock) {
+        const level = this.stockLevel(stock);
+        if (level === 'out') return 'bg-red-500 text-white';
+        if (level === 'low') return 'bg-amber-400 text-amber-950';
+        if (level === 'in') return 'bg-emerald-500 text-white';
+        return 'bg-gray-200 dark:bg-white/10 text-gray-600 dark:text-white/60';
+    },
+
+    stockBadgeText(stock) {
+        const level = this.stockLevel(stock);
+        if (level === 'out') return 'Not Saleable';
+        if (level === 'low') return 'Low: ' + stock;
+        if (level === 'in') return 'In Stock';
+        return '';
+    },
+
+    stockCardClass(stock) {
+        const level = this.stockLevel(stock);
+        if (level === 'out') return 'border-red-300 dark:border-red-900/80';
+        if (level === 'low') return 'border-amber-300 dark:border-amber-900/70';
+        return '';
+    },
     showToast(msg) { this.toastMsg(msg, 'success'); },
     toastMsg(message, type = 'success') { this.toast = { show: true, message, type }; clearTimeout(this._t); const duration = (this.posSettings.notification_duration || 3) * 1000; this._t = setTimeout(() => { this.toast.show = false; }, duration); },
     toastPositionClass() {

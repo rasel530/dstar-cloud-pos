@@ -81,9 +81,14 @@
         <div x-show="mode === 'build' && searchTerm && searchTerm.length >= 1 && searchResults.length" x-cloak class="px-4 pb-2 shrink-0 -mt-1">
             <div class="bg-white dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/10 rounded-xl shadow-lg overflow-hidden">
                 <template x-for="p in searchResults" :key="p.id">
-                    <button @click="addToCart(p); searchTerm = ''; searchResults = []" class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-white/5 text-left transition border-b border-gray-100 dark:border-white/5 last:border-0">
-                        <span class="text-sm text-gray-900 dark:text-white" x-text="p.name"></span>
-                        <span class="text-xs font-mono text-gray-500 dark:text-white/50" x-text="formatMoney(p.price)"></span>
+                    <button @click="addToCart(p); searchTerm = ''; searchResults = []"
+                        :disabled="p.track_inventory && stockMap[p.id] && stockMap[p.id].current_stock <= 0"
+                        class="w-full flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-white/5 text-left transition border-b border-gray-100 dark:border-white/5 last:border-0 disabled:opacity-60 disabled:cursor-not-allowed">
+                        <span class="text-sm text-gray-900 dark:text-white truncate" x-text="p.name"></span>
+                        <span class="flex items-center gap-2 shrink-0">
+                            <span x-show="p.track_inventory && stockMap[p.id]" class="inline-flex items-center rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide leading-none" :class="stockBadgeClass(stockMap[p.id]?.current_stock)" x-text="stockBadgeText(stockMap[p.id]?.current_stock)"></span>
+                            <span class="text-xs font-mono text-gray-500 dark:text-white/50" x-text="formatMoney(p.price)"></span>
+                        </span>
                     </button>
                 </template>
             </div>
@@ -150,7 +155,8 @@
                     <button
                         @click="addToCart(product)"
                         :disabled="product.track_inventory && stockMap[product.id] && stockMap[product.id].current_stock <= 0"
-                        class="rounded-xl overflow-hidden text-left cursor-pointer hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-150 flex flex-col min-h-[72px] sm:min-h-[80px] lg:min-h-[90px] bg-white dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/10 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:translate-y-0"
+                        :class="stockCardClass(stockMap[product.id]?.current_stock)"
+                        class="rounded-xl overflow-hidden text-left cursor-pointer hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-150 flex flex-col min-h-[72px] sm:min-h-[80px] lg:min-h-[90px] bg-white dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/10 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:translate-y-0"
                     >
                         <div class="h-1 shrink-0 w-full" :style="'background-color: ' + colorForProduct(product)"></div>
                         <div class="flex-1 flex flex-col items-center justify-center gap-0.5 sm:gap-1 p-2 sm:p-3 lg:p-4">
@@ -158,9 +164,9 @@
                             <span class="text-[10px] sm:text-xs font-mono tracking-tight text-gray-500 dark:text-white/60" x-text="formatMoney(product.price)"></span>
                             <span
                                 x-show="stockMap[product.id] && product.track_inventory"
-                                class="text-[10px] font-medium"
-                                :class="stockMap[product.id]?.current_stock <= 0 ? 'text-red-500 dark:text-red-400' : 'text-green-600 dark:text-green-400'"
-                                x-text="stockMap[product.id]?.current_stock > 0 ? 'Stock: ' + stockMap[product.id].current_stock : 'Out of Stock'"
+                                class="mt-0.5 inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[9px] sm:text-[10px] font-bold uppercase tracking-wide leading-none"
+                                :class="[stockBadgeClass(stockMap[product.id]?.current_stock), stockMap[product.id]?.current_stock <= 0 ? 'animate-pulse' : '']"
+                                x-text="stockBadgeText(stockMap[product.id]?.current_stock)"
                             ></span>
                         </div>
                     </button>
