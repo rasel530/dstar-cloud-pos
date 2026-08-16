@@ -301,37 +301,38 @@ class StockController extends Controller
 
         $productIds = $request->input('product_ids', []);
 
-        $result = [];
+        // Include every trackable product (even those without a stock row yet)
+        // so the POS can always show its stock status (defaulting to 0).
+        $productsQuery = \App\Models\Product::query()
+            ->where(fn($q) => $q->where('tenant_id', $tenantId)->orWhere('is_global', true))
+            ->where('track_inventory', true);
+        if (!empty($productIds)) { $productsQuery->whereIn('id', $productIds); }
+        $products = $productsQuery->get();
 
         if ($branchId) {
-            $query = BranchInventory::where('tenant_id', $tenantId)->where('branch_id', $branchId);
-            if (!empty($productIds)) { $query->whereIn('product_id', $productIds); }
-            $items = $query->get();
-            foreach ($items as $bi) {
-                $result[] = [
-                    'product_id' => $bi->product_id,
-                    'product_name' => ($bi->product ? $bi->product->name : ''),
-                    'current_stock' => (float) $bi->stock,
-                    'status' => ((float) $bi->stock) <= 0 ? 'Out of Stock' : 'In Stock',
-                ];
-            }
-            return response()->json(['data' => $result]);
+            $stockMap = BranchInventory::where('tenant_id', $tenantId)
+                ->where('branch_id', $branchId)
+                ->get()
+                ->keyBy('product_id');
+        } else {
+            $warehouseId = \App\Models\Warehouse::where('is_default', true)->value('id');
+            $stockMap = $warehouseId
+                ? Stock::where('warehouse_id', $warehouseId)->get()->keyBy('product_id')
+                : collect();
         }
 
-        $warehouseId = \App\Models\Warehouse::where('is_default', true)->value('id');
-        if (!$warehouseId) { return response()->json(['data' => $result]); }
-
-        $query = Stock::where('warehouse_id', $warehouseId);
-        if (!empty($productIds)) { $query->whereIn('product_id', $productIds); }
-        $items = $query->get();
-        foreach ($items as $stock) {
+        $result = [];
+        foreach ($products as $product) {
+            $stock = $stockMap->get($product->id);
+            $qty = $stock ? (float) ($stock->quantity ?? $stock->stock ?? 0) : 0;
             $result[] = [
-                'product_id' => $stock->product_id,
-                'product_name' => ($stock->product ? $stock->product->name : ''),
-                'current_stock' => (float) $stock->quantity,
-                'status' => ((float) $stock->quantity) <= 0 ? 'Out of Stock' : 'In Stock',
+                'product_id' => $product->id,
+                'product_name' => $product->name,
+                'current_stock' => $qty,
+                'status' => $qty <= 0 ? 'Out of Stock' : 'In Stock',
             ];
         }
+
         return response()->json(['data' => $result]);
     }
 public function bulkUpdate(Request $request): JsonResponse
