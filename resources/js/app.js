@@ -1777,6 +1777,7 @@ Alpine.data('branchesManager', () => ({
 Alpine.data('inventoryManager', () => ({
     warehouses: [], loading: true, selectedWarehouse: null, selectedWarehouseName: '',
     warehouseStocks: [], stockLoading: false, adjustQty: {}, uploadingStock: false,
+    stockPage: 1, stockLastPage: 1, stockTotal: 0,
     showWarehouseModal: false, warehouseSaving: false, editingWarehouseId: null,
     warehouseForm: { name: '', is_default: false },
     allProducts: [], addProductId: '', addProductQty: 1,
@@ -1812,10 +1813,14 @@ Alpine.data('inventoryManager', () => ({
         this.selectedWarehouse = id;
         const w = this.warehouses.find(x => x.id === id);
         this.selectedWarehouseName = w?.name || '';
+        await this.loadStockPage(1);
+    },
+    async loadStockPage(page) {
         this.stockLoading = true;
         try {
-            const r = await window.POS.api('/api/stock?warehouse_id=' + id + '&per_page=100');
-            const items = r?.data?.data || r?.data || [];
+            const r = await window.POS.api('/api/stock?warehouse_id=' + this.selectedWarehouse + '&per_page=50&page=' + page);
+            const body = r?.data;
+            const items = Array.isArray(body) ? body : (body?.data || []);
             this.warehouseStocks = items.map(s => ({
                 product_id: s.product_id,
                 product_name: s.product ? s.product.name : '\u2014',
@@ -1823,6 +1828,9 @@ Alpine.data('inventoryManager', () => ({
                 quantity: parseFloat(s.quantity) || 0,
                 branch_summary: '',
             }));
+            this.stockPage = body && body.current_page ? body.current_page : page;
+            this.stockLastPage = body && body.last_page ? body.last_page : 1;
+            this.stockTotal = body && body.total ? body.total : this.warehouseStocks.length;
             for (const s of this.warehouseStocks) {
                 try {
                     const br = await window.POS.api('/api/stock/pos-summary?product_ids=' + s.product_id);

@@ -103,6 +103,14 @@
                         </tbody>
                     </table></div>
             </template>
+            <div x-show="!stockLoading && stockLastPage > 1" class="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-t border-gray-100 dark:border-white/5 shrink-0">
+                <span class="text-xs text-gray-500 dark:text-white/50" x-text="stockTotal + ' products'"></span>
+                <span class="text-xs text-gray-500 dark:text-white/50" x-text="'Page ' + stockPage + ' of ' + stockLastPage"></span>
+                <div class="flex items-center gap-2">
+                    <button @click="loadStockPage(stockPage - 1)" :disabled="stockPage <= 1" class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition">Prev</button>
+                    <button @click="loadStockPage(stockPage + 1)" :disabled="stockPage >= stockLastPage" class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition">Next</button>
+                </div>
+            </div>
             <div x-show="!stockLoading && !warehouseStocks.length" class="p-4 sm:p-6 text-center flex-1 flex flex-col items-center justify-center">
                 <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">No stock records in this warehouse yet.</p>
                 <div class="max-w-sm mx-auto flex flex-col sm:flex-row gap-2">

@@ -40,7 +40,8 @@ class StockController extends Controller
             });
         }
 
-        $stocks = $query->orderBy('quantity', 'asc')->paginate(25);
+        $perPage = (int) $request->input('per_page', 25);
+        $stocks = $query->orderBy('quantity', 'asc')->paginate($perPage);
 
         return response()->json(['data' => $stocks]);
     }
@@ -300,6 +301,7 @@ class StockController extends Controller
             : $request->header('X-Active-Branch');
 
         $productIds = $request->input('product_ids', []);
+        if (!is_array($productIds)) { $productIds = $productIds ? [$productIds] : []; }
 
         // Include every trackable product (even those without a stock row yet)
         // so the POS can always show its stock status (defaulting to 0).
