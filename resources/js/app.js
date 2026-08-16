@@ -1033,7 +1033,10 @@ window.POS = {
         const level = this.stockLevel(product, stock);
         if (level === 'out') return 'Out of Stock';
         if (level === 'low') return 'Low: ' + stock;
-        if (level === 'in') return 'In Stock';
+        if (level === 'in') {
+            if (!product?.track_inventory || stock === null || stock === undefined) return 'In Stock';
+            return 'In Stock: ' + stock;
+        }
         return '';
     },
 
