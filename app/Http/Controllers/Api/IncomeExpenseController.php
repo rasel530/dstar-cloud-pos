@@ -121,8 +121,10 @@ class IncomeExpenseController extends Controller
     public function syncPosSales(Request $request): JsonResponse
     {
         $tenantId = auth()->user()->tenant_id;
-        $dateFrom = $request->input('date_from', now()->subDays(7)->toDateString());
-        $dateTo = $request->input('date_to', now()->toDateString());
+        // Default to today only, so a "today" sync never pulls earlier days.
+        $today = now()->toDateString();
+        $dateFrom = $request->input('date_from', $today);
+        $dateTo = $request->input('date_to', $today);
 
         $salesCategory = IncomeExpenseCategory::where('tenant_id', $tenantId)
             ->where('type', 'income')
@@ -133,16 +135,25 @@ class IncomeExpenseController extends Controller
             return response()->json(['message' => 'Sales Revenue category not found.'], 422);
         }
 
-        $salesByPayment = DB::table('payments')
-            ->join('documents', 'payments.document_id', '=', 'documents.id')
-            ->join('payment_types', 'payments.payment_type_id', '=', 'payment_types.id')
-            ->where('payments.tenant_id', $tenantId)
+        // Each document is attributed to its first payment method and its FULL
+        // total is counted, so income equals actual sales (accrual basis) —
+        // credit and partial-payment sales are no longer understated.
+        $salesByPayment = DB::table('documents')
+            ->join('payment_types', function ($join) {
+                $join->on('payment_types.id', '=', DB::raw("(
+                    SELECT p.payment_type_id FROM payments p
+                    WHERE p.document_id = documents.id
+                    ORDER BY p.created_at ASC, p.id ASC
+                    LIMIT 1
+                )"));
+            })
+            ->where('documents.tenant_id', $tenantId)
             ->whereBetween('documents.date', [$dateFrom, $dateTo])
             ->where('documents.total', '>', 0)
             ->selectRaw("
                 DATE(documents.date) as sale_date,
                 payment_types.name as payment_method,
-                SUM(payments.amount) as total_amount,
+                SUM(documents.total) as total_amount,
                 COUNT(DISTINCT documents.id) as order_count,
                 STRING_AGG(DISTINCT documents.number, ', ' ORDER BY documents.number) as order_numbers
             ")
@@ -153,6 +164,7 @@ class IncomeExpenseController extends Controller
 
         $created = 0;
         $updated = 0;
+        $unchanged = 0;
 
         foreach ($salesByPayment as $sale) {
             $desc = 'POS Sales: ' . $sale->order_count . ' order(s) [' . ($sale->order_numbers ?: 'N/A') . ']';
@@ -166,11 +178,16 @@ class IncomeExpenseController extends Controller
               ->first();
 
             if ($entry) {
-                $entry->update([
-                    'amount' => $sale->total_amount,
-                    'description' => $desc,
-                ]);
-                $updated++;
+                // Idempotent: only update when the value or description actually changed.
+                if (abs((float) $entry->amount - (float) $sale->total_amount) > 0.001 || $entry->description !== $desc) {
+                    $entry->update([
+                        'amount' => $sale->total_amount,
+                        'description' => $desc,
+                    ]);
+                    $updated++;
+                } else {
+                    $unchanged++;
+                }
             } else {
                 IncomeExpense::create([
                     'tenant_id' => $tenantId,
@@ -189,13 +206,16 @@ class IncomeExpenseController extends Controller
         }
 
         $total = $created + $updated;
-        $msg = $total > 0 ? "{$created} new, {$updated} updated ({$total} total synced)." : "Nothing to sync.";
+        $msg = $total > 0
+            ? "{$created} new, {$updated} updated, {$unchanged} already synced ({$total} total synced)."
+            : ($unchanged > 0 ? "Everything already synced ({$unchanged} unchanged)." : 'Nothing to sync.');
 
         return response()->json([
             'message' => $msg,
             'synced_count' => $total,
             'created' => $created,
             'updated' => $updated,
+            'unchanged' => $unchanged,
         ]);
     }
 

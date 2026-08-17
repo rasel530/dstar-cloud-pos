@@ -10,7 +10,7 @@
         </div>
         <div class="flex gap-2" x-show="activeTab === 'income'">
             <button @click="openForm('income')" class="px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors">Add Income</button>
-            <button @click="showSyncModal = true" :disabled="syncing" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">Sync POS Sales</button>
+            <button @click="openSyncModal()" :disabled="syncing" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50">Sync POS Sales</button>
         </div>
         <div class="flex gap-2" x-show="activeTab === 'expenses'">
             <button @click="openForm('expense')" class="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors">Add Expense</button>

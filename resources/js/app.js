@@ -2414,6 +2414,14 @@ Alpine.data('incomeExpensesManager', () => ({
     },
 
     // POS Sync
+    openSyncModal() {
+        const now = new Date();
+        const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        this.syncDateFrom = today;
+        this.syncDateTo = today;
+        this.syncError = '';
+        this.showSyncModal = true;
+    },
     async syncPosSales() {
         this.syncing = true; this.syncError = '';
         try {

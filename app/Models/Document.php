@@ -44,7 +44,7 @@ class Document extends Model
     protected function casts(): array
     {
         return [
-            'date' => 'date',
+            'date' => 'date:Y-m-d',
             'stock_date' => 'datetime',
             'total' => 'decimal:4',
             'paid_amount' => 'decimal:4',
