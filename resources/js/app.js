@@ -1727,7 +1727,7 @@ Alpine.data('loyaltyManager', () => ({
 
 // --- Printers Manager Component ---
 Alpine.data('printersManager', () => ({
-    printers: [], loading: true, pagination: {},
+    printers: [], loading: true, pagination: {}, error: '',
     showModal: false, editing: false, saving: false,
     form: { printer_name: '', paper_width: 32, header: '', footer: '', feed_lines: 0, cut_paper: true, open_cash_drawer: true, printer_type: 0, number_of_copies: 1 },
     get gridStyle() {
@@ -1754,7 +1754,11 @@ Alpine.data('printersManager', () => ({
         } catch (e) { alert(e.message); } finally { this.saving = false; }
     },
     async deletePrinter(id) { if (!confirm('Delete this printer?')) return; try { await window.POS.api('/api/printers/' + id, { method: 'DELETE' }); this.fetchPrinters(); } catch (e) { alert(e.message); } },
-    async testPrint(id) { try { await window.POS.api('/api/printers/' + id + '/test', { method: 'POST' }); alert('Test print sent'); } catch (e) { alert(e.message); } },
+    async testPrint(id) {
+        this.error = '';
+        try { await window.POS.api('/api/printers/' + id + '/test', { method: 'POST' }); alert('Test print sent'); }
+        catch (e) { this.error = e.message || 'Test print failed'; }
+    },
 }));
 
 // Branches Manager
