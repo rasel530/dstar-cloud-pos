@@ -3,7 +3,7 @@
 @section('title', 'Point of Sale')
 
 @section('content')
-<div x-data="posCart" x-init="init()" class="flex h-full overflow-hidden bg-gray-50 dark:bg-[#0f1535]">
+<div x-data="posCart" class="flex h-full overflow-hidden bg-gray-50 dark:bg-[#0f1535]">
 
     {{-- Auth Redirect --}}
     <div x-show="showAuthRedirect" x-cloak class="absolute inset-0 z-50 flex items-center justify-center bg-gray-900/80">
@@ -156,7 +156,7 @@
                         @click="addToCart(product)"
                         :disabled="product.track_inventory && stockMap[product.id] && stockMap[product.id].current_stock <= 0"
                         :class="stockCardClass(product, stockMap[product.id]?.current_stock)"
-                        class="rounded-xl overflow-hidden text-left cursor-pointer hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-150 flex flex-col min-h-[72px] sm:min-h-[80px] lg:min-h-[90px] bg-white dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/10 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:translate-y-0"
+                        class="pos-product-card rounded-xl overflow-hidden text-left cursor-pointer hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] transition-all duration-150 flex flex-col min-h-[72px] sm:min-h-[80px] lg:min-h-[90px] bg-white dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/10 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:translate-y-0"
                     >
                         <div class="h-1 shrink-0 w-full" :style="'background-color: ' + colorForProduct(product)"></div>
                         <div class="flex-1 flex flex-col items-center justify-center gap-0.5 sm:gap-1 p-2 sm:p-3 lg:p-4">

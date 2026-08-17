@@ -26,12 +26,13 @@
     <title>@yield('title', 'Dashboard') - {{ $companyName ?: config('app.name', 'POS') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans antialiased" x-data="layoutData" x-init="init()">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans antialiased" x-data="layoutData">
 
 <div class="flex h-screen overflow-hidden">
 
     <aside class="flex flex-col bg-[#0a0f28] text-white shrink-0 w-56 -translate-x-full pointer-events-none fixed lg:relative inset-y-0 left-0 z-40 lg:translate-x-0 lg:pointer-events-auto" :class="[sidebarOpen ? 'translate-x-0 !pointer-events-auto' : 'lg:w-16', 'transition-[width,translate,transform] duration-300']">
         <div class="flex items-center justify-center h-20 px-2 sm:px-3 border-b border-white/10 overflow-hidden">
+            <a href="{{ route('dashboard') }}" class="block" title="Dashboard">
             <template x-if="companyLogo">
                 <div class="w-full max-w-[190px] bg-white rounded-xl flex items-center justify-center px-2 py-1.5 shadow-sm shrink-0 transition-all duration-300" :class="sidebarOpen ? 'h-[60px]' : 'h-10'">
                     <img :src="companyLogo" class="max-w-full max-h-full object-contain" alt="Logo">
@@ -40,6 +41,7 @@
             <template x-if="!companyLogo">
                 <div class="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center font-bold text-sm flex-shrink-0 ring-2 ring-white/20">{{ Str::substr(config('app.name', 'AL'), 0, 1) }}</div>
             </template>
+            </a>
         </div>
 
         <nav class="flex-1 py-4 space-y-1 px-2 overflow-y-auto scrollbar-thin">
@@ -138,12 +140,18 @@
     <div class="flex-1 flex flex-col min-w-0">
 
         <header class="flex items-center justify-between h-16 px-4 lg:px-6 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shrink-0">
-            <div class="flex items-center gap-3 flex-1 min-w-0">
+            <div class="flex items-center gap-1 sm:gap-3 flex-1 min-w-0">
                 <button @click="sidebarOpen = !sidebarOpen" class="hidden lg:flex p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-700 dark:text-gray-200">
                     <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
                     </svg>
                 </button>
+                <a href="{{ route('dashboard') }}" class="inline-flex items-center gap-2 pl-10 lg:pl-0 p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300" title="Dashboard" :class="'{{ request()->routeIs('dashboard') ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400' : '' }}'">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25h-2.25a2.25 2.25 0 01-2.25-2.25v-2.25z"/>
+                    </svg>
+                    <span class="hidden md:inline text-sm font-medium">Dashboard</span>
+                </a>
                 <div class="relative flex-1 max-w-md hidden">
                 </div>
             </div>

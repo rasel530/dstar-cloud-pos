@@ -3,7 +3,7 @@
 @section('title', 'Settings')
 
 @section('content')
-<div x-data="settingsManager" x-init="init()" class="px-6">
+<div x-data="settingsManager" class="px-6">
 
     <div class="flex items-center justify-between py-4">
         <div>

@@ -364,7 +364,6 @@ window.POS = {
             this.loadFiscalItems(),
             this.loadTaxRate(),
             this.loadDefaultCustomer(),
-            this.loadStockSummary(),
             this.loadPaymentTypes(),
             this.loadRegisterStatus(),
             this.loadRegisterConfig(),
@@ -377,7 +376,7 @@ window.POS = {
             this.existingOrderId = null;
             this.orderTotal = null;
             this.showPayment = false;
-            this.loadStockSummary();
+            this.loadProducts();
             this.saveCart();
         });
         this.loadCart();
@@ -673,7 +672,7 @@ window.POS = {
     async loadProducts(append = false) {
         try {
             if (!append) { this.productPage = 1; this.hasMoreProducts = false; }
-            let url = `/api/products?per_page=200&page=${this.productPage}`;
+            let url = `/api/products?pos=1&per_page=200&page=${this.productPage}`;
             if (this.activeCategory && !this.searchTerm) url += `&product_group_id=${this.activeCategory}`;
             if (this.searchTerm) url += `&search=${encodeURIComponent(this.searchTerm)}`;
             const res = await window.POS.api(url);
@@ -681,6 +680,11 @@ window.POS = {
             const data = Array.isArray(meta?.data) ? meta.data : [];
             if (append) { this.products = [...this.products, ...data]; }
             else { this.products = data; }
+            data.forEach(p => {
+                if (p.current_stock !== undefined) {
+                    this.stockMap[p.id] = { product_id: p.id, current_stock: p.current_stock, product_name: p.name };
+                }
+            });
             this.hasMoreProducts = data.length > 0 && (meta?.current_page || 0) < (meta?.last_page || 0);
             this.productPage++;
         } catch (e) { this.toastMsg('Failed to load products', 'error'); this.products = []; }
@@ -700,8 +704,11 @@ window.POS = {
         if (this._scanning) return;
         this._scanning = true;
         try {
-            const res = await window.POS.api('/api/products?search=' + encodeURIComponent(term));
+            const res = await window.POS.api('/api/products?pos=1&search=' + encodeURIComponent(term));
             const items = Array.isArray(res?.data?.data) ? res.data.data : [];
+            items.forEach(p => {
+                if (p.current_stock !== undefined) this.stockMap[p.id] = { product_id: p.id, current_stock: p.current_stock, product_name: p.name };
+            });
             this.products = items;
         } catch(e) { this.products = []; }
         finally { this._scanning = false; }
@@ -719,7 +726,7 @@ window.POS = {
     },async handleBarcodeSearch() {
         if (this._scanning) return; const term = this.searchTerm.trim(); if (!term) return;
         this._scanning = true;
-        try { const data = await window.POS.api('/api/products?search=' + encodeURIComponent(term)); const items = Array.isArray(data?.data?.data) ? data.data.data : []; const p = items[0]; if (p) { this.addToCart(p); this.searchTerm = ''; this.searchResults = []; } else this.toastMsg('Product not found', 'error'); } catch (e) { this.toastMsg('Product not found', 'error'); }
+        try { const data = await window.POS.api('/api/products?pos=1&search=' + encodeURIComponent(term)); const items = Array.isArray(data?.data?.data) ? data.data.data : []; const p = items[0]; if (p) { if (p.current_stock !== undefined) this.stockMap[p.id] = { product_id: p.id, current_stock: p.current_stock, product_name: p.name }; this.addToCart(p); this.searchTerm = ''; this.searchResults = []; } else this.toastMsg('Product not found', 'error'); } catch (e) { this.toastMsg('Product not found', 'error'); }
         finally { this._scanning = false; }
     },
     async handleFileUpload(event) {

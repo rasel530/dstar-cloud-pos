@@ -2,6 +2,15 @@
 
 @import "./browser-fallbacks.css";
 
+/* Class-based dark mode: the app toggles `.dark` on <html> via the theme store */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* POS product grid: skip layout/paint of offscreen cards for faster rendering */
+.pos-product-card {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 90px;
+}
+
 :root {
     --accent: #3b82f6;
 }

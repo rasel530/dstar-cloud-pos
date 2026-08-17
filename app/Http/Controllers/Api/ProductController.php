@@ -13,7 +13,15 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         $tenantId = auth()->user()->tenant_id;
-        $query = Product::query()->with(['productGroup', 'barcodes', 'taxes', 'stocks.warehouse', 'branchInventories.branch']);
+        $forPos = $request->boolean('pos');
+        $query = Product::query();
+
+        if ($forPos) {
+            // POS needs only catalog fields + current stock — skip heavy relations
+            $query->with([]);
+        } else {
+            $query->with(['productGroup', 'barcodes', 'taxes', 'stocks.warehouse', 'branchInventories.branch']);
+        }
 
         $query->where(function ($q) use ($tenantId) {
             $q->where('tenant_id', $tenantId)->orWhere('is_global', true);
@@ -35,7 +43,51 @@ class ProductController extends Controller
         $perPage = $request->filled('per_page') ? (int) $request->per_page : 25;
         $products = $query->orderBy('name')->paginate($perPage);
 
+        if ($forPos) {
+            // Attach current stock from the active branch (multi-branch) or the
+            // default warehouse (single mode / no active branch) — same as pos-summary.
+            $branchId = $request->header('X-Active-Branch');
+            if ($branchId && !\App\Services\SystemModeService::isSingleMode()) {
+                $stockMap = \App\Models\BranchInventory::where('tenant_id', $tenantId)
+                    ->where('branch_id', $branchId)
+                    ->get(['product_id', 'stock'])
+                    ->keyBy('product_id');
+                $products->getCollection()->transform(function ($p) use ($stockMap) {
+                    $s = $stockMap->get($p->id);
+                    return $this->posProductShape($p, $s ? (float) $s->stock : 0);
+                });
+            } else {
+                $warehouseId = \App\Models\Warehouse::where('is_default', true)->value('id');
+                $stockMap = $warehouseId
+                    ? \App\Models\Stock::where('warehouse_id', $warehouseId)->get(['product_id', 'quantity'])->keyBy('product_id')
+                    : collect();
+                $products->getCollection()->transform(function ($p) use ($stockMap) {
+                    $s = $stockMap->get($p->id);
+                    return $this->posProductShape($p, $s ? (float) $s->quantity : 0);
+                });
+            }
+        }
+
         return response()->json(['data' => $products]);
+    }
+
+    private function posProductShape(Product $p, float $stock): array
+    {
+        return [
+            'id' => $p->id,
+            'name' => $p->name,
+            'code' => $p->code,
+            'price' => (float) $p->price,
+            'measurement_unit' => $p->measurement_unit,
+            'product_group_id' => $p->product_group_id,
+            'track_inventory' => $p->track_inventory,
+            'image' => $p->image,
+            'color' => $p->color,
+            'is_service' => $p->is_service,
+            'is_global' => $p->is_global,
+            'is_enabled' => $p->is_enabled,
+            'current_stock' => $stock,
+        ];
     }
 
     public function store(Request $request)

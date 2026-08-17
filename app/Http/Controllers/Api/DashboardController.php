@@ -7,10 +7,8 @@ use App\Models\Document;
 use App\Models\PosOrder;
 use App\Models\PosOrderItem;
 use App\Models\Product;
-use App\Models\StockControl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -30,11 +28,57 @@ class DashboardController extends Controller
 
         $todaySales = round((float) $docQuery()->whereDate('date', $today)->sum('total'), 2);
         $yesterdaySales = round((float) $docQuery()->whereDate('date', $yesterday)->sum('total'), 2);
-        $todayOrders = $docQuery()->whereDate('date', $today)->count();
+        // Completed orders = sale documents today (excludes refund documents, which have negative totals)
+        $todayOrders = $docQuery()->whereDate('date', $today)->where('total', '>=', 0)->count();
         $pendingOrders = PosOrder::where('tenant_id', $tenantId)->whereIn('status', ['open', 'held'])->count();
-        $totalProducts = Product::where('tenant_id', $tenantId)->count();
-        $activeProducts = Product::where('tenant_id', $tenantId)->where('is_enabled', true)->count();
-        $lowStockCount = StockControl::where('tenant_id', $tenantId)->where('is_low_stock_warning_enabled', true)->count();
+        // Products visible in the catalog (own + shared global products), matching the Products page / POS
+        $totalProducts = Product::where(fn($q) => $q->where('tenant_id', $tenantId)->orWhere('is_global', true))->count();
+        $activeProducts = Product::where(fn($q) => $q->where('tenant_id', $tenantId)->orWhere('is_global', true))->where('is_enabled', true)->count();
+        $ownProducts = Product::where('tenant_id', $tenantId)->count();
+        $sharedProducts = $totalProducts - $ownProducts;
+
+        // Low stock mirrors the POS frontend badge logic exactly:
+        //   - "Low Stock" = trackable product with 0 < stock <= 10 (the amber "Low:" badge)
+        //   - "Out of Stock" = trackable product with no stock row or stock <= 0
+        // Uses the active branch inventory (multi-branch) or the default warehouse
+        // stock (single mode / no active branch) — same source as the POS grid.
+        $lowStockThreshold = 10;
+        $systemMode = \App\Services\SystemModeService::isSingleMode();
+        $activeBranchId = $systemMode ? null : $branchId;
+        $defaultWarehouseId = \App\Models\Warehouse::where('is_default', true)->value('id');
+
+        $productBase = Product::where(fn($q) => $q->where('tenant_id', $tenantId)->orWhere('is_global', true))
+            ->where('track_inventory', true);
+
+        // Out of stock: no stock row for the active location, or stock <= 0
+        $outOfStockQuery = function () use ($productBase, $activeBranchId, $defaultWarehouseId) {
+            $q = (clone $productBase);
+            return $q->where(function ($q) use ($activeBranchId, $defaultWarehouseId) {
+                if ($activeBranchId) {
+                    $q->whereDoesntHave('branchInventories', fn($b) => $b->where('branch_id', $activeBranchId))
+                      ->orWhereHas('branchInventories', fn($b) => $b->where('branch_id', $activeBranchId)->where('stock', '<=', 0));
+                } else {
+                    $q->whereDoesntHave('stocks', fn($s) => $s->where('warehouse_id', $defaultWarehouseId))
+                      ->orWhereHas('stocks', fn($s) => $s->where('warehouse_id', $defaultWarehouseId)->where('quantity', '<=', 0));
+                }
+            });
+        };
+
+        // Low stock: has a stock row with 0 < stock <= threshold (still available, running low)
+        $lowStockQuery = function (int $threshold) use ($productBase, $activeBranchId, $defaultWarehouseId) {
+            $q = (clone $productBase);
+            return $q->where(function ($q) use ($threshold, $activeBranchId, $defaultWarehouseId) {
+                if ($activeBranchId) {
+                    $q->whereHas('branchInventories', fn($b) => $b->where('branch_id', $activeBranchId)->where('stock', '>', 0)->where('stock', '<=', $threshold));
+                } else {
+                    $q->whereHas('stocks', fn($s) => $s->where('warehouse_id', $defaultWarehouseId)->where('quantity', '>', 0)->where('quantity', '<=', $threshold));
+                }
+            });
+        };
+
+        $lowStockCount = $lowStockQuery($lowStockThreshold)->count();
+        $outOfStockCount = $outOfStockQuery()->count();
+
         $weekRevenue = round((float) $docQuery()->whereBetween('date', [$weekStart, $today])->sum('total'), 2);
         $avgOrderValue = $todayOrders > 0 ? round($todaySales / $todayOrders, 2) : 0;
         $customersToday = $docQuery()->whereDate('date', $today)->whereNotNull('customer_id')->distinct('customer_id')->count('customer_id');
@@ -95,7 +139,10 @@ class DashboardController extends Controller
             'pending_orders' => $pendingOrders,
             'products_count' => $totalProducts,
             'active_products' => $activeProducts,
+            'own_products_count' => $ownProducts,
+            'shared_products_count' => $sharedProducts,
             'low_stock_count' => $lowStockCount,
+            'out_of_stock_count' => $outOfStockCount,
             'week_revenue' => $weekRevenue,
             'avg_order_value' => $avgOrderValue,
             'customers_count' => $customersToday,

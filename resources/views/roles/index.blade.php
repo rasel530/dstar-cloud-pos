@@ -3,7 +3,7 @@
 @section('title', 'Roles & Permissions')
 
 @section('content')
-<div x-data="rolesManager" x-init="init()">
+<div x-data="rolesManager" >
 
     <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 shrink-0">
         <div>

@@ -9,7 +9,7 @@
 @endpush
 
 @section('content')
-<div x-data="usersManager" x-init="init()" class="flex flex-col h-full">
+<div x-data="usersManager" class="flex flex-col h-full">
 
     {{-- Header --}}
     <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 shrink-0">
