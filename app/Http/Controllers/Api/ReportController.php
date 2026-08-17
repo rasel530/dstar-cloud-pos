@@ -50,16 +50,17 @@ class ReportController extends Controller
             ->whereIn('order_number', $paginator->pluck('number'))
             ->pluck('due_amount', 'order_number');
 
-        $calc = new \App\Services\Pricing\TaxCalculator;
-        $records = $paginator->map(function ($order) use ($calc, $docDues) {
-            $tc = $calc->calculate($order);
+        $records = $paginator->map(function ($order) use ($docDues) {
+            $total = round((float) $order->total, 2);
+            $tax = round((float) $order->tax_amount, 2);
+            $discount = round((float) $order->discount, 2);
             return [
                 'id' => $order->number,
                 'date' => $order->created_at?->format('Y-m-d') ?? '—',
                 'customer' => $order->customer?->name ?? 'Walk-in',
-                'subtotal' => $tc['subtotal'],
-                'tax' => $tc['tax'],
-                'total' => $tc['total'],
+                'subtotal' => round($total - $tax + $discount, 2),
+                'tax' => $tax,
+                'total' => $total,
                 'due_amount' => round((float) ($docDues[$order->number] ?? 0), 2),
                 'status' => $order->status,
             ];
@@ -72,12 +73,8 @@ class ReportController extends Controller
         $totalRefunds = $refundedOrders->sum('total');
         $netSales = $closedOrders->sum('total');
 
-        $allOrdersWithItems = \App\Models\PosOrder::whereIn('id', $allOrders->pluck('id'))
-            ->with('posOrderItems.product')->get();
-        $totalTax = $allOrdersWithItems->where('status', 'closed')->reduce(function ($carry, $order) use ($calc) {
-            $tc = $calc->calculate($order);
-            return $carry + $tc['tax'];
-        }, 0);
+        // Stored tax amounts (what was actually charged) — not recomputed.
+        $totalTax = round((float) $closedOrders->sum('tax_amount'), 2);
 
         return response()->json([
             'data' => [
@@ -246,7 +243,8 @@ class ReportController extends Controller
             ];
         })->values()->toArray();
 
-        $totalDiscount = $items->sum('discount');
+        // Total must be over ALL discounted orders, not just the displayed page.
+        $totalDiscount = round((float) (clone $query)->sum('discount'), 2);
 
         return response()->json([
             'data' => [
@@ -274,17 +272,17 @@ class ReportController extends Controller
         }
 
         $allOrders = $allOrders->get();
-        $calc = new \App\Services\Pricing\TaxCalculator;
+
         $grouped = [];
 
         foreach ($allOrders as $order) {
-            $tc = $calc->calculate($order);
             $date = $order->created_at?->format('Y-m-d') ?? '--';
             if (!isset($grouped[$date])) {
                 $grouped[$date] = ['subtotal' => 0, 'tax' => 0];
             }
-            $grouped[$date]['subtotal'] += $tc['subtotal'];
-            $grouped[$date]['tax'] += $tc['tax'];
+            // Use the STORED figures actually charged, not recomputed values.
+            $grouped[$date]['subtotal'] += (float) $order->total - (float) $order->tax_amount + (float) $order->discount;
+            $grouped[$date]['tax'] += (float) $order->tax_amount;
         }
 
         $records = [];
@@ -419,9 +417,9 @@ class ReportController extends Controller
             ->where('pos_orders.tenant_id', auth()->user()->tenant_id)
             ->select(
                 'products.name',
-                DB::raw('SUM(COALESCE(products.cost, 0) * pos_order_items.quantity) as cost'),
+                DB::raw('SUM(COALESCE(pos_order_items.cost, 0) * pos_order_items.quantity) as cost'),
                 DB::raw('SUM(pos_order_items.quantity * pos_order_items.price) as revenue'),
-                DB::raw('SUM(pos_order_items.quantity * pos_order_items.price) - SUM(COALESCE(products.cost, 0) * pos_order_items.quantity) as profit')
+                DB::raw('SUM(pos_order_items.quantity * pos_order_items.price) - SUM(COALESCE(pos_order_items.cost, 0) * pos_order_items.quantity) as profit')
             )
             ->groupBy('products.id', 'products.name')
             ->orderByDesc('profit');
@@ -430,7 +428,7 @@ class ReportController extends Controller
             $query->whereBetween('pos_orders.created_at', [$startDate . ' 00:00:00', $endDate . ' 23:59:59']);
         }
 
-        $items = $query->take(100)->get();
+        $items = $query->get();
 
         $records = $items->map(function ($item) {
             $profitMargin = $item->revenue > 0 ? round(((float) $item->profit / (float) $item->revenue) * 100, 2) : 0;
@@ -733,9 +731,12 @@ class ReportController extends Controller
         $grossSales = round((float) ($items->gross_sales ?? 0), 4);
         $cogs = round((float) ($items->cogs ?? 0), 4);
 
+        // Use the STORED order figures (what customers were actually charged),
+        // so rounding adjustments and stored tax are captured exactly.
         $discount = round((float) $ordersQuery->sum('discount'), 4);
-        $netSales = round($grossSales - $discount, 4);
-        $grossProfit = round($netSales - $cogs, 4);
+        $tax = round((float) $ordersQuery->sum('tax_amount'), 4);
+        $netSales = round((float) $ordersQuery->sum('total'), 4);
+        $grossProfit = round($netSales - $tax - $cogs, 4);
 
         $salesCategoryIds = \App\Models\IncomeExpenseCategory::where('tenant_id', $tenantId)
             ->where('name', 'Sales Revenue')->pluck('id');
@@ -757,6 +758,7 @@ class ReportController extends Controller
             'data' => [
                 'gross_sales' => $grossSales,
                 'sales_discount' => $discount,
+                'tax' => $tax,
                 'net_sales' => $netSales,
                 'cogs' => $cogs,
                 'gross_profit' => $grossProfit,

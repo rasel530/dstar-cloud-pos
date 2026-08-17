@@ -217,14 +217,18 @@
                     <!-- Profit & Loss Tab -->
                     <div x-show="activeTab === 'profit-loss'" class="flex-1 flex flex-col">
                         <div class="p-4 sm:p-6">
-                            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-5 mb-5 shrink-0">
+                            <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-5 mb-5 shrink-0">
                                 <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                     <span class="text-xs text-gray-500 dark:text-white/50">Gross Sales</span>
                                     <div class="text-lg sm:text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="formatMoney(tabData.gross_sales || 0)"></div>
                                 </div>
                                 <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
-                                    <span class="text-xs text-gray-500 dark:text-white/50">Net Sales</span>
+                                    <span class="text-xs text-gray-500 dark:text-white/50">Total Revenue</span>
                                     <div class="text-lg sm:text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="formatMoney(tabData.net_sales || 0)"></div>
+                                </div>
+                                <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                    <span class="text-xs text-gray-500 dark:text-white/50">Tax</span>
+                                    <div class="text-lg sm:text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="formatMoney(tabData.tax || 0)"></div>
                                 </div>
                                 <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                     <span class="text-xs text-gray-500 dark:text-white/50">COGS</span>
@@ -248,8 +252,12 @@
                                     <span class="text-gray-500 dark:text-white/60">Sales Discount</span>
                                     <span class="font-semibold text-rose-600 dark:text-rose-400" x-text="'- ' + formatMoney(tabData.sales_discount || 0)"></span>
                                 </div>
+                                <div class="flex justify-between px-4 sm:px-6 py-3 text-sm">
+                                    <span class="text-gray-500 dark:text-white/60">Tax (VAT)</span>
+                                    <span class="font-semibold text-gray-700 dark:text-gray-300" x-text="'+ ' + formatMoney(tabData.tax || 0)"></span>
+                                </div>
                                 <div class="flex justify-between px-4 sm:px-6 py-3 text-sm font-bold bg-gray-100 dark:bg-white/5">
-                                    <span class="text-gray-800 dark:text-white">Net Sales</span>
+                                    <span class="text-gray-800 dark:text-white">Total Revenue</span>
                                     <span class="text-gray-900 dark:text-white" x-text="formatMoney(tabData.net_sales || 0)"></span>
                                 </div>
                                 <div class="flex justify-between px-4 sm:px-6 py-3 text-sm">
@@ -317,61 +325,65 @@
 
                     <!-- Best Selling Tab -->
                     <div x-show="activeTab === 'bestselling'" class="flex-1 flex flex-col">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5 mb-4 shrink-0">
-                            <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
-                                <span class="text-xs text-gray-500 dark:text-white/50">Total Revenue</span>
-                                <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="$store.currency.symbol + parseFloat(tabData.total_revenue || 0).toFixed(2)"></div>
-                            </div>
-                            <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
-                                <span class="text-xs text-gray-500 dark:text-white/50">Total Profit</span>
-                                <div class="text-xl font-bold mt-1 text-emerald-600 dark:text-emerald-400" x-text="$store.currency.symbol + parseFloat(tabData.total_profit || 0).toFixed(2)"></div>
+                        <div class="flex flex-col flex-1 overflow-auto">
+                            <div class="p-4 sm:p-6">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5 mb-4 shrink-0">
+                                    <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                        <span class="text-xs text-gray-500 dark:text-white/50">Total Revenue</span>
+                                        <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="$store.currency.symbol + parseFloat(tabData.total_revenue || 0).toFixed(2)"></div>
+                                    </div>
+                                    <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                        <span class="text-xs text-gray-500 dark:text-white/50">Total Profit</span>
+                                        <div class="text-xl font-bold mt-1 text-emerald-600 dark:text-emerald-400" x-text="$store.currency.symbol + parseFloat(tabData.total_profit || 0).toFixed(2)"></div>
+                                    </div>
+                                </div>
+                                <template x-if="tabData.records && tabData.records.length">
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-sm">
+                                            <thead>
+                                                <tr class="border-b border-gray-100 dark:border-white/5">
+                                                    <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Rank</th>
+                                                    <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Name</th>
+                                                    <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Qty Sold</th>
+                                                    <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Revenue</th>
+                                                    <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Profit</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template x-for="(row, i) in tabData.records" :key="i">
+                                                    <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5">
+                                                        <td class="px-3 sm:px-6 py-3">
+                                                            <span
+                                                                class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold"
+                                                                :class="{
+                                                                    'bg-amber-500/20 text-amber-400': i === 0,
+                                                                    'bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-gray-300': i === 1,
+                                                                    'bg-amber-700/10 text-amber-600': i === 2,
+                                                                    'text-gray-500 dark:text-white/50': i > 2,
+                                                                }"
+                                                                x-text="i + 1"
+                                                            ></span>
+                                                        </td>
+                                                        <td class="px-3 sm:px-6 py-3 font-medium text-gray-900 dark:text-white" x-text="row.name"></td>
+                                                        <td class="px-3 sm:px-6 py-3 text-right text-gray-700 dark:text-gray-300" x-text="row.quantity || 0"></td>
+                                                        <td class="px-3 sm:px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.revenue || 0).toFixed(2)"></td>
+                                                        <td class="px-3 sm:px-6 py-3 text-right font-mono text-green-600 dark:text-green-400" x-text="$store.currency.symbol + parseFloat(row.profit || 0).toFixed(2)"></td>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </template>
+                                 <template x-if="!tabData.records || !tabData.records.length">
+                                    <div class="text-center py-16 text-gray-400 dark:text-white/30">
+                                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                                        </svg>
+                                        <p class="text-sm">No data available for this period</p>
+                                    </div>
+                                </template>
                             </div>
                         </div>
-                        <template x-if="tabData.records && tabData.records.length">
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-sm">
-                                    <thead>
-                                        <tr class="border-b border-gray-100 dark:border-white/5">
-                                            <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Rank</th>
-                                            <th class="text-left text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Name</th>
-                                            <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Qty Sold</th>
-                                            <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Revenue</th>
-                                            <th class="text-right text-xs font-medium text-gray-500 dark:text-white/50 uppercase px-3 sm:px-6 py-3">Profit</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <template x-for="(row, i) in tabData.records" :key="i">
-                                            <tr class="border-b border-gray-100 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/5">
-                                                <td class="px-3 sm:px-6 py-3">
-                                                    <span
-                                                        class="inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold"
-                                                        :class="{
-                                                            'bg-amber-500/20 text-amber-400': i === 0,
-                                                            'bg-gray-200 dark:bg-white/10 text-gray-500 dark:text-gray-300': i === 1,
-                                                            'bg-amber-700/10 text-amber-600': i === 2,
-                                                            'text-gray-500 dark:text-white/50': i > 2,
-                                                        }"
-                                                        x-text="i + 1"
-                                                    ></span>
-                                                </td>
-                                                <td class="px-3 sm:px-6 py-3 font-medium text-gray-900 dark:text-white" x-text="row.name"></td>
-                                                <td class="px-3 sm:px-6 py-3 text-right text-gray-700 dark:text-gray-300" x-text="row.quantity || 0"></td>
-                                                <td class="px-3 sm:px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(row.revenue || 0).toFixed(2)"></td>
-                                                <td class="px-3 sm:px-6 py-3 text-right font-mono text-green-600 dark:text-green-400" x-text="$store.currency.symbol + parseFloat(row.profit || 0).toFixed(2)"></td>
-                                            </tr>
-                                        </template>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </template>
-                         <template x-if="!tabData.records || !tabData.records.length">
-                            <div class="text-center py-16 text-gray-400 dark:text-white/30">
-                                <svg class="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                                </svg>
-                                <p class="text-sm">No data available for this period</p>
-                            </div>
-                        </template>
                     </div>
 
 
@@ -565,6 +577,14 @@
                                         </tbody>
                                     </table>
                                 </div>
+                                <div class="flex items-center justify-between gap-2 sm:gap-3 px-4 sm:px-6 py-3 border-t border-gray-100 dark:border-white/5 shrink-0">
+                                    <span class="text-xs text-gray-500 dark:text-white/50" x-text="((pagination && pagination.total) || 0) + ' records'"></span>
+                                    <span class="text-xs text-gray-500 dark:text-white/50" x-text="'Page ' + (pagination?.current_page || 1) + ' of ' + (pagination?.last_page || 1)"></span>
+                                    <div class="flex items-center gap-2">
+                                        <button @click="fetchTabData((pagination?.current_page || 1) - 1)" :disabled="!pagination || pagination.current_page <= 1" class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition">Prev</button>
+                                        <button @click="fetchTabData((pagination?.current_page || 1) + 1)" :disabled="!pagination || pagination.current_page >= pagination.last_page" class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed transition">Next</button>
+                                    </div>
+                                </div>
                             </div>
                         </template>
                         <template x-if="!tabData.records || !tabData.records.length">
@@ -662,7 +682,7 @@
                         </template>
                     </div>
 
-                    <template x-if="pagination && pagination.last_page > 1">
+                    <template x-if="activeTab !== 'tax' && pagination && pagination.last_page > 1">
                         <div class="flex items-center justify-between px-4 sm:px-6 py-3 border-t border-gray-100 dark:border-white/5 shrink-0">
                             <span class="text-sm text-gray-500 dark:text-gray-400" x-text="'Page ' + pagination.current_page + ' of ' + pagination.last_page + ' (' + pagination.total + ' records)'"></span>
                             <div class="flex gap-2">
