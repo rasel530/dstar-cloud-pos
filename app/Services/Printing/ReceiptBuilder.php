@@ -10,14 +10,16 @@ class ReceiptBuilder
         $payments = $document['payments'] ?? [];
 
         $itemRows = '';
+        $sno = 0;
         foreach ($items as $item) {
+            $sno++;
             $qty = number_format($item['quantity'] ?? 0, 2);
             $price = number_format($item['price'] ?? 0, 2);
             $lineTotal = number_format(($item['quantity'] ?? 0) * ($item['price'] ?? 0), 2);
             $productName = $item['product_name'] ?? $item['name'] ?? 'Item';
             $itemRows .= <<<ROW
             <tr>
-                <td class="name">{$productName}</td>
+                <td class="name">{$sno}. {$productName}</td>
                 <td class="qty">{$qty}</td>
                 <td class="price">{$price}</td>
                 <td class="total">{$lineTotal}</td>
@@ -160,10 +162,10 @@ class ReceiptBuilder
                 .document-info p { font-size: {$bodyFontSize}; word-break: break-word; }
                 .document-info strong { display: inline-block; width: 40%; }
                 table { width: 100%; table-layout: fixed; border-collapse: collapse; margin-bottom: 6px; }
-                table th { font-size: {$bodyFontSize}; text-align: left; border-bottom: 1px solid #000; padding: 2px 0; }
-                table td { font-size: {$bodyFontSize}; padding: 2px 0; vertical-align: top; text-align: left; overflow: hidden; word-break: break-word; }
+                table th { font-size: {$bodyFontSize}; text-align: left; border-bottom: 1px solid #000; padding: 2px 3px; }
+                table td { font-size: {$bodyFontSize}; padding: 2px 3px; vertical-align: top; text-align: left; overflow: hidden; word-break: break-word; }
                 table tbody td { font-weight: bold; }
-                th.item, td.name { width: 44%; }
+                th.item, td.name { width: 44%; padding-right: 6px; }
                 th.qty, td.qty { width: 18%; }
                 th.price, td.price { width: 18%; }
                 th.total, td.total { width: 20%; }
@@ -178,7 +180,8 @@ class ReceiptBuilder
                 .footer p { font-size: {$bodyFontSize}; margin-bottom: 2px; }
                 .qr-code { text-align: center; margin-top: 8px; }
                 .qr-code img { max-width: 100px; max-height: 100px; }
-                @media print { body { margin: 0; padding: 4px; width: 100%; } }
+                @page { margin: 0; }
+                @media print { body { width: 100%; margin: 0 auto; padding: 4px; } }
             </style>
         </head>
         <body>
@@ -219,8 +222,8 @@ class ReceiptBuilder
 
             <div class="totals">
                 <p><span>Subtotal</span><span>{$currencySymbol}{$subtotal}</span></p>
-                {$this->optionalTotalRow("Tax", $currencySymbol, $taxAmount)}
                 {$this->optionalTotalRow("Discount", $currencySymbol, $discountAmount)}
+                {$this->optionalTotalRow("Tax", $currencySymbol, $taxAmount)}
                 <p class="grand-total"><span>TOTAL</span><span>{$currencySymbol}{$grandTotal}</span></p>
                 {$paidChange}
             </div>
@@ -360,11 +363,11 @@ class ReceiptBuilder
 
         $totals = '';
         $totals .= $this->pdfTotalRow('Subtotal', $currencySymbol . $subtotal);
-        if ((float) $taxAmount > 0) {
-            $totals .= $this->pdfTotalRow('Tax', $currencySymbol . $taxAmount);
-        }
         if ((float) $discountAmount > 0) {
             $totals .= $this->pdfTotalRow('Discount', $currencySymbol . $discountAmount);
+        }
+        if ((float) $taxAmount > 0) {
+            $totals .= $this->pdfTotalRow('Tax', $currencySymbol . $taxAmount);
         }
         $totals .= $this->pdfTotalRow('GRAND TOTAL', $currencySymbol . $grandTotal, true);
         if ((float) $paidAmount > 0) {
@@ -655,8 +658,8 @@ class ReceiptBuilder
         $valW = $w >= 40 ? 15 : 13;
         $labW = $w - $valW - 1;
         $out .= sprintf("%-{$labW}s %{$valW}s\n", 'SUBTOTAL:', $currency . $subtotal);
-        if ((float)$tax > 0) $out .= sprintf("%-{$labW}s %{$valW}s\n", 'TAX:', $currency . $tax);
         if ((float)$discount > 0) $out .= sprintf("%-{$labW}s %{$valW}s\n", 'DISCOUNT:', '-' . $currency . $discount);
+        if ((float)$tax > 0) $out .= sprintf("%-{$labW}s %{$valW}s\n", 'TAX:', $currency . $tax);
         $out .= sprintf("%-{$labW}s %{$valW}s\n", 'GRAND TOTAL:', $currency . $total);
         $out .= $d . "\n";
         $out .= sprintf("%-{$labW}s %{$valW}s\n", 'PAID:', $currency . $paid);
