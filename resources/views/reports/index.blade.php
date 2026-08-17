@@ -317,6 +317,16 @@
 
                     <!-- Best Selling Tab -->
                     <div x-show="activeTab === 'bestselling'" class="flex-1 flex flex-col">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-5 mb-4 shrink-0">
+                            <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                <span class="text-xs text-gray-500 dark:text-white/50">Total Revenue</span>
+                                <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="$store.currency.symbol + parseFloat(tabData.total_revenue || 0).toFixed(2)"></div>
+                            </div>
+                            <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
+                                <span class="text-xs text-gray-500 dark:text-white/50">Total Profit</span>
+                                <div class="text-xl font-bold mt-1 text-emerald-600 dark:text-emerald-400" x-text="$store.currency.symbol + parseFloat(tabData.total_profit || 0).toFixed(2)"></div>
+                            </div>
+                        </div>
                         <template x-if="tabData.records && tabData.records.length">
                             <div class="overflow-x-auto">
                                 <table class="w-full text-sm">
