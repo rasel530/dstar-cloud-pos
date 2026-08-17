@@ -13,19 +13,41 @@
     </div>
 
     {{-- Filters --}}
-    <div class="px-6 py-3 flex items-center gap-3 border-b border-gray-100 dark:border-white/5 shrink-0">
-        <div class="flex rounded-lg overflow-hidden border border-gray-200 dark:border-white/10">
-            <button @click="statusFilter = 'all'; fetchOrders()"
+    <div class="px-4 sm:px-6 py-3 flex flex-wrap items-center gap-2 sm:gap-3 border-b border-gray-100 dark:border-white/5 shrink-0">
+        <div class="flex flex-wrap rounded-lg overflow-hidden border border-gray-200 dark:border-white/10">
+            <button @click="setStatus('all')"
                 :class="statusFilter === 'all' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-[#1a1f3d] text-gray-500 dark:text-white/60 hover:text-gray-900 dark:hover:text-white'"
-                class="px-4 py-1.5 text-sm transition">All</button>
-            <button @click="statusFilter = 'open'; fetchOrders()"
+                class="px-3 sm:px-4 py-1.5 text-xs sm:text-sm transition">All</button>
+            <button @click="setStatus('open')"
                 :class="statusFilter === 'open' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-[#1a1f3d] text-gray-500 dark:text-white/60 hover:text-gray-900 dark:hover:text-white'"
-                class="px-4 py-1.5 text-sm transition border-x border-gray-200 dark:border-white/10">Open</button>
-            <button @click="statusFilter = 'closed'; fetchOrders()"
+                class="px-3 sm:px-4 py-1.5 text-xs sm:text-sm transition border-x border-gray-200 dark:border-white/10">Open</button>
+            <button @click="setStatus('closed')"
                 :class="statusFilter === 'closed' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-[#1a1f3d] text-gray-500 dark:text-white/60 hover:text-gray-900 dark:hover:text-white'"
-                class="px-4 py-1.5 text-sm transition">Closed</button>
+                class="px-3 sm:px-4 py-1.5 text-xs sm:text-sm transition">Closed</button>
+            <button @click="setStatus('refunded')"
+                :class="statusFilter === 'refunded' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-[#1a1f3d] text-gray-500 dark:text-white/60 hover:text-gray-900 dark:hover:text-white'"
+                class="px-3 sm:px-4 py-1.5 text-xs sm:text-sm transition border-l border-gray-200 dark:border-white/10">Refunded</button>
+            <button @click="setStatus('held')"
+                :class="statusFilter === 'held' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-[#1a1f3d] text-gray-500 dark:text-white/60 hover:text-gray-900 dark:hover:text-white'"
+                class="px-3 sm:px-4 py-1.5 text-xs sm:text-sm transition border-l border-gray-200 dark:border-white/10">Held</button>
+            <button @click="setStatus('cancelled')"
+                :class="statusFilter === 'cancelled' ? 'bg-blue-500 text-white' : 'bg-white dark:bg-[#1a1f3d] text-gray-500 dark:text-white/60 hover:text-gray-900 dark:hover:text-white'"
+                class="px-3 sm:px-4 py-1.5 text-xs sm:text-sm transition border-l border-gray-200 dark:border-white/10">Cancelled</button>
         </div>
-        <div class="relative flex-1 max-w-xs">
+        <button @click="toggleToday()"
+            :class="dateFilter === 'today' ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-[#1a1f3d] text-gray-500 dark:text-white/60 hover:text-gray-900 dark:hover:text-white'"
+            class="px-3 sm:px-4 py-1.5 text-xs sm:text-sm transition rounded-lg border border-gray-200 dark:border-white/10 flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Today
+        </button>
+        <div class="flex items-center gap-1.5">
+            <input type="date" x-model="dateFrom" @change="setDateRange()"
+                class="bg-white dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/20 rounded-lg px-2 py-1.5 text-xs sm:text-sm text-gray-700 dark:text-white/80 focus:outline-none focus:border-blue-500 transition">
+            <span class="text-gray-400 dark:text-white/40 text-xs">to</span>
+            <input type="date" x-model="dateTo" @change="setDateRange()"
+                class="bg-white dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/20 rounded-lg px-2 py-1.5 text-xs sm:text-sm text-gray-700 dark:text-white/80 focus:outline-none focus:border-blue-500 transition">
+        </div>
+        <div class="relative flex-1 min-w-[160px] max-w-xs">
             <input
                 type="text"
                 x-model="searchQuery"
@@ -174,17 +196,27 @@ function ordersList() {
     return {
         orders: [],
         statusFilter: 'all',
+        dateFilter: '',
         searchQuery: '',
         currentPage: 1,
         totalPages: 1,
         totalOrders: 0,
         loading: false,
 
+        setStatus(status) { this.statusFilter = status; this.currentPage = 1; this.fetchOrders(); },
+
+        toggleToday() { this.dateFilter = this.dateFilter === 'today' ? '' : 'today'; this.currentPage = 1; this.fetchOrders(); },
+
         async fetchOrders() {
             this.loading = true;
             try {
                 let url = `/api/orders?page=${this.currentPage}`;
                 if (this.statusFilter !== 'all') url += `&status=${this.statusFilter}`;
+                if (this.dateFilter === 'today') {
+                    const now = new Date();
+                    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                    url += `&date_from=${today}&date_to=${today}`;
+                }
                 if (this.searchQuery) url += `&q=${encodeURIComponent(this.searchQuery)}`;
 
                 const data = await window.POS.api(url);

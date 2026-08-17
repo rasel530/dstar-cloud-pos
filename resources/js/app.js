@@ -1393,7 +1393,7 @@ Alpine.data('customersManager', () => ({
 
 // --- Orders List Component ---
 Alpine.data('ordersList', () => ({
-    orders: [], loading: true, statusFilter: 'all', searchQuery: '',
+    orders: [], loading: true, statusFilter: 'all', dateFilter: '', dateFrom: '', dateTo: '', searchQuery: '',
     currentPage: 1, totalPages: 1, totalOrders: 0, tableManagementEnabled: false,
     get gridStyle() {
         const w = this.$store.screen.width;
@@ -1411,11 +1411,21 @@ Alpine.data('ordersList', () => ({
             this.tableManagementEnabled = s.table_management_enabled === 'true' || s.table_management_enabled === true;
         } catch(e) {}
     },
+    setStatus(status) { this.statusFilter = status; this.currentPage = 1; this.fetchOrders(); },
+    toggleToday() { this.dateFilter = this.dateFilter === 'today' ? '' : 'today'; this.currentPage = 1; this.fetchOrders(); },
+    setDateRange() { this.dateFilter = ''; this.currentPage = 1; this.fetchOrders(); },
     async fetchOrders(page = 1) {
         this.loading = true;
         try {
             let url = '/api/orders?page=' + page;
             if (this.statusFilter !== 'all') url += '&status=' + this.statusFilter;
+            if (this.dateFilter === 'today') {
+                const now = new Date();
+                const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                url += `&date_from=${today}&date_to=${today}`;
+            } else if (this.dateFrom && this.dateTo) {
+                url += `&date_from=${this.dateFrom}&date_to=${this.dateTo}`;
+            }
             if (this.searchQuery) url += '&q=' + this.searchQuery;
             const data = await window.POS.api(url);
             this.orders = data.data?.data || data.data || [];
