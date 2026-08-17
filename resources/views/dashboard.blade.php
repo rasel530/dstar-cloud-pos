@@ -274,20 +274,27 @@ document.addEventListener('alpine:init', () => {
 
         async fetchDashboard() {
             try {
-                const res = await fetch('/api/dashboard');
-                const data = await res.json();
-
-                if (data.stats) {
-                    this.stats = { ...this.stats, ...data.stats };
-                } else {
-                    this.stats = { ...this.stats, ...data };
-                }
-
-                if (data.chartData) {
-                    this.chartData = data.chartData;
-                } else if (data.revenue_chart) {
-                    this.chartData = data.revenue_chart;
-                }
+                const data = await window.POS.api('/api/dashboard');
+                const mapped = {
+                    todaySales: data.todays_sales,
+                    yesterdaySales: data.yesterday_sales,
+                    todayOrders: data.orders_count,
+                    pendingOrders: data.pending_orders,
+                    totalProducts: data.products_count,
+                    activeProducts: data.active_products,
+                    lowStockItems: data.low_stock_count,
+                    weekRevenue: data.week_revenue,
+                    avgOrderValue: data.avg_order_value,
+                    topSeller: data.top_seller,
+                    bestCategory: data.best_category,
+                    customersToday: data.customers_count,
+                    refundsToday: data.refunds_today,
+                    refundAmount: data.refund_amount,
+                    voidedOrders: data.voided_orders,
+                    profitMargin: data.profit_margin,
+                };
+                this.stats = { ...this.stats, ...mapped };
+                if (data.revenue_chart) this.chartData = data.revenue_chart;
             } catch (e) {
                 console.error('Failed to fetch dashboard data:', e);
             } finally {
@@ -298,9 +305,8 @@ document.addEventListener('alpine:init', () => {
         async fetchRecentOrders() {
             this.recentOrdersLoading = true;
             try {
-                const res = await fetch('/api/orders?per_page=5&sort=created_at&direction=desc');
-                const data = await res.json();
-                this.recentOrders = data.data || [];
+                const data = await window.POS.api('/api/orders?per_page=5&sort=created_at&direction=desc');
+                this.recentOrders = data?.data?.data || data?.data || [];
             } catch (e) {
                 console.error('Failed to fetch recent orders:', e);
             } finally {

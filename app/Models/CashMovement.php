@@ -29,7 +29,7 @@ class CashMovement extends Model
     {
         return [
             'amount' => 'decimal:4',
-            'date' => 'date',
+            'date' => 'date:Y-m-d',
         ];
     }
 
