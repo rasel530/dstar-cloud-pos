@@ -587,8 +587,14 @@ window.POS = {
                     price: parseFloat(i.price), qty: parseFloat(i.quantity)
                 }));
                 const storedDiscount = parseFloat(order.discount) || 0;
-                this.discountType = 'flat';
-                this.discountValue = storedDiscount;
+                const storedDiscountType = parseInt(order.discount_type ?? 0);
+                this.discountType = storedDiscountType === 1 ? 'flat' : 'percent';
+                if (this.discountType === 'percent') {
+                    const sub = this.items.reduce((s, i) => s + i.price * i.qty, 0);
+                    this.discountValue = sub > 0 ? Math.round((storedDiscount / sub) * 10000) / 100 : 0;
+                } else {
+                    this.discountValue = storedDiscount;
+                }
                 this.tableNumber = order.table_number || '';
                 this.selectedCustomer = order.customer || null;
                 this.serviceType = order.service_type || 0;
