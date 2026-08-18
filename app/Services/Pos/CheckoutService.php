@@ -228,7 +228,6 @@ class CheckoutService
     {
         $stock = Stock::where('product_id', $productId)
             ->where('warehouse_id', $warehouseId)
-            ->where('tenant_id', $tenantId)
             ->lockForUpdate()
             ->first();
 
@@ -276,9 +275,10 @@ class CheckoutService
 
     private function incrementStock(string $productId, string $warehouseId, float $quantity, string $userId, string $tenantId, string $referenceType, string $referenceId): void
     {
+        // A product can only have ONE stock row per (product_id, warehouse_id),
+        // so lookup by product+warehouse only (matching StockService::findOrCreateStock).
         $stock = Stock::where('product_id', $productId)
             ->where('warehouse_id', $warehouseId)
-            ->where('tenant_id', $tenantId)
             ->lockForUpdate()
             ->first();
 

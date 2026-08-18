@@ -97,12 +97,27 @@ class DashboardController extends Controller
             ->selectRaw('product_groups.name, SUM(pos_order_items.quantity) as qty')
             ->groupBy('product_groups.id', 'product_groups.name')->orderByDesc('qty')->value('name');
 
-        // Refunds (negative-total refund documents created today)
-        $refundsToday = $docQuery()->whereDate('date', $today)->where('total', '<', 0)->count();
-        $refundAmount = round(abs((float) $docQuery()->whereDate('date', $today)->where('total', '<', 0)->sum('total')), 2);
+        // Refunds: orders refunded today (status = 'refunded' and updated today),
+        // scoped to the active branch in multi-branch mode.
+        $refundedOrders = PosOrder::where('tenant_id', $tenantId)
+            ->where('status', 'refunded')
+            ->whereDate('updated_at', $today)
+            ->when($branchId && !\App\Services\SystemModeService::isSingleMode(), fn($q) => $q->where('branch_id', $branchId));
+        $refundsToday = (clone $refundedOrders)->count();
+        $refundAmount = round((float) (clone $refundedOrders)->sum('total'), 2);
 
-        // Voided (cancelled) orders today
-        $voidedOrders = PosOrder::where('tenant_id', $tenantId)->whereDate('created_at', $today)->where('status', 'cancelled')->count();
+        // Voided (cancelled) orders today — counted by when the order was voided (closed_at),
+        // falling back to updated_at for older records, scoped to the active branch.
+        $voidedOrders = PosOrder::where('tenant_id', $tenantId)
+            ->where('status', 'cancelled')
+            ->where(function ($q) use ($today) {
+                $q->whereDate('closed_at', $today)
+                    ->orWhere(function ($q) use ($today) {
+                        $q->whereNull('closed_at')->whereDate('updated_at', $today);
+                    });
+            })
+            ->when($branchId && !\App\Services\SystemModeService::isSingleMode(), fn($q) => $q->where('branch_id', $branchId))
+            ->count();
 
         // Profit margin across all closed orders (accrual, uses sale-time cost)
         $profitData = PosOrderItem::join('pos_orders', 'pos_orders.id', '=', 'pos_order_items.pos_order_id')

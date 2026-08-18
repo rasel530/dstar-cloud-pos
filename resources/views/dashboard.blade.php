@@ -409,6 +409,7 @@
                         </div>
                         <p class="text-2xl font-bold text-gray-900 dark:text-white tabular-nums" x-text="stats.refundsToday"></p>
                         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate" x-text="formatCurrency(stats.refundAmount) + ' refunded'"></p>
+                        <p class="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">Refunded Today</p>
                     </div>
 
                     <div class="rounded-xl bg-gray-50 dark:bg-white/5 p-4">

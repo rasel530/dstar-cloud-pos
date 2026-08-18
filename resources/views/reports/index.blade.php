@@ -522,8 +522,9 @@
                                                     <td class="px-3 sm:px-6 py-3 text-right font-mono" :class="parseFloat(order.due_amount) > 0 ? 'text-rose-600 dark:text-rose-400 font-semibold' : 'text-gray-400 dark:text-white/40'" x-text="$store.currency.symbol + parseFloat(order.due_amount || 0).toFixed(2)"></td>
                                                     <td class="px-3 sm:px-6 py-3 text-center text-xs text-gray-500 dark:text-gray-400" x-text="order.payment + (order.service_type === 0 ? ' (Dine-in)' : order.service_type === 1 ? ' (Takeaway)' : '')"></td>
                                                     <td class="px-3 sm:px-6 py-3 text-center">
-                                                        <button @click="downloadCustReceipt(order.id)" class="text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 p-1 rounded transition-colors" title="Download Receipt">
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                                                        <button @click="downloadCustReceipt(order.id)" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20 border border-transparent transition whitespace-nowrap" title="Download Receipt">
+                                                            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                                                            <span>Receipt</span>
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -659,8 +660,9 @@
                                                     <td class="px-3 sm:px-6 py-3 text-right font-mono text-gray-700 dark:text-gray-300" x-text="$store.currency.symbol + parseFloat(order.total || 0).toFixed(2)"></td>
                                                     <td class="px-3 sm:px-6 py-3 text-center text-xs text-gray-500 dark:text-gray-400" x-text="order.service_type === 0 ? 'Dine-in' : order.service_type === 1 ? 'Takeaway' : '--'"></td>
                                                     <td class="px-3 sm:px-6 py-3 text-center">
-                                                        <button @click="downloadCustReceipt(order.id)" class="text-indigo-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 p-1 rounded transition-colors" title="Download Receipt">
-                                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                                                        <button @click="downloadCustReceipt(order.id)" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20 border border-transparent transition whitespace-nowrap" title="Download Receipt">
+                                                            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+                                                            <span>Receipt</span>
                                                         </button>
                                                     </td>
                                                 </tr>

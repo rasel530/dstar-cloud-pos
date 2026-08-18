@@ -1,9 +1,12 @@
 import './bootstrap';
 import Alpine from 'alpinejs';
+import focus from '@alpinejs/focus';
 import JsBarcode from 'jsbarcode';
 import '../css/app.css';
 import '../css/rtl.css';
 import POS_SOUNDS from './sounds.js';
+
+Alpine.plugin(focus);
 
 // --- Custom Alpine barcode directive ---
 Alpine.directive('barcode', (el, { expression }, { evaluate }) => {
@@ -1623,7 +1626,7 @@ Alpine.data('usersManager', () => ({
 // --- Taxes Manager Component ---
 Alpine.data('taxesManager', () => ({
     taxes: [], loading: true, pagination: {},
-    showModal: false, editing: false, saving: false,
+    showModal: false, editing: false, saving: false, error: '',
     form: { name: '', rate: 10, code: '', is_fixed: false, is_enabled: true },
     get gridStyle() {
         const w = this.$store.screen.width;
@@ -1642,11 +1645,12 @@ Alpine.data('taxesManager', () => ({
     openEdit(t) { this.editing = true; this.form = { ...t }; this.showModal = true; },
     async save() {
         this.saving = true;
+        this.error = '';
         try {
             const method = this.editing ? 'PUT' : 'POST', url = this.editing ? '/api/taxes/' + this.form.id : '/api/taxes';
             await window.POS.api(url, { method, body: JSON.stringify(this.form) });
             this.showModal = false; this.fetchTaxes();
-        } catch (e) { alert(e.message); } finally { this.saving = false; }
+        } catch (e) { this.error = e.message || 'Failed to save tax.'; } finally { this.saving = false; }
     },
     async deleteTax(id) { if (!confirm('Delete this tax?')) return; try { await window.POS.api('/api/taxes/' + id, { method: 'DELETE' }); this.fetchTaxes(); } catch (e) { alert(e.message); } },
     async toggleStatus(tax) { try { await window.POS.api('/api/taxes/' + tax.id, { method: 'PUT', body: JSON.stringify({ is_enabled: !tax.is_enabled }) }); tax.is_enabled = !tax.is_enabled; } catch (e) { alert(e.message); } },

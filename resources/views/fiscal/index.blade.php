@@ -94,24 +94,26 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 dark:text-gray-300" x-text="item.name"></td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-700 dark:text-gray-300" x-text="parseFloat(item.vat).toFixed(1) + '%'"></td>
                             <td class="px-6 py-4 whitespace-nowrap text-right">
-                                <div class="flex items-center justify-end gap-1">
+                                <div class="flex items-center justify-end gap-1.5">
                                     <button
                                         @click="openEdit(item)"
-                                        class="p-2 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-lg transition-colors"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-white/10 dark:text-gray-200 dark:hover:bg-white/15 border border-transparent transition whitespace-nowrap"
                                         title="Edit"
                                     >
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg>
+                                        <span>Edit</span>
                                     </button>
                                     <button
                                         @click="deleteItem(item.plu)"
-                                        class="p-2 text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                                        class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-rose-50 text-rose-600 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20 border border-transparent transition whitespace-nowrap"
                                         title="Delete"
                                     >
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                        <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                         </svg>
+                                        <span>Delete</span>
                                     </button>
                                 </div>
                             </td>
@@ -122,24 +124,24 @@
         </div>
 
         {{-- Pagination --}}
-        <div class="flex items-center justify-between px-6 py-3 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5" x-show="pagination && pagination.last_page > 1">
+        <div class="flex items-center justify-between px-6 py-3 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5" x-show="(pagination?.last_page || 1) > 1">
             <div class="text-sm text-gray-600 dark:text-gray-400">
-                <span x-text="'Page ' + pagination.current_page + ' of ' + pagination.last_page"></span>
+                <span x-text="'Page ' + (pagination?.current_page || 1) + ' of ' + (pagination?.last_page || 1)"></span>
                 <span class="mx-1 text-gray-400 dark:text-gray-500">&middot;</span>
-                <span x-text="pagination.total + ' item' + (pagination.total !== 1 ? 's' : '')"></span>
+                <span x-text="(pagination?.total || 0) + ' item' + ((pagination?.total || 0) !== 1 ? 's' : '')"></span>
             </div>
             <div class="flex items-center gap-2">
                 <button
-                    @click="fetchItems(pagination.current_page - 1)"
-                    :disabled="pagination.current_page <= 1"
+                    @click="fetchItems((pagination?.current_page || 1) - 1)"
+                    :disabled="(pagination?.current_page || 1) <= 1"
                     class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 bg-white dark:bg-[#0f1535] hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                     Prev
                 </button>
                 <button
-                    @click="fetchItems(pagination.current_page + 1)"
-                    :disabled="pagination.current_page >= pagination.last_page"
+                    @click="fetchItems((pagination?.current_page || 1) + 1)"
+                    :disabled="(pagination?.current_page || 1) >= (pagination?.last_page || 1)"
                     class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg border border-gray-300 dark:border-white/10 text-gray-700 dark:text-gray-300 bg-white dark:bg-[#0f1535] hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
                     Next
@@ -272,7 +274,7 @@ document.addEventListener('alpine:init', () => {
         items: [],
         loading: true,
         search: '',
-        pagination: null,
+        pagination: {},
         showModal: false,
         editing: false,
         saving: false,
