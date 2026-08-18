@@ -8,7 +8,7 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 
 ### Point of Sale (POS)
 - **Browse / Build Modes** -- segmented toggle: **Browse** (full product grid) or **Build Order** (large editable cart in the middle with search-to-add; calculation/payment stays in the right sidebar)
-- **Product Grid** -- customizable grid layout (2-6 columns) with category filtering
+- **Product Grid** -- customizable grid layout (2-6 columns) with category filtering, **alphabetical A–Z ordering**, and prominent **stock badges** (red pulsing "Out of Stock", amber "Low: X", green "In Stock: X")
 - **Cart Management** -- add/remove items, adjust quantities, apply discounts (flat/percentage/promo)
 - **Cart Price Edit** -- inline line-item price override (pencil icon) for users with "Can Edit POS Price" permission; enforces 5× product-price cap + 2-decimal rounding
 - **Order Types** -- Dine-in, Takeaway, and Table Management (all toggleable from Settings)
@@ -18,12 +18,14 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 - **Automated Receipt Printing** -- plain-text ESC/POS receipts auto-printed to thermal printers on checkout (runs in background after response — never blocks the receipt display)
 - **Fast Receipt Display** -- checkout response returns in ~0.3s; "Processing..." overlay shown, receipt appears instantly
 - **Keyboard Shortcuts** -- `F1`-`F5` payment methods, `F8` Print, `Esc` Close, `Shift+?` Shortcut help
-- **Receipt Generation** -- printable HTML receipts + thermal text receipts with centered headers/company name and configurable header/footer
+- **Receipt Generation** -- printable HTML receipts + thermal text receipts with centered headers/company name, numbered items, Subtotal → Discount → Tax → Total ordering, and a separate A4 PDF invoice design
 - **Order Loading** -- load and edit existing orders
 - **Virtual Keyboard** -- on-screen keyboard for touch devices
 
 ### Orders
 - Full order history with search (order number / customer name, case-insensitive) and status filtering
+- **Today filter, date-range pickers, and all-status buttons** (All, Open, Closed, Refunded, Held, Cancelled)
+- **Due column** — outstanding amount shown per order
 - Order status management (Open, Closed, Cancelled, Refunded)
 - View, Complete, and Refund orders
 - Table / Name column shown only when Table Management is enabled in Settings
@@ -38,10 +40,10 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 - Supplier/category stock tracking integration
 
 ### Income & Expenses
-- Dashboard with Income vs Expenses summary cards, monthly bar chart, recent entries
+- Dashboard with Income vs Expenses summary cards, monthly bar chart, recent entries, **Customer Due card**
 - Income & Expenses CRUD with search, category/date filters, pagination
 - Category management with colored badges (12 default categories, 4 income + 8 expense)
-- POS Sales auto-sync: imports completed orders as income entries grouped by actual payment method
+- POS Sales auto-sync: imports completed orders as income entries grouped by actual payment method; defaults to **today**, is **idempotent** (already-synced entries are skipped), and counts **accrual income** (credit/partial sales fully included)
 - Reports: date-range filtered summary with by-category breakdown
 
 ### Cash Register (Opening / Closing Cash)
@@ -97,19 +99,19 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 - **Due reports** -- Customer Due and Outstanding Purchases
 
 ### Reports & Analytics
-- **Sales Summary** -- revenue totals, order counts, avg order, tax collected, revenue trend chart (net of refunds)
-- **Payment Methods** -- amount + transaction count per payment method
-- **Best Selling** -- products ranked by revenue with gold/silver/bronze badges
-- **Profit & Loss** -- Gross Sales → Net Sales → COGS → Gross Profit → Other Income → Operating Expenses → Net Profit
-- **Customer Analytics** -- top customers by spending, total orders
+- **Sales Summary** -- revenue totals, order counts, avg order, tax collected (stored tax), revenue trend chart (net of refunds)
+- **Payment Methods** -- amount + transaction count per payment method (with outstanding due for credit)
+- **Best Selling** -- products ranked by revenue with gold/silver/bronze badges + **Total Revenue / Total Profit** summary cards
+- **Profit & Loss** -- Gross Sales → Discount → Tax → **Total Revenue** → COGS → **Gross Profit** → Other Income → Operating Expenses → Net Profit (all from stored, actually-charged figures)
+- **Customer Analytics** -- top customers by spending, total orders, per-customer outstanding due
 - **Customer Due** -- outstanding balance per customer
-- **Customer Detail** -- per-customer drill-down: orders, top products, receipts
+- **Customer Detail** -- per-customer drill-down: orders, top products, receipts, due per order
 - **Employee Detail** -- per-employee sales breakdown: orders, items, top products
-- **Tax Report** -- tax collected by date with totals
+- **Tax Report** -- tax collected by date (stored amounts) with totals and pagination
 - Date range filtering across all reports
 - Status filter (Closed / Open / Refunded / All)
 - Branch filtering in multi-branch mode
-- Pagination support
+- Fully responsive across all tabs
 
 ### Settings
 - **General** — Company name, application logo, currency, contact info
@@ -140,9 +142,10 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 - **Activity Log** -- audit trail of all system actions with category tabs, filters, and detail view
 
 ### UI/UX
-- **Fully Responsive** -- works on desktop, tablet, and mobile
-- **Dark Mode** -- full dark mode support across all modules
-- **Mobile-Optimized** -- card-based mobile layouts, collapsible sidebar, slide-in cart panel
+- **Fully Responsive** -- works on desktop, tablet, and mobile (all report tabs, dashboards, and lists audited for zero horizontal overflow)
+- **Dark Mode** -- full dark mode support across all modules via a `.dark` class on `<html>`
+- **Dashboard** -- redesigned responsive POS dashboard with accurate today/yesterday sales, low/out-of-stock counts, own vs shared products, revenue chart, and recent orders
+- **Mobile-Optimized** -- card-based mobile layouts, collapsible sidebar, slide-in cart panel, full-width search on mobile
 - **Touch-Friendly** -- 44px minimum touch targets, iOS input zoom prevention
 - **RTL Support** -- right-to-left layout for Arabic/Hebrew languages
 - **Toast Notifications** -- success/error feedback with configurable position
@@ -172,6 +175,25 @@ A modern, responsive, multi-branch Point of Sale application built with Laravel,
 17. **POS Cart — One-Row Mobile Layout** — browse-mode and build-mode cart items render as a single row on mobile (name + price + qty stepper + line total + remove), so the quantity increment/decrement controls no longer push the product name to a second line, and the pencil (price edit), "× qty", and "−" icons never overlap.
 18. **Stepper Column Alignment** — the qty increment/decrement column is aligned across all cart items (fixed-width line-total column) regardless of product name length or price width.
 19. **Full-Width Mobile Cart Drawer** — the cart drawer uses the full phone width on mobile (`w-full sm:w-80 lg:w-100`) for comfortable one-row items; tablets and desktop keep the 320px/400px panel.
+20. **Reports — 100% Accurate Calculations** — every report now uses the **stored order data** (actual charged tax, revenue, profit) instead of recomputed values, so totals reconcile exactly with what was collected. **Profit & Loss** shows **Total Revenue → Tax → COGS → Gross Profit** (tax included in revenue, accrual basis); **Best Selling** shows **Total Revenue + Total Profit** cards; the Discount Report totals over *all* discount orders; Profit Margin uses **sale-time cost**.
+21. **Separate Receipt & PDF Designs** — the thermal/80mm **receipt** (bold item table, right-aligned totals) and the **A4 PDF invoice** (serial-no column, "Unit Price" label, bold bordered table, print-safe borders) now have distinct layouts. Both show **Due / Amount Due / DUE** for partial or credit payments.
+22. **Amount Due Everywhere** — partial/credit payments surface the due amount in: the receipt (`Due`), PDF (`Amount Due`), thermal text (`DUE:`), the payment modal (`Amount Due` when tender < total), the Orders page (Due column), and Outstanding Due cards on Sales Summary / Payment Methods / Profit & Loss / Customer Analytics / Customer Detail / Income & Expenses.
+23. **Customer Statement Newest-First** — statements list the most recent order first.
+24. **POS Search Box Responsive** — full-width search on mobile with the action buttons wrapping to a compact second row; the search input never falls below ~260px on any screen.
+25. **Payment Speed Optimization** — checkout dropped from ~2.5s to **~0.25s**: thermal auto-print runs after the response is flushed (`fastcgi_finish_request`), print-proxy timeout reduced 10s→2s, checkout response payload cut **141KB → 27KB**, and the create-order response was trimmed.
+26. **Stock Status Indicators** — prominent badges on product cards: red pulsing **"Out of Stock"**, amber **"Low: X"** (1–10), green **"In Stock: X"**. Out-of-stock cards are not dimmed; untracked products always show **"In Stock"**.
+27. **Product Grid A–Z** — products sort alphabetically; out-of-stock items are distributed naturally (no clustering at the front).
+28. **Sidebar Logo Card** — the transparent logo now sits in a white rounded card that fills the sidebar header (clear on the dark navy background); company name removed from the sidebar.
+29. **Logos as Cached Assets** — logos served from `/logo` and `/receipt-logo` with cache headers; the settings API shrank from **~245KB → ~2KB**, making every page load faster.
+30. **Income & Expenses POS Sync** — sync defaults to **today**, is **idempotent** (already-synced entries are never re-synced), counts **accrual income** (credit/partial sales fully included, no more ৳0 entries), and uses correct local-date serialization (no "yesterday" bug).
+31. **Orders Date & Status Filtering** — "Today" quick filter, From/To date-range pickers, and all-status buttons (All, Open, Closed, Refunded, Held, Cancelled).
+32. **Receipt Item Numbering + Totals Order** — receipt items numbered (1., 2., 3. …) and totals shown **Subtotal → Discount → Tax → Total**, matching the POS page.
+33. **Receipt Column Spacing & Print Centering** — horizontal cell padding so long item names never touch the quantity column; `@page { margin: 0 }` gives edge-to-edge centered thermal printing.
+34. **Warehouse Pagination** — the warehouse stock list is properly paginated (was hard-capped at 25 with no controls).
+35. **Dashboard Rebuild & Accuracy** — dashboard fixed and redesigned (responsive UX): authenticated fetch, accurate today/yesterday sales, low/out-of-stock counts that mirror the POS badges, own vs shared product counts, clean chart dates, and correct profit margin.
+36. **POS Products API with Stock** — the POS loads products via `?pos=1` with `current_stock` attached (replaces a separate stock-summary call → faster POS startup).
+37. **Class-Based Dark Mode** — dark mode is applied via a `.dark` class on `<html>` (works with the theme store), consistent across all modules.
+38. **Date Serialization Consistency** — all date-only models (IncomeExpense, Document, CashMovement, Payment, PurchasePayment) serialize as `Y-m-d`, eliminating UTC day-shifts in every date display.
 
 ### Major Features (this release)
 
