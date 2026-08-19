@@ -25,67 +25,78 @@ class ReportController extends Controller
         $page = (int)($request->input('page', 1));
         $perPage = (int)($request->input('per_page', 25));
         $tenantId = auth()->user()->tenant_id;
-        $branchId = $request->header('X-Active-Branch');
         $status = $request->input('status', 'closed');
 
+        // Use the financial ledger (documents) so the report always agrees with
+        // the dashboard, customer statements and income/expense — not pos_orders,
+        // which can drift (orders closed without a document, manual documents, ...).
         $baseQuery = function () use ($tenantId, $request, $status) {
-            $q = \App\Models\PosOrder::with('customer')->where('tenant_id', $tenantId);
-            if ($status === 'all') {
-                $q->whereIn('status', ['open', 'closed', 'refunded']);
-            } elseif (in_array($status, ['open', 'closed', 'refunded'])) {
-                $q->where('status', $status);
+            $q = \App\Models\Document::query()->where('tenant_id', $tenantId);
+            if ($status === 'refunded') {
+                $q->where('total', '<', 0);
+            } elseif ($status === 'open') {
+                $q->where('total', '>', 0)->where('paid_status', 0);
+            } elseif ($status === 'all') {
+                // everything
             } else {
-                $q->whereIn('status', ['closed', 'refunded']);
+                $q->where('total', '>', 0);
             }
             if ($request->filled('start_date') && $request->filled('end_date')) {
-                $q->whereBetween('created_at', [$request->start_date . ' 00:00:00', $request->end_date . ' 23:59:59']);
+                $q->whereBetween('date', [$request->start_date, $request->end_date]);
             }
             return $q;
         };
 
-        $allOrders = $baseQuery()->get();
-        $paginator = $baseQuery()->with('posOrderItems.product')->orderBy('created_at', 'desc')->paginate($perPage, ['*'], 'page', $page);
+        $all = $baseQuery()->get();
+        $paginator = $baseQuery()->with('customer')->orderBy('date', 'desc')->orderBy('created_at', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
 
-        $docDues = \App\Models\Document::where('tenant_id', $tenantId)
-            ->whereIn('order_number', $paginator->pluck('number'))
-            ->pluck('due_amount', 'order_number');
+        // Headline totals always reflect the full ledger in the selected date
+        // range (sales netted against refunds), independent of the record filter.
+        $totalsQuery = function () use ($tenantId, $request) {
+            $q = \App\Models\Document::query()->where('tenant_id', $tenantId);
+            if ($request->filled('start_date') && $request->filled('end_date')) {
+                $q->whereBetween('date', [$request->start_date, $request->end_date]);
+            }
+            return $q;
+        };
+        $allForTotals = $totalsQuery()->get();
+        $grossSales = (float) $allForTotals->where('total', '>', 0)->sum('total');
+        $totalRefunds = abs((float) $allForTotals->where('total', '<', 0)->sum('total'));
+        $netSales = $grossSales - $totalRefunds;
+        $closedCount = $allForTotals->where('total', '>', 0)->count();
 
-        $records = $paginator->map(function ($order) use ($docDues) {
-            $total = round((float) $order->total, 2);
-            $tax = round((float) $order->tax_amount, 2);
-            $discount = round((float) $order->discount, 2);
+        $records = $paginator->map(function ($doc) {
+            $total = round((float) $doc->total, 2);
+            $tax = round((float) ($doc->tax_amount ?? 0), 2);
+            $discount = round((float) ($doc->discount ?? 0), 2);
             return [
-                'id' => $order->number,
-                'date' => $order->created_at?->format('Y-m-d') ?? '—',
-                'customer' => $order->customer?->name ?? 'Walk-in',
+                'id' => $doc->number,
+                'date' => $doc->date?->format('Y-m-d') ?? '—',
+                'customer' => $doc->customer?->name ?? 'Walk-in',
                 'subtotal' => round($total - $tax + $discount, 2),
                 'tax' => $tax,
                 'total' => $total,
-                'due_amount' => round((float) ($docDues[$order->number] ?? 0), 2),
-                'status' => $order->status,
+                'due_amount' => round((float) ($doc->due_amount ?? 0), 2),
+                'status' => $total < 0 ? 'refunded' : ($doc->paid_status === 0 ? 'open' : 'closed'),
             ];
         })->values()->toArray();
 
-        $closedOrders = $allOrders->where('status', 'closed');
-        $refundedOrders = $allOrders->where('status', 'refunded');
-        $openOrders = $allOrders->where('status', 'open');
-        $grossSales = $closedOrders->sum('total') + $refundedOrders->sum('total');
-        $totalRefunds = $refundedOrders->sum('total');
-        $netSales = $closedOrders->sum('total');
-
-        // Stored tax amounts (what was actually charged) — not recomputed.
-        $totalTax = round((float) $closedOrders->sum('tax_amount'), 2);
+        $grossSales = (float) $allForTotals->where('total', '>', 0)->sum('total');
+        $totalRefunds = abs((float) $allForTotals->where('total', '<', 0)->sum('total'));
+        $netSales = $grossSales - $totalRefunds;
+        $closedCount = $allForTotals->where('total', '>', 0)->count();
 
         return response()->json([
             'data' => [
                 'records' => $records,
-                'gross_sales' => round((float) $grossSales, 2),
-                'total_refunds' => round((float) $totalRefunds, 2),
-                'total_sales' => round((float) $netSales, 2),
-                'total_orders' => $closedOrders->count(),
-                'total_tax' => round((float) $totalTax, 2),
-                'avg_order' => $closedOrders->count() > 0 ? round((float) $netSales / $closedOrders->count(), 2) : 0,
-                'chart_data' => $closedOrders->groupBy(fn($d) => $d->created_at?->format('M d'))
+                'gross_sales' => round($grossSales, 2),
+                'total_refunds' => round($totalRefunds, 2),
+                'total_sales' => round($netSales, 2),
+                'total_orders' => $closedCount,
+                'total_tax' => round((float) $allForTotals->where('total', '>', 0)->sum('tax_amount'), 2),
+                'avg_order' => $closedCount > 0 ? round($netSales / $closedCount, 2) : 0,
+                'chart_data' => $all->where('total', '>', 0)->groupBy(fn($d) => $d->date?->format('M d'))
                     ->map(fn($group, $label) => ['label' => $label, 'value' => round((float) $group->sum('total'), 2)])
                     ->values()->toArray(),
                 'pagination' => [
@@ -169,13 +180,13 @@ class ReportController extends Controller
             ->where('pos_orders.tenant_id', auth()->user()->tenant_id)
             ->when($status !== 'all', fn($q) => $q->where('pos_orders.status', $status))
             ->whereNotNull('pos_orders.customer_id')
-            ->select(
-                'customers.id as customer_id',
-                'customers.name',
-                DB::raw('COUNT(*) as order_count'),
-                DB::raw('SUM(pos_orders.total) as total_spent'),
-                DB::raw("COALESCE((SELECT SUM(d.due_amount) FROM documents d WHERE d.customer_id = pos_orders.customer_id AND d.tenant_id = ?), 0) as total_due", [auth()->user()->tenant_id])
-            )
+            ->selectRaw("
+                customers.id as customer_id,
+                customers.name,
+                COUNT(*) as order_count,
+                SUM(pos_orders.total) as total_spent,
+                COALESCE((SELECT SUM(d.due_amount) FROM documents d WHERE d.customer_id = pos_orders.customer_id AND d.tenant_id = ?), 0) as total_due
+            ", [auth()->user()->tenant_id])
             ->groupBy('pos_orders.customer_id', 'customers.id', 'customers.name')
             ->orderByDesc('total_spent');
 
@@ -707,35 +718,43 @@ class ReportController extends Controller
     public function profitLoss(Request $request): JsonResponse
     {
         $tenantId = auth()->user()->tenant_id;
-        $branchId = $request->header('X-Active-Branch');
         $start = $request->input('start_date');
         $end = $request->input('end_date');
         $status = $request->input('status', 'closed');
 
-        $ordersQuery = \App\Models\PosOrder::where('tenant_id', $tenantId)
-            ->when($status !== 'all', fn($q) => $q->where('status', $status));
-        if ($branchId && !\App\Services\SystemModeService::isSingleMode()) {
-            $ordersQuery->where('branch_id', $branchId);
-        }
+        // Financial-ledger based (documents), consistent with the dashboard,
+        // sales summary and statements. Refunds net against sales.
+        $salesQuery = \App\Models\Document::where('tenant_id', $tenantId)->where('total', '>', 0);
+        $refundQuery = \App\Models\Document::where('tenant_id', $tenantId)->where('total', '<', 0);
         if ($start && $end) {
-            $ordersQuery->whereBetween('created_at', [$start . ' 00:00:00', $end . ' 23:59:59']);
+            $salesQuery->whereBetween('date', [$start, $end]);
+            $refundQuery->whereBetween('date', [$start, $end]);
         }
-        $orderIds = $ordersQuery->pluck('id');
+        if ($status === 'refunded') {
+            $salesQuery->whereRaw('1 = 0');
+        } elseif ($status === 'open') {
+            $salesQuery->where('paid_status', 0);
+            $refundQuery->whereRaw('1 = 0');
+        }
 
-        $items = \DB::table('pos_order_items')
-            ->whereIn('pos_order_id', $orderIds)
+        $saleDocs = $salesQuery->get();
+        $refundDocs = $refundQuery->get();
+        $saleIds = $saleDocs->pluck('id');
+
+        $items = \DB::table('document_items')
+            ->whereIn('document_id', $saleIds)
             ->selectRaw('COALESCE(SUM(price * quantity), 0) as gross_sales,
-                         COALESCE(SUM(cost * quantity), 0) as cogs')
+                         COALESCE(SUM(COALESCE(product_cost, 0) * quantity), 0) as cogs')
             ->first();
 
         $grossSales = round((float) ($items->gross_sales ?? 0), 4);
         $cogs = round((float) ($items->cogs ?? 0), 4);
 
-        // Use the STORED order figures (what customers were actually charged),
+        // Use the STORED document figures (what customers were actually charged),
         // so rounding adjustments and stored tax are captured exactly.
-        $discount = round((float) $ordersQuery->sum('discount'), 4);
-        $tax = round((float) $ordersQuery->sum('tax_amount'), 4);
-        $netSales = round((float) $ordersQuery->sum('total'), 4);
+        $discount = round((float) $saleDocs->sum('discount'), 4);
+        $tax = round((float) $saleDocs->sum('tax_amount'), 4);
+        $netSales = round((float) $saleDocs->sum('total') + (float) $refundDocs->sum('total'), 4);
         $grossProfit = round($netSales - $tax - $cogs, 4);
 
         $salesCategoryIds = \App\Models\IncomeExpenseCategory::where('tenant_id', $tenantId)
