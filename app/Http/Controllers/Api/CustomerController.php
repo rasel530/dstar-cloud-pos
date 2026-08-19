@@ -235,15 +235,19 @@ class CustomerController extends Controller
             ->orderByDesc('created_at')
             ->get();
 
+        // Net invoiced = sales minus refunds (negative totals on refund documents).
         $totalInvoiced = round((float) $documents->sum('total'), 4);
-        $totalPaid = round((float) $documents->sum('paid_amount'), 4);
-        $totalDue = round((float) $documents->sum('due_amount'), 4);
 
+        // Payments are the source of truth: positive payments for sales and
+        // negative payments for refunds. The paid_amount column on documents is
+        // not reliable (re-allocations can leave it inconsistent with payments).
         $paymentRecords = \App\Models\Payment::with('paymentType:id,name')
             ->whereIn('document_id', $documents->pluck('id'))
-            ->where('amount', '>', 0)
             ->orderByDesc('created_at')
             ->get();
+
+        $totalPaid = round((float) $paymentRecords->sum('amount'), 4);
+        $totalDue = round(max(0, $totalInvoiced - $totalPaid), 4);
 
         return response()->json([
             'data' => [

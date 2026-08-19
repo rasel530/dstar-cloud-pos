@@ -261,7 +261,7 @@
                                         <span class="text-gray-700 dark:text-gray-300 font-mono text-xs" x-text="inv.number"></span>
                                         <span class="text-gray-500 dark:text-white/60" x-text="inv.date"></span>
                                         <span class="font-semibold text-gray-900 dark:text-white" x-text="formatMoney(inv.total)"></span>
-                                        <span class="font-semibold" :class="parseFloat(inv.due_amount) > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'" x-text="parseFloat(inv.due_amount) > 0 ? 'Due ' + formatMoney(inv.due_amount) : 'Paid'"></span>
+                                        <span class="font-semibold" :class="parseFloat(inv.total) < 0 ? 'text-rose-600 dark:text-rose-400' : (parseFloat(inv.due_amount) > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400')" x-text="parseFloat(inv.total) < 0 ? 'Refund' : (parseFloat(inv.due_amount) > 0 ? 'Due ' + formatMoney(inv.due_amount) : 'Paid')"></span>
                                     </div>
                                 </template>
                                 <p x-show="!statement.invoices?.length" class="text-xs text-gray-400 py-2 text-center">No invoices</p>
@@ -274,7 +274,7 @@
                                     <div class="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-[#0f1535] rounded-lg text-sm border border-gray-100 dark:border-white/5">
                                         <span class="text-gray-500 dark:text-white/60" x-text="p.payment_type?.name || 'Payment'"></span>
                                         <span class="text-gray-400 dark:text-white/40 text-xs" x-text="new Date(p.created_at).toLocaleDateString()"></span>
-                                        <span class="font-semibold text-emerald-600 dark:text-emerald-400" x-text="'+ ' + formatMoney(p.amount)"></span>
+                                        <span class="font-semibold" :class="parseFloat(p.amount) < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'" x-text="(parseFloat(p.amount) < 0 ? '- ' : '+ ') + formatMoney(Math.abs(p.amount))"></span>
                                     </div>
                                 </template>
                                 <p x-show="!statement.payments?.length" class="text-xs text-gray-400 py-2 text-center">No payments yet</p>

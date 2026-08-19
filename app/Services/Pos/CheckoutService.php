@@ -322,17 +322,12 @@ class CheckoutService
 
     private function generateDocumentNumber(string $tenantId): string
     {
-        $lastDocument = Document::where('tenant_id', $tenantId)
-            ->orderBy('number', 'desc')
-            ->first();
-
-        if (!$lastDocument || !$lastDocument->number) {
-            return '1';
-        }
-
-        $lastNumber = (int) $lastDocument->number;
-
-        return (string) ($lastNumber + 1);
+        $date = now()->format('Ymd');
+        $prefix = 'DOC-' . $date . '-';
+        $count = Document::where('tenant_id', $tenantId)
+            ->where('number', 'like', $prefix . '%')
+            ->count() + 1;
+        return $prefix . str_pad((string) $count, 4, '0', STR_PAD_LEFT);
     }
 
     private function calculateTaxAmount(float $amount, Tax $tax): float
