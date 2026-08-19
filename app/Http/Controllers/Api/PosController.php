@@ -214,10 +214,18 @@ class PosController extends Controller
                         $q->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
                     })->first();
 
+                $effectiveCustomer = $o->customer_id;
+                if (! $effectiveCustomer) {
+                    $effectiveCustomer = \App\Models\Customer::where('tenant_id', $tenantId)
+                        ->where('name', 'ilike', '%walk-in%')
+                        ->orderBy('created_at')
+                        ->value('id');
+                }
+
                 $doc = Document::create([
                     "tenant_id" => $tenantId,
                     "user_id" => $user->id,
-                    "customer_id" => $o->customer_id,
+                    "customer_id" => $effectiveCustomer,
                     "number" => $docNumber,
                     "order_number" => $o->number,
                     "document_type_id" => $docType?->id,
@@ -509,6 +517,14 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
 
         $isCredit = $paymentType && !$paymentType->mark_as_paid;
         $effectiveCustomerId = $request->input('customer_id', $order->customer_id);
+        // No-customer sales are attributed to the tenant's "Walk-in customer"
+        // record so reports/statements show the real customer, not a NULL bucket.
+        if (! $effectiveCustomerId) {
+            $effectiveCustomerId = \App\Models\Customer::where('tenant_id', $tenantId)
+                ->where('name', 'ilike', '%walk-in%')
+                ->orderBy('created_at')
+                ->value('id');
+        }
         if ($isCredit && !$effectiveCustomerId) {
             return response()->json(['message' => 'Customer Due (credit) requires a registered customer. Please select a customer first.'], 422);
         }
