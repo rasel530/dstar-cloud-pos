@@ -47,7 +47,7 @@ class ProductController extends Controller
             // Attach current stock from the active branch (multi-branch) or the
             // default warehouse (single mode / no active branch) — same as pos-summary.
             $branchId = $request->header('X-Active-Branch');
-            if ($branchId && !\App\Services\SystemModeService::isSingleMode()) {
+            if ($branchId && !\App\Services\SystemModeService::isSingleMode() && auth()->user()->canAccessBranch($branchId)) {
                 $stockMap = \App\Models\BranchInventory::where('tenant_id', $tenantId)
                     ->where('branch_id', $branchId)
                     ->get(['product_id', 'stock'])
@@ -57,9 +57,9 @@ class ProductController extends Controller
                     return $this->posProductShape($p, $s ? (float) $s->stock : 0);
                 });
             } else {
-                $warehouseId = \App\Models\Warehouse::where('is_default', true)->value('id');
+                $warehouseId = \App\Models\Warehouse::where('tenant_id', $tenantId)->where('is_default', true)->value('id');
                 $stockMap = $warehouseId
-                    ? \App\Models\Stock::where('warehouse_id', $warehouseId)->get(['product_id', 'quantity'])->keyBy('product_id')
+                    ? \App\Models\Stock::where('tenant_id', $tenantId)->where('warehouse_id', $warehouseId)->get(['product_id', 'quantity'])->keyBy('product_id')
                     : collect();
                 $products->getCollection()->transform(function ($p) use ($stockMap) {
                     $s = $stockMap->get($p->id);
@@ -92,6 +92,8 @@ class ProductController extends Controller
 
     public function store(Request $request)
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $request->validate([
             'name'              => 'required|max:255',
             'code'              => 'nullable|string',
@@ -99,14 +101,21 @@ class ProductController extends Controller
             'price'             => 'nullable|numeric',
             'mrp'               => 'nullable|numeric',
             'cost'              => 'nullable|numeric',
-            'product_group_id'  => 'nullable|exists:product_groups,id',
+            'product_group_id'  => "nullable|exists:product_groups,id,tenant_id,$tenantId",
             'track_inventory'   => 'boolean',
             'is_global'         => 'boolean',
         ]);
 
         try {
-            $data = $request->all();
-            $data['tenant_id'] = auth()->user()->tenant_id;
+            $data = $request->only([
+                'name', 'code', 'plu', 'price', 'mrp', 'cost', 'product_group_id',
+                'track_inventory', 'is_service', 'measurement_unit', 'color', 'image', 'is_enabled',
+            ]);
+            // Only admins may mark products as shared across tenants.
+            if (auth()->user()->access_level < 9) {
+                $data['is_global'] = false;
+            }
+            $data['tenant_id'] = $tenantId;
             $product = Product::create($data);
 
             if ($request->filled('barcode')) {
@@ -127,7 +136,11 @@ class ProductController extends Controller
 
     public function show($id)
     {
-        $product = Product::with(['productGroup', 'barcodes', 'taxes'])->find($id);
+        $product = Product::with(['productGroup', 'barcodes', 'taxes'])
+            ->where(function ($q) {
+                $q->where('tenant_id', auth()->user()->tenant_id)->orWhere('is_global', true);
+            })
+            ->find($id);
 
         if (!$product) {
             return response()->json(['message' => 'Product not found'], 404);
@@ -138,11 +151,13 @@ class ProductController extends Controller
 
     public function update(Request $request, $id)
     {
-        $product = Product::find($id);
+        $product = Product::where('tenant_id', auth()->user()->tenant_id)->find($id);
 
         if (!$product) {
             return response()->json(['message' => 'Product not found'], 404);
         }
+
+        $tenantId = auth()->user()->tenant_id;
 
         $request->validate([
             'name'              => 'sometimes|required|max:255',
@@ -151,11 +166,20 @@ class ProductController extends Controller
             'price'             => 'nullable|numeric',
             'mrp'               => 'nullable|numeric',
             'cost'              => 'nullable|numeric',
-            'product_group_id'  => 'nullable|exists:product_groups,id',
+            'product_group_id'  => "nullable|exists:product_groups,id,tenant_id,$tenantId",
         ]);
 
         try {
-            $product->update($request->all());
+            $data = $request->only([
+                'name', 'code', 'plu', 'price', 'mrp', 'cost', 'product_group_id',
+                'track_inventory', 'is_service', 'measurement_unit', 'color', 'image', 'is_enabled',
+            ]);
+            if (auth()->user()->access_level < 9) {
+                unset($data['is_global']);
+            } elseif ($request->has('is_global')) {
+                $data['is_global'] = $request->boolean('is_global');
+            }
+            $product->update($data);
 
             if ($request->filled('barcode')) {
                 $existing = Barcode::where('product_id', $product->id)->where('is_primary', true)->first();
@@ -180,12 +204,14 @@ class ProductController extends Controller
 
     public function nextCode(Request $request)
     {
-        $request->validate(['product_group_id' => 'required|uuid|exists:product_groups,id']);
+        $tenantId = auth()->user()->tenant_id;
+        $request->validate(['product_group_id' => "required|uuid|exists:product_groups,id,tenant_id,$tenantId"]);
 
-        $group = ProductGroup::find($request->product_group_id);
+        $group = ProductGroup::where('tenant_id', $tenantId)->find($request->product_group_id);
         $prefix = strtoupper(substr(preg_replace('/[^a-zA-Z]/', '', $group->name), 0, 3));
 
-        $lastCode = Product::where('code', 'LIKE', $prefix . '%')
+        $lastCode = Product::where('tenant_id', $tenantId)
+            ->where('code', 'LIKE', $prefix . '%')
             ->whereRaw("code ~ ?", ['^' . $prefix . '[0-9]+$'])
             ->orderByRaw('LENGTH(code) DESC, code DESC')
             ->value('code');
@@ -199,7 +225,7 @@ class ProductController extends Controller
 
     public function destroy($id)
     {
-        $product = Product::find($id);
+        $product = Product::where('tenant_id', auth()->user()->tenant_id)->find($id);
 
         if (!$product) {
             return response()->json(['message' => 'Product not found'], 404);

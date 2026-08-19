@@ -4,7 +4,7 @@
 
 @section('content')
 <div x-data="branchesManager" x-init="fetchBranches()" class="flex flex-col h-full">
-    <div class="flex items-center justify-between py-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-4">
         <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100">Branches</h1>
         <button @click="openAdd()" class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">

@@ -239,10 +239,17 @@ class AuthController extends Controller
             'pin_code'        => ['required', 'string', 'regex:' . self::PIN_VALIDATION_REGEX],
         ]);
 
-        $user = User::where('employee_number', $request->employee_number)
+        $query = User::where('employee_number', $request->employee_number)
             ->where('is_enabled', true)
-            ->whereNotNull('pin_code')
-            ->first();
+            ->whereNotNull('pin_code');
+
+        // When a tenant context is provided (multi-company deployments),
+        // scope the lookup so employee numbers cannot collide across tenants.
+        if ($request->filled('tenant_id')) {
+            $query->where('tenant_id', $request->tenant_id);
+        }
+
+        $user = $query->first();
 
         if (!$user) {
             return response()->json(['message' => 'Invalid credentials'], 401);

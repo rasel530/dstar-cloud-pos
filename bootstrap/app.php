@@ -16,11 +16,13 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             SetTenant::class,
+            \App\Http\Middleware\SecurityHeaders::class,
         ]);
 
         $middleware->api(append: [
             SetTenant::class,
             SetActiveBranch::class,
+            \App\Http\Middleware\SecurityHeaders::class,
         ]);
 
         $middleware->alias([
@@ -29,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'user.enabled' => \App\Http\Middleware\EnsureUserEnabled::class,
             'track.activity' => \App\Http\Middleware\TrackUserActivity::class,
             'set.branch' => SetActiveBranch::class,
+            'security.headers' => \App\Http\Middleware\SecurityHeaders::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

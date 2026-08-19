@@ -22,7 +22,7 @@
         </div>
 
         {{-- Filters --}}
-        <div class="bg-white dark:bg-[#1a1f3d] rounded-xl border border-gray-100 dark:border-white/5 p-3 sm:p-4 mb-3 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 shrink-0">
+        <div class="bg-white dark:bg-[#1a1f3d] rounded-xl border border-gray-100 dark:border-white/5 p-3 sm:p-4 mb-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-2 shrink-0">
             <input type="text" x-model="filterSearch" @input.debounce.300ms="fetchLogs()" placeholder="Search action / reference..." class="px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 col-span-2 lg:col-span-2">
             <select x-model="filterUser" @change="fetchLogs()" class="px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
                 <option value="">All Users</option>

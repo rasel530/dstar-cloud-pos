@@ -190,7 +190,7 @@
                             <div class="relative h-full flex items-end gap-2 sm:gap-3 px-1 pt-2 pb-6">
                                 <template x-for="(day, index) in chartData" :key="day.label">
                                     <div class="flex-1 flex flex-col items-center justify-end gap-1 min-w-0 h-full group">
-                                        <span class="text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 tabular-nums transition-opacity duration-150" x-text="formatCompact(day.revenue)"></span>
+                                        <span class="text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 tabular-nums transition-opacity duration-150 max-w-full truncate" x-text="formatCompact(day.revenue)"></span>
                                         <div
                                             class="chart-bar w-full max-w-[44px] sm:max-w-[52px] rounded-t-lg"
                                             :style="'height: ' + barHeight(day.revenue) + '%'"
@@ -198,7 +198,7 @@
                                                 ? 'bg-gradient-to-t from-blue-600 to-blue-400 shadow-lg shadow-blue-500/25'
                                                 : 'bg-gradient-to-t from-blue-500/70 to-blue-400/50 dark:from-blue-600/70 dark:to-blue-400/40 group-hover:from-blue-600 group-hover:to-blue-400'"
                                         ></div>
-                                        <span class="absolute bottom-0 text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap" x-text="dayShortLabel(day.label)"></span>
+                                        <span class="absolute bottom-0 text-[10px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 leading-tight text-center max-w-full" x-text="dayShortLabel(day.label)"></span>
                                     </div>
                                 </template>
                             </div>
@@ -386,7 +386,7 @@
                     </span>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div class="rounded-xl bg-gray-50 dark:bg-white/5 p-4">
                         <div class="h-9 w-9 rounded-lg bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center mb-3">
                             <svg class="h-5 w-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>

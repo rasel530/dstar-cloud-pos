@@ -13,7 +13,10 @@ class BarcodeController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $query = Barcode::query()
+            ->whereHas('product', fn($q) => $q->where(fn($q2) => $q2->where('tenant_id', $tenantId)->orWhere('is_global', true)))
             ->with(['product:id,name,code,price,product_group_id,track_inventory,is_enabled'])
             ->orderBy('product_id')
             ->orderBy('is_primary', 'desc');
@@ -41,8 +44,10 @@ class BarcodeController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $validated = $request->validate([
-            'product_id' => 'required|uuid|exists:products,id',
+            'product_id' => "required|uuid|exists:products,id,tenant_id,$tenantId",
             'value' => 'required|string|max:255',
             'barcode_type' => 'in:CODE_128,EAN_13,UPC_A',
             'is_primary' => 'boolean',
@@ -70,13 +75,18 @@ class BarcodeController extends Controller
 
     public function show(string $id): JsonResponse
     {
-        $barcode = Barcode::with('product:id,name,code,price')->findOrFail($id);
+        $tenantId = auth()->user()->tenant_id;
+        $barcode = Barcode::whereHas('product', fn($q) => $q->where(fn($q2) => $q2->where('tenant_id', $tenantId)->orWhere('is_global', true)))
+            ->with('product:id,name,code,price')
+            ->findOrFail($id);
         return response()->json(['data' => $barcode]);
     }
 
     public function update(Request $request, string $id): JsonResponse
     {
-        $barcode = Barcode::findOrFail($id);
+        $tenantId = auth()->user()->tenant_id;
+        $barcode = Barcode::whereHas('product', fn($q) => $q->where('tenant_id', $tenantId))
+            ->findOrFail($id);
 
         $validated = $request->validate([
             'value' => 'sometimes|string|max:255',
@@ -100,15 +110,19 @@ class BarcodeController extends Controller
 
     public function destroy(string $id): JsonResponse
     {
-        $barcode = Barcode::findOrFail($id);
+        $tenantId = auth()->user()->tenant_id;
+        $barcode = Barcode::whereHas('product', fn($q) => $q->where('tenant_id', $tenantId))
+            ->findOrFail($id);
         $barcode->update(['is_enabled' => false]);
         return response()->json(['message' => 'Barcode deactivated.']);
     }
 
     public function generate(Request $request): JsonResponse
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $validated = $request->validate([
-            'product_id' => 'nullable|uuid|exists:products,id',
+            'product_id' => "nullable|uuid|exists:products,id,tenant_id,$tenantId",
             'barcode_type' => 'in:CODE_128,EAN_13,UPC_A',
         ]);
 
@@ -152,9 +166,11 @@ class BarcodeController extends Controller
     public function scan(Request $request): JsonResponse
     {
         $request->validate(['value' => 'required|string']);
+        $tenantId = auth()->user()->tenant_id;
 
         $barcode = Barcode::where('value', $request->value)
             ->where('is_enabled', true)
+            ->whereHas('product', fn($q) => $q->where(fn($q2) => $q2->where('tenant_id', $tenantId)->orWhere('is_global', true)))
             ->with('product:id,name,code,price,product_group_id,track_inventory')
             ->first();
 
@@ -168,6 +184,7 @@ class BarcodeController extends Controller
     public function productsWithoutBarcode(Request $request): JsonResponse
     {
         $products = Product::query()
+            ->where('tenant_id', auth()->user()->tenant_id)
             ->where('is_enabled', true)
             ->whereDoesntHave('barcodes', fn($q) => $q->where('is_enabled', true))
             ->select('id', 'name', 'code', 'price')
@@ -179,9 +196,11 @@ class BarcodeController extends Controller
 
     public function bulkGenerate(Request $request): JsonResponse
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $validated = $request->validate([
             'product_ids' => 'required|array|min:1',
-            'product_ids.*' => 'uuid|exists:products,id',
+            'product_ids.*' => "uuid|exists:products,id,tenant_id,$tenantId",
             'barcode_type' => 'in:CODE_128,EAN_13,UPC_A',
         ]);
 
@@ -227,6 +246,8 @@ class BarcodeController extends Controller
 
     public function print(Request $request): JsonResponse
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $validated = $request->validate([
             'ids' => 'required|array|min:1',
             'ids.*' => 'uuid|exists:barcodes,id',
@@ -235,6 +256,7 @@ class BarcodeController extends Controller
 
         $barcodes = Barcode::whereIn('id', $validated['ids'])
             ->where('is_enabled', true)
+            ->whereHas('product', fn($q) => $q->where('tenant_id', $tenantId))
             ->with('product:id,name,code,price')
             ->get();
 

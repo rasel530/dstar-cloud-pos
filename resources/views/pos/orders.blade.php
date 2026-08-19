@@ -40,12 +40,10 @@
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
             Today
         </button>
-        <div class="flex items-center gap-1.5">
-            <input type="date" x-model="dateFrom" @change="setDateRange()"
-                class="bg-white dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/20 rounded-lg px-2 py-1.5 text-xs sm:text-sm text-gray-700 dark:text-white/80 focus:outline-none focus:border-blue-500 transition">
+        <div class="flex flex-wrap items-center gap-1.5">
+            <input type="date" x-model="dateFrom" @change="setDateRange()" class="min-w-0 w-full sm:w-auto bg-white dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/20 rounded-lg px-2 py-1.5 text-xs sm:text-sm text-gray-700 dark:text-white/80 focus:outline-none focus:border-blue-500 transition">
             <span class="text-gray-400 dark:text-white/40 text-xs">to</span>
-            <input type="date" x-model="dateTo" @change="setDateRange()"
-                class="bg-white dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/20 rounded-lg px-2 py-1.5 text-xs sm:text-sm text-gray-700 dark:text-white/80 focus:outline-none focus:border-blue-500 transition">
+            <input type="date" x-model="dateTo" @change="setDateRange()" class="min-w-0 w-full sm:w-auto bg-white dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/20 rounded-lg px-2 py-1.5 text-xs sm:text-sm text-gray-700 dark:text-white/80 focus:outline-none focus:border-blue-500 transition">
         </div>
         <div class="relative flex-1 min-w-[160px] max-w-xs">
             <input

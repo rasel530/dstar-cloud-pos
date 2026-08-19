@@ -4,12 +4,13 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class SetActiveBranch
 {
     public function handle(Request $request, Closure $next): mixed
     {
-        $user = $request->user();
+        $user = $request->user() ?? $this->resolveUserFromToken($request);
         if (! $user) {
             return $next($request);
         }
@@ -24,9 +25,32 @@ class SetActiveBranch
             ?? $user->branch_id
             ?? $this->findHeadquarters($user->tenant_id);
 
-        session(['active_branch_id' => $branchId]);
+        // Security: never trust a client-supplied branch outside the user's allowed set.
+        if ($branchId && ! $user->canAccessBranch($branchId)) {
+            $branchId = $user->branch_id ?? $this->findHeadquarters($user->tenant_id);
+            if ($branchId && ! $user->canAccessBranch($branchId)) {
+                $branchId = $user->tenant_id;
+            }
+        }
+
+        if ($branchId) {
+            session(['active_branch_id' => $branchId]);
+        }
 
         return $next($request);
+    }
+
+    private function resolveUserFromToken(Request $request): mixed
+    {
+        $token = $request->bearerToken();
+        if (! $token) return null;
+
+        $accessToken = PersonalAccessToken::findToken($token);
+        if (! $accessToken) return null;
+
+        $accessToken->forceFill(['last_used_at' => now()])->save();
+
+        return $accessToken->tokenable;
     }
 
     private function findHeadquarters(?string $tenantId): ?string

@@ -10,13 +10,20 @@ ob_end_flush();
 echo "=== D Star POS - Database Deployment ===\n";
 echo "Started: " . date('Y-m-d H:i:s') . "\n\n";
 
-$host = '127.0.0.200';
-$port = '5432';
-$dbname = 'dstaixqj_pos_db';
-$user = 'dstaixqj_pos_user';
-$password = '5dOxq)P$c{.#[}bK';
+$host = getenv('DEPLOY_DB_HOST') ?: '127.0.0.200';
+$port = getenv('DEPLOY_DB_PORT') ?: '5432';
+$dbname = getenv('DEPLOY_DB_DATABASE') ?: 'dstaixqj_pos_db';
+$user = getenv('DEPLOY_DB_USERNAME') ?: 'dstaixqj_pos_user';
+$password = getenv('DEPLOY_DB_PASSWORD') ?: '';
 
-$dumpFile = __DIR__ . '/laravel-app/database_dump_clean.sql';
+if ($password === '') {
+    die("ERROR: DEPLOY_DB_PASSWORD environment variable is required.\n" .
+        "Set it before running this script, e.g.:\n" .
+        "  set DEPLOY_DB_PASSWORD=...   (Windows)\n" .
+        "  DEPLOY_DB_PASSWORD=... php deploy_db.php   (Linux)\n");
+}
+
+$dumpFile = getenv('DEPLOY_DB_DUMP') ?: (__DIR__ . '/laravel-app/database_dump_clean.sql');
 
 if (!file_exists($dumpFile)) {
     die("ERROR: SQL dump file not found at: $dumpFile\n");

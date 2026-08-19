@@ -31,7 +31,7 @@ class ProductGroupController extends Controller
                       ->orWhereNull('tenant_id');
                 }),
             ],
-            'parent_group_id' => 'nullable|exists:product_groups,id',
+            'parent_group_id' => "nullable|exists:product_groups,id,tenant_id," . auth()->user()->tenant_id,
             'color'           => 'nullable|string',
             'rank'            => 'nullable|integer',
         ]);
@@ -49,7 +49,11 @@ class ProductGroupController extends Controller
 
     public function show($id)
     {
-        $group = ProductGroup::with(['children', 'parent'])->find($id);
+        $group = ProductGroup::with(['children', 'parent'])
+            ->where(function ($q) {
+                $q->where('tenant_id', auth()->user()->tenant_id)->orWhereNull('tenant_id');
+            })
+            ->find($id);
 
         if (!$group) {
             return response()->json(['message' => 'Product group not found'], 404);
@@ -60,7 +64,9 @@ class ProductGroupController extends Controller
 
     public function update(Request $request, $id)
     {
-        $group = ProductGroup::find($id);
+        $group = ProductGroup::where(function ($q) {
+            $q->where('tenant_id', auth()->user()->tenant_id)->orWhereNull('tenant_id');
+        })->find($id);
 
         if (!$group) {
             return response()->json(['message' => 'Product group not found'], 404);
@@ -76,7 +82,7 @@ class ProductGroupController extends Controller
                     })
                     ->ignore($id),
             ],
-            'parent_group_id' => 'nullable|exists:product_groups,id',
+            'parent_group_id' => "nullable|exists:product_groups,id,tenant_id," . auth()->user()->tenant_id,
             'color'           => 'nullable|string',
             'rank'            => 'nullable|integer',
         ]);
@@ -92,7 +98,9 @@ class ProductGroupController extends Controller
 
     public function destroy($id)
     {
-        $group = ProductGroup::find($id);
+        $group = ProductGroup::where(function ($q) {
+            $q->where('tenant_id', auth()->user()->tenant_id)->orWhereNull('tenant_id');
+        })->find($id);
 
         if (!$group) {
             return response()->json(['message' => 'Product group not found'], 404);

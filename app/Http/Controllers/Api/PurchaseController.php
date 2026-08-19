@@ -57,9 +57,11 @@ class PurchaseController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $validated = $request->validate([
-            'supplier_id'    => 'nullable|uuid|exists:customers,id',
-            'warehouse_id'   => 'nullable|uuid|exists:warehouses,id',
+            'supplier_id'    => "nullable|uuid|exists:customers,id,tenant_id,$tenantId",
+            'warehouse_id'   => "nullable|uuid|exists:warehouses,id,tenant_id,$tenantId",
             'branch_id'      => 'nullable|uuid|exists:tenants,id',
             'reference_number' => 'nullable|string|max:100',
             'purchase_date'  => 'required|date',
@@ -70,15 +72,18 @@ class PurchaseController extends Controller
             'notes'          => 'nullable|string',
             'status'         => 'nullable|string|in:pending,ordered,received',
             'items'          => 'required|array|min:1',
-            'items.*.product_id' => 'required|uuid|exists:products,id',
+            'items.*.product_id' => "required|uuid|exists:products,id,tenant_id,$tenantId",
             'items.*.quantity'   => 'required|numeric|min:0.01',
             'items.*.unit_cost'  => 'required|numeric|min:0',
-            'items.*.tax_id'     => 'nullable|uuid|exists:taxes,id',
+            'items.*.tax_id'     => "nullable|uuid|exists:taxes,id,tenant_id,$tenantId",
             'items.*.discount'   => 'nullable|numeric|min:0',
             'items.*.discount_type' => 'nullable|integer|in:0,1',
         ]);
 
-        $tenantId = auth()->user()->tenant_id;
+        // Branch must belong to the user's company.
+        if (!empty($validated['branch_id']) && ! auth()->user()->canAccessBranch($validated['branch_id'])) {
+            return response()->json(['message' => 'Invalid branch.'], 422);
+        }
 
         $purchase = DB::transaction(function () use ($validated, $tenantId) {
             $items = $validated['items'];
@@ -102,8 +107,8 @@ class PurchaseController extends Controller
             $itemTaxTotal = 0;
 
             foreach ($items as $item) {
-                $product = Product::findOrFail($item['product_id']);
-                $tax = isset($item['tax_id']) ? \App\Models\Tax::find($item['tax_id']) : null;
+                $product = Product::where('tenant_id', $tenantId)->findOrFail($item['product_id']);
+                $tax = isset($item['tax_id']) ? \App\Models\Tax::where('tenant_id', $tenantId)->find($item['tax_id']) : null;
 
                 $lineTotal = bcmul($item['quantity'], $item['unit_cost'], 4);
                 $itemDiscount = $item['discount'] ?? 0;
@@ -311,8 +316,8 @@ class PurchaseController extends Controller
         if (!$warehouseId) return;
 
         $stock = Stock::firstOrCreate(
-            ['product_id' => $item->product_id, 'warehouse_id' => $warehouseId],
-            ['tenant_id' => $purchase->tenant_id, 'quantity' => 0, 'version' => 0]
+            ['tenant_id' => $purchase->tenant_id, 'product_id' => $item->product_id, 'warehouse_id' => $warehouseId],
+            ['quantity' => 0, 'version' => 0]
         );
         $stock->increment('quantity', $qty);
         $stock->increment('version');
@@ -332,8 +337,8 @@ class PurchaseController extends Controller
 
         if (!SystemModeService::isSingleMode() && $purchase->branch_id) {
             $branchInv = BranchInventory::firstOrCreate(
-                ['product_id' => $item->product_id, 'branch_id' => $purchase->branch_id],
-                ['tenant_id' => $purchase->tenant_id, 'stock' => 0, 'reserved_stock' => 0]
+                ['tenant_id' => $purchase->tenant_id, 'product_id' => $item->product_id, 'branch_id' => $purchase->branch_id],
+                ['stock' => 0, 'reserved_stock' => 0]
             );
             $branchInv->updateStock($qty);
         }

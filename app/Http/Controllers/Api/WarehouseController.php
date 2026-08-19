@@ -11,6 +11,7 @@ class WarehouseController extends Controller
     public function index(Request $request)
     {
         $query = Warehouse::query()
+            ->where('tenant_id', auth()->user()->tenant_id)
             ->withCount(['stocks', 'documents', 'stockMovements']);
 
         if ($request->has('search')) {
@@ -36,7 +37,9 @@ class WarehouseController extends Controller
 
         try {
             if ($request->is_default) {
-                Warehouse::where('is_default', true)->update(['is_default' => false]);
+                Warehouse::where('tenant_id', auth()->user()->tenant_id)
+                    ->where('is_default', true)
+                    ->update(['is_default' => false]);
             }
 
             $warehouse = Warehouse::create([
@@ -53,7 +56,8 @@ class WarehouseController extends Controller
 
     public function show($id)
     {
-        $warehouse = Warehouse::withCount(['stocks', 'documents', 'stockMovements'])
+        $warehouse = Warehouse::where('tenant_id', auth()->user()->tenant_id)
+            ->withCount(['stocks', 'documents', 'stockMovements'])
             ->find($id);
 
         if (!$warehouse) {
@@ -76,7 +80,7 @@ class WarehouseController extends Controller
 
     public function update(Request $request, $id)
     {
-        $warehouse = Warehouse::find($id);
+        $warehouse = Warehouse::where('tenant_id', auth()->user()->tenant_id)->find($id);
 
         if (!$warehouse) {
             return response()->json(['message' => 'Warehouse not found'], 404);
@@ -89,7 +93,9 @@ class WarehouseController extends Controller
 
         try {
             if ($request->is_default && !$warehouse->is_default) {
-                Warehouse::where('is_default', true)->update(['is_default' => false]);
+                Warehouse::where('tenant_id', auth()->user()->tenant_id)
+                    ->where('is_default', true)
+                    ->update(['is_default' => false]);
             }
 
             $warehouse->update($request->only(['name', 'is_default']));
@@ -102,7 +108,9 @@ class WarehouseController extends Controller
 
     public function destroy(Request $request, $id)
     {
-        $warehouse = Warehouse::withCount(['stocks', 'documents'])->find($id);
+        $warehouse = Warehouse::where('tenant_id', auth()->user()->tenant_id)
+            ->withCount(['stocks', 'documents'])
+            ->find($id);
 
         if (!$warehouse) {
             return response()->json(['message' => 'Warehouse not found'], 404);

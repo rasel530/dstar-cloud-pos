@@ -35,7 +35,7 @@
                 </div>
                 <button @click="document.getElementById('bulkFileInput').click()" title="Upload products CSV" class="shrink-0 px-3 py-2.5 rounded-lg bg-gray-100 dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-500/50 transition text-sm flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/></svg>
-                    <span class="hidden xl:inline">Import</span>
+                    <span class="hidden md:inline">Import</span>
                 </button>
                 <button @click="showShortcutsHelp = !showShortcutsHelp" title="Keyboard shortcuts (Shift+?)" class="shrink-0 px-3 py-2.5 rounded-lg bg-gray-100 dark:bg-[#1a1f3d] border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:text-blue-500 dark:hover:text-blue-400 hover:border-blue-500/50 transition text-sm">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 7.5V6a2.25 2.25 0 00-2.25-2.25H6A2.25 2.25 0 003.75 6v10.5A2.25 2.25 0 006 18.75h5.25M15 7.5h1.875c1.035 0 1.875.84 1.875 1.875V10.5M15 7.5v2.25m0 0H12m3 1.5v3.75a2.25 2.25 0 002.25 2.25h1.875M12 12h3v3.75M12 12v3h3"/></svg>
@@ -46,16 +46,16 @@
                 <button @click="register.is_open ? openCloseRegisterModal() : openRegisterModal()" :title="registerInactiveMins != null && registerInactiveMins >= 60 ? 'Register inactive for ' + registerInactiveMins + ' minutes' : 'Cash register'" class="shrink-0 px-3 py-2.5 rounded-lg border transition text-sm flex items-center gap-1.5"
                     :class="registerInactiveMins != null && registerInactiveMins >= 60 ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-300 dark:border-amber-500/40 text-amber-700 dark:text-amber-400' : (register.is_open ? 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-300 dark:border-emerald-500/40 text-emerald-700 dark:text-emerald-400' : 'bg-gray-100 dark:bg-[#1a1f3d] border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:border-emerald-500/50')">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3"/></svg>
-                    <span class="hidden xl:inline" x-text="register.is_open ? 'Register' : 'Open Register'"></span>
+                    <span class="hidden md:inline" x-text="register.is_open ? 'Register' : 'Open Register'"></span>
                     <span x-show="registerInactiveMins != null && registerInactiveMins >= 60" class="text-[9px] bg-amber-500 text-white rounded-full px-1.5 py-0.5 font-bold" x-text="registerInactiveMins + 'm idle'"></span>
                 </button>
                 <button @click="openRegisterHistory()" title="Register history" class="shrink-0 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:border-blue-500/50 hover:text-blue-500 dark:hover:text-blue-400 transition text-sm flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <span class="hidden xl:inline">History</span>
+                    <span class="hidden md:inline">History</span>
                 </button>
                 <button @click="openHoldOrders()" title="Open / Held orders" class="shrink-0 px-3 py-2.5 rounded-lg border border-gray-200 dark:border-white/10 text-gray-500 dark:text-white/40 hover:border-violet-500/50 hover:text-violet-500 dark:hover:text-violet-400 transition text-sm flex items-center gap-1.5">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    <span class="hidden xl:inline">Hold Orders</span>
+                    <span class="hidden md:inline">Hold Orders</span>
                 </button>
                 <div x-show="uploading" x-cloak class="absolute inset-0 flex items-center justify-center bg-gray-900/50 rounded-lg z-10">
                     <svg class="animate-spin w-5 h-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
@@ -150,7 +150,7 @@
                     <span x-text="searchTerm ? 'No products found' : 'No products available'"></span>
                 </div>
             </template>
-            <div class="grid gap-2" :style="gridStyle">
+            <div class="grid gap-2 pos-product-grid mx-auto w-full max-w-app" :style="gridStyle">
                 <template x-for="(product, idx) in filteredProducts" :key="product.id">
                     <button
                         @click="addToCart(product)"
@@ -233,7 +233,7 @@
     <div x-show="cartOpen" @click="cartOpen = false" class="lg:hidden fixed inset-0 bg-black/60 z-35" x-cloak></div>
 
     {{-- RIGHT: Order Cart Panel --}}
-    <div class="w-full sm:w-80 lg:w-100 bg-white dark:bg-[#1a1f3d] flex flex-col shrink-0 border-l border-gray-200 dark:border-white/10 fixed lg:relative inset-y-0 right-0 z-40 transition-transform duration-300 lg:translate-x-0 pointer-events-auto shadow-2xl lg:shadow-none" :class="cartOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'" x-cloak style="overflow: visible;">
+    <div class="w-full sm:w-80 lg:w-100 bg-white dark:bg-[#1a1f3d] flex flex-col shrink-0 border-l border-gray-200 dark:border-white/10 fixed lg:relative inset-y-0 right-0 z-40 transition-transform duration-300 lg:translate-x-0 pointer-events-auto shadow-2xl lg:shadow-none pos-cart-panel" :class="cartOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'" x-cloak>
 
 
         {{-- Cart Header --}}
@@ -456,7 +456,7 @@
                 </div>
             </template>
             <template x-if="quickPaymentTypes.length > 3">
-                <div class="grid gap-1.5" :class="quickPaymentTypes.length > 6 ? 'grid-cols-3' : 'grid-cols-2'">
+                <div class="grid gap-1.5 grid-cols-2 sm:grid-cols-3">
                     <template x-for="(pt, idx) in quickPaymentTypes" :key="pt.id || pt.code">
                         <button @click="openPayment(pt)" :disabled="items.length === 0 || !hasBranch"
                             class="disabled:opacity-30 disabled:cursor-not-allowed text-white font-bold py-2 rounded-lg transition text-[10px] uppercase tracking-wide"
@@ -558,7 +558,7 @@
             </div>
             <div class="p-6">
                 <iframe :srcdoc="receiptData?.receipt_html" class="w-full border-0 rounded" style="height:55vh; min-height:320px; background:#fff;" x-ref="receiptFrame"></iframe>
-                <div class="flex gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <div class="flex flex-wrap gap-3 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                     <button @click="$refs.receiptFrame?.contentWindow?.print()" class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">Print</button>
                     <button @click="downloadReceipt()" class="flex-1 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg transition-colors">Download PDF</button>
                     <button @click="showReceipt = false; receiptData = null" class="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Close</button>
@@ -578,7 +578,7 @@
         x-transition:leave-start="opacity-100 translate-y-0"
         x-transition:leave-end="opacity-0 translate-y-4"
         x-text="toast.message"
-        class="fixed px-6 py-3 rounded-lg text-white text-sm font-semibold shadow-xl z-50 pointer-events-none"
+        class="fixed px-6 py-3 rounded-lg text-white text-sm font-semibold shadow-xl z-50 pointer-events-none max-w-[calc(100vw-2rem)]"
         :class="[toast.type === 'error' ? 'bg-red-500' : 'bg-emerald-500', toastPositionClass()]"
     ></div>
 

@@ -56,7 +56,7 @@
     {{-- Add/Edit Modal --}}
     <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="showModal = false">
         <div class="fixed inset-0 bg-black/60"></div>
-        <div class="relative bg-white dark:bg-[#1a1f3d] rounded-xl w-full max-w-lg border border-gray-200 dark:border-white/10 shadow-2xl" @click.stop>
+        <div class="relative bg-white dark:bg-[#1a1f3d] rounded-xl w-full max-w-lg border border-gray-200 dark:border-white/10 shadow-2xl max-h-[85vh] overflow-y-auto" @click.stop>
             <div class="px-6 py-4 border-b border-gray-200 dark:border-white/10 flex items-center justify-between">
                 <h3 class="font-semibold text-gray-900 dark:text-white" x-text="editing ? 'Edit Role' : 'Add Role'"></h3>
                 <button @click="showModal = false" class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-400">&times;</button>
@@ -76,7 +76,7 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2">Module Permissions</label>
-                    <div class="grid grid-cols-3 gap-2">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                         <template x-for="(info, m) in allModules" :key="m">
                             <label class="flex items-center gap-1.5 text-xs cursor-pointer">
                                 <input type="checkbox" :value="m" :checked="form.permissions.includes(m)" @change="togglePermission(m)" class="rounded">

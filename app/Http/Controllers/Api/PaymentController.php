@@ -12,6 +12,7 @@ class PaymentController extends Controller
     public function index(Request $request)
     {
         $query = Payment::query()
+            ->where('tenant_id', auth()->user()->tenant_id)
             ->with([
                 'paymentType',
                 'user',
@@ -49,14 +50,16 @@ class PaymentController extends Controller
 
     public function store(Request $request)
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $request->validate([
-            'document_id'     => 'required|exists:documents,id',
-            'payment_type_id' => 'required|exists:payment_types,id',
+            'document_id'     => "required|exists:documents,id,tenant_id,$tenantId",
+            'payment_type_id' => "required|exists:payment_types,id,tenant_id,$tenantId",
             'amount'          => 'required|numeric|min:0',
             'date'            => 'required|date',
         ]);
 
-        $document = Document::find($request->document_id);
+        $document = Document::where('tenant_id', $tenantId)->find($request->document_id);
 
         if (!$document) {
             return response()->json(['message' => 'Document not found'], 404);
@@ -103,7 +106,7 @@ class PaymentController extends Controller
             'user',
             'document.customer',
             'document.documentType',
-        ])->find($id);
+        ])->where('tenant_id', auth()->user()->tenant_id)->find($id);
 
         if (!$payment) {
             return response()->json(['message' => 'Payment not found'], 404);

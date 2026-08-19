@@ -22,12 +22,12 @@
     </div>
 
     {{-- Tabs --}}
-    <div class="flex gap-1 px-4 lg:px-6 pt-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-        <button @click="switchTab('dashboard')" :class="activeTab==='dashboard'?'border-blue-500 text-blue-600 dark:text-blue-400':'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">Dashboard</button>
-        <button @click="switchTab('income')" :class="activeTab==='income'?'border-blue-500 text-blue-600 dark:text-blue-400':'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">Income</button>
-        <button @click="switchTab('expenses')" :class="activeTab==='expenses'?'border-blue-500 text-blue-600 dark:text-blue-400':'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">Expenses</button>
-        <button @click="switchTab('categories')" :class="activeTab==='categories'?'border-blue-500 text-blue-600 dark:text-blue-400':'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">Categories</button>
-        <button @click="switchTab('reports')" :class="activeTab==='reports'?'border-blue-500 text-blue-600 dark:text-blue-400':'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">Reports</button>
+    <div class="flex gap-1 px-4 lg:px-6 pt-3 pb-2 bg-white dark:bg-gray-800 overflow-x-auto">
+        <button @click="switchTab('dashboard')" :class="activeTab==='dashboard'?'bg-blue-500 text-white':'bg-gray-100 dark:bg-[#1a1f3d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'" class="shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap">Dashboard</button>
+        <button @click="switchTab('income')" :class="activeTab==='income'?'bg-blue-500 text-white':'bg-gray-100 dark:bg-[#1a1f3d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'" class="shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap">Income</button>
+        <button @click="switchTab('expenses')" :class="activeTab==='expenses'?'bg-blue-500 text-white':'bg-gray-100 dark:bg-[#1a1f3d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'" class="shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap">Expenses</button>
+        <button @click="switchTab('categories')" :class="activeTab==='categories'?'bg-blue-500 text-white':'bg-gray-100 dark:bg-[#1a1f3d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'" class="shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap">Categories</button>
+        <button @click="switchTab('reports')" :class="activeTab==='reports'?'bg-blue-500 text-white':'bg-gray-100 dark:bg-[#1a1f3d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'" class="shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap">Reports</button>
     </div>
 
     {{-- Content Area --}}

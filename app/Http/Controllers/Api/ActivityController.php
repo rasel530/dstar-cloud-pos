@@ -65,7 +65,8 @@ class ActivityController extends Controller
 
     public function userActivity(string $userId): JsonResponse
     {
-        $logs = UserActivityLog::where('user_id', $userId)
+        $logs = UserActivityLog::where('tenant_id', auth()->user()->tenant_id)
+            ->where('user_id', $userId)
             ->orderByDesc('created_at')
             ->paginate(50);
 

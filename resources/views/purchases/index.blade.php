@@ -20,15 +20,15 @@
     </div>
 
     {{-- Tabs --}}
-    <div class="flex gap-1 px-4 lg:px-6 pt-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
-        <button @click="switchTab('report-dashboard')" :class="activeTab==='report-dashboard'?'border-blue-500 text-blue-600 dark:text-blue-400':'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">Dashboard</button>
-        <button @click="switchTab('suppliers')" :class="activeTab==='suppliers'?'border-blue-500 text-blue-600 dark:text-blue-400':'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">Suppliers</button>
-        <button @click="switchTab('purchases')" :class="activeTab==='purchases'?'border-blue-500 text-blue-600 dark:text-blue-400':'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">Purchases</button>
-        <button @click="switchTab('returns')" :class="activeTab==='returns'?'border-blue-500 text-blue-600 dark:text-blue-400':'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">Returns</button>
-        <button @click="switchTab('report-suppliers')" :class="activeTab==='report-suppliers'?'border-blue-500 text-blue-600 dark:text-blue-400':'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">By Supplier</button>
-        <button @click="switchTab('report-products')" :class="activeTab==='report-products'?'border-blue-500 text-blue-600 dark:text-blue-400':'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">By Product</button>
-        <button @click="switchTab('report-monthly')" :class="activeTab==='report-monthly'?'border-blue-500 text-blue-600 dark:text-blue-400':'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">Monthly</button>
-        <button @click="switchTab('report-outstanding')" :class="activeTab==='report-outstanding'?'border-blue-500 text-blue-600 dark:text-blue-400':'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'" class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap">Outstanding</button>
+    <div class="flex gap-1 px-4 lg:px-6 pt-3 pb-2 bg-white dark:bg-gray-800 overflow-x-auto">
+        <button @click="switchTab('report-dashboard')" :class="activeTab==='report-dashboard'?'bg-blue-500 text-white':'bg-gray-100 dark:bg-[#1a1f3d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'" class="shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap">Dashboard</button>
+        <button @click="switchTab('suppliers')" :class="activeTab==='suppliers'?'bg-blue-500 text-white':'bg-gray-100 dark:bg-[#1a1f3d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'" class="shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap">Suppliers</button>
+        <button @click="switchTab('purchases')" :class="activeTab==='purchases'?'bg-blue-500 text-white':'bg-gray-100 dark:bg-[#1a1f3d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'" class="shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap">Purchases</button>
+        <button @click="switchTab('returns')" :class="activeTab==='returns'?'bg-blue-500 text-white':'bg-gray-100 dark:bg-[#1a1f3d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'" class="shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap">Returns</button>
+        <button @click="switchTab('report-suppliers')" :class="activeTab==='report-suppliers'?'bg-blue-500 text-white':'bg-gray-100 dark:bg-[#1a1f3d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'" class="shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap">By Supplier</button>
+        <button @click="switchTab('report-products')" :class="activeTab==='report-products'?'bg-blue-500 text-white':'bg-gray-100 dark:bg-[#1a1f3d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'" class="shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap">By Product</button>
+        <button @click="switchTab('report-monthly')" :class="activeTab==='report-monthly'?'bg-blue-500 text-white':'bg-gray-100 dark:bg-[#1a1f3d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'" class="shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap">Monthly</button>
+        <button @click="switchTab('report-outstanding')" :class="activeTab==='report-outstanding'?'bg-blue-500 text-white':'bg-gray-100 dark:bg-[#1a1f3d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'" class="shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap">Outstanding</button>
     </div>
 
     {{-- Content Area --}}
@@ -350,7 +350,7 @@
                 <button @click="showSupplierModal=false" class="text-gray-400 hover:text-gray-600">&times;</button>
             </div>
             <div class="p-6 space-y-4">
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name *</label>
                         <input x-model="supplierForm.name" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
@@ -401,7 +401,7 @@
                 <button @click="showPurchaseModal=false" class="text-gray-400 hover:text-gray-600">&times;</button>
             </div>
             <div class="flex-1 overflow-auto p-6 space-y-4">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Supplier</label>
                         <select x-model="purchaseForm.supplier_id" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm">
@@ -433,8 +433,8 @@
                 {{-- Items --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Items</label>
-                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-                        <table class="w-full text-sm">
+                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-x-auto">
+                        <table class="w-full min-w-[28rem] text-sm">
                             <thead class="bg-gray-50 dark:bg-gray-700/50">
                                 <tr>
                                     <th class="px-3 py-2 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Product</th>
@@ -469,7 +469,7 @@
 
                 {{-- Totals --}}
                 <div class="flex justify-end">
-                    <div class="w-64 space-y-2 text-sm">
+                    <div class="w-full sm:w-64 space-y-2 text-sm">
                         <div class="flex justify-between"><span class="text-gray-500">Subtotal:</span><span class="font-medium text-gray-900 dark:text-white" x-text="(Alpine.store('currency')?.symbol || '$') + purchaseSubtotal.toFixed(2)"></span></div>
                         <div class="flex justify-between items-center gap-2">
                             <span class="text-gray-500">Discount <span class="text-xs text-gray-400">(supplier)</span>:</span>
@@ -488,8 +488,8 @@
 
                 <div x-show="purchaseError" class="text-sm text-red-500" x-text="purchaseError"></div>
             </div>
-            <div class="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
-                <select x-model="purchaseForm.status" class="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+            <div class="flex flex-wrap justify-end gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 shrink-0">
+                <select x-model="purchaseForm.status" class="w-full sm:w-auto px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
                     <option value="pending">Save Pending</option>
                     <option value="ordered">Send Order</option>
                     <option value="received">Receive Now</option>
@@ -644,7 +644,7 @@
                 <div x-show="supplierStatementLoading" class="text-center py-10 text-gray-400 text-sm">Loading...</div>
                 <template x-if="!supplierStatementLoading && supplierStatement">
                     <div class="space-y-4">
-                        <div class="grid grid-cols-3 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-3 text-center border border-gray-100 dark:border-white/5">
                                 <span class="block text-xs text-gray-500 dark:text-white/50">Purchased</span>
                                 <span class="text-sm font-bold text-gray-900 dark:text-white" x-text="formatMoney(supplierStatement.summary?.total_purchased || 0)"></span>

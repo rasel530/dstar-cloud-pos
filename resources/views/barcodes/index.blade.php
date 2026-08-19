@@ -7,7 +7,7 @@
             <h1 class="text-lg font-bold text-gray-900 dark:text-white">Barcode Management</h1>
             <p class="text-sm text-gray-500 dark:text-gray-400">Generate, manage & print product barcodes</p>
         </div>
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
             <button @click="printBarcodes()" :disabled="printLoading || selectedIds.size === 0" class="px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50">
                 <span x-text="printLoading ? 'Preparing...' : ('Print Labels' + (selectedIds.size > 0 ? ' (' + selectedIds.size + ')' : ''))"></span>
             </button>
@@ -200,7 +200,7 @@
                 </div>
 
                 {{-- Label Previews --}}
-                <div class="grid gap-3" :class="printLabelSize==='small'?'grid-cols-3':'grid-cols-2'">
+                <div class="grid gap-3" :class="printLabelSize==='small'?'grid-cols-2 sm:grid-cols-3':'grid-cols-2'">
                     <template x-for="b in printItems" :key="b.id">
                         <div class="border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 p-3 flex flex-col items-center gap-1.5" :class="printLabelSize==='large'?'p-4':''">
                             <span x-show="printSettings.show_company_name && companyName" class="text-[11px] font-bold text-gray-800 dark:text-white truncate max-w-full text-center" x-text="companyName"></span>

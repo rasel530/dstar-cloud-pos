@@ -67,7 +67,9 @@ class RoleController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
-        $role = Role::findOrFail($id);
+        $role = Role::where(function ($q) {
+            $q->where('tenant_id', auth()->user()->tenant_id)->orWhereNull('tenant_id');
+        })->findOrFail($id);
 
         $validated = $request->validate([
             'name' => 'sometimes|string|max:100',
@@ -93,7 +95,9 @@ class RoleController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $role = Role::findOrFail($id);
+        $role = Role::where(function ($q) {
+            $q->where('tenant_id', auth()->user()->tenant_id)->orWhereNull('tenant_id');
+        })->findOrFail($id);
         if (in_array($role->access_level, [0, 5, 9]) && $role->tenant_id === null) {
             return response()->json(['message' => 'Default roles cannot be deleted.'], 422);
         }

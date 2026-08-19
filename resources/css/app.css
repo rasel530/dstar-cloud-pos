@@ -5,6 +5,21 @@
 /* Class-based dark mode: the app toggles `.dark` on <html> via the theme store */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Fluid responsive tokens.
+   Default Tailwind breakpoints are kept (sm 640 / md 768 / lg 1024 / xl 1280 / 2xl 1536).
+   These add wide-screen tiers and container/flow limits so every intermediate size
+   (390, 412, 540, 834, 912, 1180, 1440, 1536, 1920, 2560, ...) adapts automatically. */
+@theme {
+    --breakpoint-3xl: 120rem;  /* 1920px */
+    --breakpoint-4xl: 160rem;  /* 2560px */
+
+    --container-app: 100rem;       /* max-w-app: comfortable content width for ultra-wide */
+    --container-app-wide: 120rem;  /* max-w-app-wide: hard ceiling for 4K screens */
+
+    --pos-card-min: 10.5rem;       /* min POS product-card width (fluid grid floor) */
+    --pos-card-max: 22rem;         /* max POS product-card width on very large screens */
+}
+
 /* POS product grid: skip layout/paint of offscreen cards for faster rendering */
 .pos-product-card {
     content-visibility: auto;
@@ -75,3 +90,9 @@ svg { max-width: 100%; height: auto; flex-shrink: 0; }
 @keyframes slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
 .animate-slide-up { animation: slide-up 0.25s ease-out; }
 @media (min-width: 768px) { .md\:animate-none { animation: none; } }
+
+/* POS cart panel: on very short viewports allow the whole panel to scroll
+   so the fixed header/totals/actions sections never clip off-screen */
+@media (max-height: 560px) {
+    .pos-cart-panel { overflow-y: auto; }
+}

@@ -73,6 +73,43 @@ class User extends Authenticatable
             ->withPivot([]);
     }
 
+    /**
+     * Tenant/branch IDs this user is allowed to operate in.
+     * Includes explicit pivot assignments, the user's own tenant, and
+     * all tenants of the user's company. Used to validate the
+     * X-Active-Branch header and branch/tenant switching.
+     */
+    public function allowedBranchIds(): array
+    {
+        $ids = $this->branches()->pluck('tenants.id')->all();
+        $ids[] = $this->tenant_id;
+
+        $tenant = $this->tenant;
+        if ($tenant) {
+            if ($tenant->is_company) {
+                $companyId = $tenant->id;
+            } else {
+                $companyId = $tenant->company_id ?: $tenant->parent_branch_id;
+            }
+            if ($companyId) {
+                $ids[] = $companyId;
+                $ids = array_merge($ids, Tenant::where('company_id', $companyId)->pluck('id')->all());
+                $ids = array_merge($ids, Tenant::where('parent_branch_id', $companyId)->pluck('id')->all());
+            }
+        }
+
+        return array_values(array_unique(array_filter($ids)));
+    }
+
+    /**
+     * True when the given tenant/branch id is within the user's allowed set.
+     */
+    public function canAccessBranch(?string $branchId): bool
+    {
+        if (! $branchId) return false;
+        return in_array($branchId, $this->allowedBranchIds(), true);
+    }
+
     public function documents(): HasMany
     {
         return $this->hasMany(Document::class);

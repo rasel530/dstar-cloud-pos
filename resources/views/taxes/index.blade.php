@@ -187,7 +187,7 @@
             @click="showModal = false"
         ></div>
 
-        <div class="flex flex flex-col h-full items-center justify-center p-4">
+        <div class="flex min-h-full items-center justify-center p-4">
             <div
                 x-show="showModal"
                 x-transition

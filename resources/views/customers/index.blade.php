@@ -4,7 +4,7 @@
 
 @section('content')
 <div x-data="customersManager" class="flex flex-col h-full">
-    <div class="flex items-center justify-between px-6 py-4">
+    <div class="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-4">
         <div>
             <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Customers</h1>
             <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage your customer records</p>
@@ -17,7 +17,7 @@
         </button>
     </div>
 
-    <div class="px-6">
+    <div class="px-4 sm:px-6">
         <div class="bg-white dark:bg-[#1a1f3d] rounded-xl border border-gray-100 dark:border-white/5 mb-6">
             <div class="px-6 py-4 border-b border-gray-100 dark:border-white/5 flex flex-col sm:flex-row gap-4 sm:items-center sm:justify-between">
                 <div class="relative flex-1 max-w-md">
@@ -148,7 +148,7 @@
 
     <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="showModal = false">
         <div class="fixed inset-0 bg-black/60 backdrop-blur-sm"></div>
-        <div class="relative bg-white dark:bg-[#1a1f3d] rounded-xl w-full max-w-lg border border-gray-200 dark:border-white/10 shadow-2xl" @click.stop>
+        <div class="relative bg-white dark:bg-[#1a1f3d] rounded-xl w-full max-w-lg border border-gray-200 dark:border-white/10 shadow-2xl max-h-[85vh] overflow-y-auto" @click.stop>
             <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/5">
                 <h3 class="font-semibold text-gray-900 dark:text-white" x-text="editing ? 'Edit Customer' : 'Add Customer'"></h3>
                 <button @click="showModal = false" class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 text-gray-400 dark:text-white/50 hover:text-gray-600 dark:hover:text-white transition">
@@ -162,7 +162,7 @@
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Name <span class="text-red-500">*</span></label>
                     <input x-model="form.name" required class="w-full bg-gray-50 dark:bg-[#0f1535] border border-gray-300 dark:border-white/20 rounded-lg px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" placeholder="Customer name">
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Code <span class="text-xs text-gray-400">(auto)</span></label>
                         <input x-model="form.code" class="w-full bg-gray-50 dark:bg-[#0f1535] border border-gray-300 dark:border-white/20 rounded-lg px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition" placeholder="Auto-generated if empty">
@@ -239,7 +239,7 @@
                 <div x-show="statementLoading" class="text-center py-10 text-gray-400 text-sm">Loading...</div>
                 <template x-if="!statementLoading && statement">
                     <div class="space-y-4">
-                        <div class="grid grid-cols-3 gap-3">
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-3 text-center border border-gray-100 dark:border-white/5">
                                 <span class="block text-xs text-gray-500 dark:text-white/50">Invoiced</span>
                                 <span class="text-sm font-bold text-gray-900 dark:text-white" x-text="formatMoney(statement.summary?.total_invoiced || 0)"></span>
@@ -257,7 +257,7 @@
                             <h4 class="text-xs font-semibold text-gray-500 dark:text-white/50 uppercase mb-2">Invoices</h4>
                             <div class="space-y-1.5">
                                 <template x-for="inv in statement.invoices || []" :key="inv.id">
-                                    <div class="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-[#0f1535] rounded-lg text-sm border border-gray-100 dark:border-white/5">
+                                    <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 py-2 bg-gray-50 dark:bg-[#0f1535] rounded-lg text-sm border border-gray-100 dark:border-white/5">
                                         <span class="text-gray-700 dark:text-gray-300 font-mono text-xs" x-text="inv.number"></span>
                                         <span class="text-gray-500 dark:text-white/60" x-text="inv.date"></span>
                                         <span class="font-semibold text-gray-900 dark:text-white" x-text="formatMoney(inv.total)"></span>

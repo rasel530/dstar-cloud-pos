@@ -4,12 +4,12 @@
 
 @section('content')
 <div x-data="inventoryManager" class="flex flex-col h-full">
-    <div class="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 shrink-0">
+    <div class="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4 shrink-0">
         <div>
             <h1 class="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Inventory</h1>
             <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">Manage warehouse stock levels</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
             <button @click="openAddWarehouse()" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 Add Warehouse
@@ -46,7 +46,7 @@
                              </button>
                          </div>
                      </div>
-                    <div class="grid grid-cols-3 gap-3 text-center">
+                    <div class="grid grid-cols-3 sm:grid-cols-3 gap-3 text-center">
                         <div class="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-2">
                             <div class="text-xs text-gray-500 dark:text-gray-400">Products</div>
                             <div class="text-lg font-bold text-gray-900 dark:text-white" x-text="w.stocks_count || 0"></div>
@@ -105,7 +105,7 @@
                         </tbody>
                     </table></div>
             </template>
-            <div x-show="!stockLoading && stockLastPage > 1" class="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 border-t border-gray-100 dark:border-white/5 shrink-0">
+            <div x-show="!stockLoading && stockLastPage > 1" class="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-3 border-t border-gray-100 dark:border-white/5 shrink-0">
                 <span class="text-xs text-gray-500 dark:text-white/50" x-text="stockTotal + ' products'"></span>
                 <span class="text-xs text-gray-500 dark:text-white/50" x-text="'Page ' + stockPage + ' of ' + stockLastPage"></span>
                 <div class="flex items-center gap-2">
@@ -131,7 +131,7 @@
     </div>
 
     {{-- Add Warehouse Modal --}}
-    <div x-show="showWarehouseModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center" @click.self="showWarehouseModal = false">
+    <div x-show="showWarehouseModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4" @click.self="showWarehouseModal = false">
         <div class="fixed inset-0 bg-black/50"></div>
         <div class="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6 border border-gray-200 dark:border-gray-700">
             <div class="flex items-center justify-between mb-4">

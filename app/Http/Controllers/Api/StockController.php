@@ -15,6 +15,7 @@ class StockController extends Controller
     public function index(Request $request)
     {
         $query = Stock::query()
+            ->where('tenant_id', auth()->user()->tenant_id)
             ->with([
                 'product.productGroup',
                 'warehouse',
@@ -52,13 +53,14 @@ class StockController extends Controller
             'product.productGroup',
             'product.stockControls',
             'warehouse',
-        ])->find($id);
+        ])->where('tenant_id', auth()->user()->tenant_id)->find($id);
 
         if (!$stock) {
             return response()->json(['message' => 'Stock record not found'], 404);
         }
 
-        $recentMovements = StockMovement::where('product_id', $stock->product_id)
+        $recentMovements = StockMovement::where('tenant_id', auth()->user()->tenant_id)
+            ->where('product_id', $stock->product_id)
             ->where('warehouse_id', $stock->warehouse_id)
             ->with('user')
             ->orderBy('created_at', 'desc')
@@ -75,23 +77,26 @@ class StockController extends Controller
 
     public function adjust(Request $request)
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $request->validate([
-            'product_id'   => 'required|exists:products,id',
-            'warehouse_id' => 'required|exists:warehouses,id',
+            'product_id'   => "required|exists:products,id,tenant_id,$tenantId",
+            'warehouse_id' => "required|exists:warehouses,id,tenant_id,$tenantId",
             'new_quantity' => 'required|numeric|min:0',
             'note'         => 'required|string',
         ]);
 
         try {
-            DB::transaction(function () use ($request) {
-                $stock = Stock::where('product_id', $request->product_id)
+            DB::transaction(function () use ($request, $tenantId) {
+                $stock = Stock::where('tenant_id', $tenantId)
+                    ->where('product_id', $request->product_id)
                     ->where('warehouse_id', $request->warehouse_id)
                     ->lockForUpdate()
                     ->first();
 
                 if (!$stock) {
                     $stock = Stock::create([
-                        'tenant_id' => auth()->user()->tenant_id,
+                        'tenant_id' => $tenantId,
                         'product_id' => $request->product_id,
                         'warehouse_id' => $request->warehouse_id,
                         'quantity' => 0,
@@ -120,7 +125,8 @@ class StockController extends Controller
                 ]);
             });
 
-            $stock = Stock::where('product_id', $request->product_id)
+            $stock = Stock::where('tenant_id', $tenantId)
+                ->where('product_id', $request->product_id)
                 ->where('warehouse_id', $request->warehouse_id)
                 ->with(['product', 'warehouse'])
                 ->first();
@@ -133,12 +139,15 @@ class StockController extends Controller
 
     public function movementHistory(Request $request)
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $request->validate([
-            'product_id'   => 'nullable|exists:products,id',
-            'warehouse_id' => 'nullable|exists:warehouses,id',
+            'product_id'   => "nullable|exists:products,id,tenant_id,$tenantId",
+            'warehouse_id' => "nullable|exists:warehouses,id,tenant_id,$tenantId",
         ]);
 
         $query = StockMovement::query()
+            ->where('tenant_id', $tenantId)
             ->with([
                 'product',
                 'warehouse',
@@ -172,17 +181,20 @@ class StockController extends Controller
 
     public function inventoryCount(Request $request)
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $request->validate([
             'action'       => 'required|in:start,review,commit',
-            'warehouse_id' => 'required|exists:warehouses,id',
+            'warehouse_id' => "required|exists:warehouses,id,tenant_id,$tenantId",
             'items'        => 'required_if:action,commit|array',
-            'items.*.product_id' => 'required_if:action,commit|exists:products,id',
+            'items.*.product_id' => "required_if:action,commit|exists:products,id,tenant_id,$tenantId",
             'items.*.counted_quantity' => 'required_if:action,commit|numeric|min:0',
         ]);
 
         try {
             if ($request->action === 'start') {
-                $stocks = Stock::where('warehouse_id', $request->warehouse_id)
+                $stocks = Stock::where('tenant_id', $tenantId)
+                    ->where('warehouse_id', $request->warehouse_id)
                     ->with('product')
                     ->get();
 
@@ -216,7 +228,10 @@ class StockController extends Controller
 
                 $items = [];
                 foreach ($request->items as $item) {
-                    $stock = Stock::with('product')->find($item['stock_id']);
+                    $stock = Stock::where('tenant_id', $tenantId)->with('product')->find($item['stock_id']);
+                    if (! $stock) {
+                        return response()->json(['message' => 'Invalid stock item'], 422);
+                    }
                     $variance = $item['counted_quantity'] - $stock->quantity;
 
                     $items[] = [
@@ -246,9 +261,10 @@ class StockController extends Controller
             }
 
             if ($request->action === 'commit') {
-                DB::transaction(function () use ($request) {
+                DB::transaction(function () use ($request, $tenantId) {
                     foreach ($request->items as $item) {
-                        $stock = Stock::where('product_id', $item['product_id'])
+                        $stock = Stock::where('tenant_id', $tenantId)
+                            ->where('product_id', $item['product_id'])
                             ->where('warehouse_id', $request->warehouse_id)
                             ->lockForUpdate()
                             ->first();
@@ -312,14 +328,20 @@ class StockController extends Controller
         $products = $productsQuery->get();
 
         if ($branchId) {
+            $branchId = auth()->user()->canAccessBranch($branchId) ? $branchId : null;
+        }
+
+        if ($branchId) {
             $stockMap = BranchInventory::where('tenant_id', $tenantId)
                 ->where('branch_id', $branchId)
                 ->get()
                 ->keyBy('product_id');
         } else {
-            $warehouseId = \App\Models\Warehouse::where('is_default', true)->value('id');
+            $warehouseId = \App\Models\Warehouse::where('tenant_id', $tenantId)
+                ->where('is_default', true)
+                ->value('id');
             $stockMap = $warehouseId
-                ? Stock::where('warehouse_id', $warehouseId)->get()->keyBy('product_id')
+                ? Stock::where('tenant_id', $tenantId)->where('warehouse_id', $warehouseId)->get()->keyBy('product_id')
                 : collect();
         }
 
@@ -341,13 +363,20 @@ public function bulkUpdate(Request $request): JsonResponse
 {
     $request->validate(['items' => 'required|array|min:1', 'items.*.product_code' => 'required|string', 'items.*.quantity' => 'required|numeric|min:0']);
     $tenantId = auth()->user()->tenant_id;
-        $warehouseId = $request->input('warehouse_id') ?: \App\Models\Warehouse::where('is_default', true)->value('id');
+        $warehouseId = $request->input('warehouse_id') ?: \App\Models\Warehouse::where('tenant_id', $tenantId)->where('is_default', true)->value('id');
     $branchCode = $request->input('branch_code');
     $branchId = null;
 
     if ($branchCode) {
-        $branch = \App\Models\Tenant::where('branch_code', $branchCode)->orWhere('name', $branchCode)->first();
-        $branchId = $branch?->id;
+        $branch = \App\Models\Tenant::where('company_id', $tenantId)
+            ->orWhere('id', $tenantId)
+            ->where(function ($q) use ($branchCode) {
+                $q->where('branch_code', $branchCode)->orWhere('name', $branchCode);
+            })
+            ->first();
+        if ($branch && auth()->user()->canAccessBranch($branch->id)) {
+            $branchId = $branch->id;
+        }
     }
 
     if (!$warehouseId && !$branchId) return response()->json(['message' => 'No warehouse or branch found'], 400);
@@ -391,8 +420,14 @@ public function transfer(Request $request): JsonResponse
     $product = \App\Models\Product::where('code', $request->product_code)->where(function ($q) use ($tenantId) { $q->where('tenant_id', $tenantId)->orWhere('is_global', true); })->first();
     if (!$product) return response()->json(['message' => 'Product not found'], 404);
 
-    $fromBranch = \App\Models\Tenant::where('name', $request->from_branch)->orWhere('branch_code', $request->from_branch)->first();
-    $toBranch = \App\Models\Tenant::where('name', $request->to_branch)->orWhere('branch_code', $request->to_branch)->first();
+    $fromBranch = \App\Models\Tenant::whereIn('id', auth()->user()->allowedBranchIds())
+        ->where(function ($q) use ($request) {
+            $q->where('name', $request->from_branch)->orWhere('branch_code', $request->from_branch);
+        })->first();
+    $toBranch = \App\Models\Tenant::whereIn('id', auth()->user()->allowedBranchIds())
+        ->where(function ($q) use ($request) {
+            $q->where('name', $request->to_branch)->orWhere('branch_code', $request->to_branch);
+        })->first();
     if (!$fromBranch || !$toBranch) return response()->json(['message' => 'Branch not found'], 404);
 
     $fromBI = \App\Models\BranchInventory::where('product_id', $product->id)->where('branch_id', $fromBranch->id)->first();

@@ -32,20 +32,22 @@ class LoyaltyController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $validated = $request->validate([
-            'customer_id' => 'required|exists:customers,id',
+            'customer_id' => "required|exists:customers,id,tenant_id,$tenantId",
             'card_number' => 'nullable|string|max:255',
         ]);
 
-        $exists = LoyaltyCard::where('customer_id', $validated['customer_id'])->first();
+        $exists = LoyaltyCard::where('tenant_id', $tenantId)->where('customer_id', $validated['customer_id'])->first();
         if ($exists) {
             return response()->json(['message' => 'Customer already has a loyalty card'], 422);
         }
 
         $card = LoyaltyCard::create([
-            'tenant_id' => auth()->user()->tenant_id,
+            'tenant_id' => $tenantId,
             'customer_id' => $validated['customer_id'],
-            'card_number' => $validated['card_number'] ?? 'LC-' . str_pad(LoyaltyCard::count() + 1, 4, '0', STR_PAD_LEFT),
+            'card_number' => $validated['card_number'] ?? 'LC-' . str_pad(LoyaltyCard::where('tenant_id', $tenantId)->count() + 1, 4, '0', STR_PAD_LEFT),
             'points_balance' => 0,
             'total_points_earned' => 0,
         ]);

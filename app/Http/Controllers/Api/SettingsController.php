@@ -52,9 +52,11 @@ class SettingsController extends Controller
 
         if (isset($validated['settings'])) {
             foreach ($validated['settings'] as $s) {
+                $safeKey = $s['key'];
+                $safeValue = $this->sanitizeSetting($safeKey, $s['value'] ?? '');
                 ApplicationSetting::updateOrCreate(
-                    ['tenant_id' => $tenantId, 'key' => $s['key']],
-                    ['value' => $s['value'] ?? '']
+                    ['tenant_id' => $tenantId, 'key' => $safeKey],
+                    ['value' => $safeValue]
                 );
             }
             $settings = ApplicationSetting::where('tenant_id', $tenantId)
@@ -62,7 +64,7 @@ class SettingsController extends Controller
             return response()->json(['data' => $settings]);
         }
 
-        $value = $validated['value'] ?? '';
+        $value = $this->sanitizeSetting($validated['key'], $validated['value'] ?? '');
         $setting = ApplicationSetting::where('tenant_id', $tenantId)
             ->where('key', $validated['key'])
             ->first();
@@ -74,6 +76,25 @@ class SettingsController extends Controller
         }
 
         return response()->json(['data' => $setting]);
+    }
+
+    /**
+     * Logo keys accept only safe raster data-URLs (no SVG, no arbitrary HTML).
+     * Anything else is stored as an empty value.
+     */
+    private function sanitizeSetting(string $key, mixed $value): mixed
+    {
+        if (in_array($key, ['logo', 'receipt_logo', 'logo_preview', 'receipt_logo_preview'], true)) {
+            if (is_string($value) && preg_match('/^data:image\/(png|jpeg|jpg|webp|gif);base64,/', $value)) {
+                $pos = strpos($value, 'base64,');
+                $binary = base64_decode(substr($value, $pos + 7));
+                if ($binary !== false && strlen($binary) <= 3 * 1024 * 1024) {
+                    return $value;
+                }
+            }
+            return '';
+        }
+        return $value;
     }
 
     public function getByKey(Request $request, $key): JsonResponse

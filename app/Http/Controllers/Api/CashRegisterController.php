@@ -54,40 +54,60 @@ class CashRegisterController extends Controller
         ]);
 
         $branchId = $request->header('X-Active-Branch') ?: null;
-        $existing = $this->currentRegister($user->id, $user->tenant_id, $branchId);
+        if ($branchId && ! $user->canAccessBranch($branchId)) {
+            $branchId = null;
+        }
 
-        if ($existing) {
+        try {
+            $register = \Illuminate\Support\Facades\DB::transaction(function () use ($user, $validated, $branchId) {
+                // Atomic check-then-create prevents two open registers for the same user/branch.
+                $existing = $this->currentRegister($user->id, $user->tenant_id, $branchId, true);
+                if ($existing) {
+                    return null;
+                }
+
+                $shiftName = null;
+                if (!empty($validated['shift_id'])) {
+                    $shift = \App\Models\Shift::where(function ($q) use ($user) {
+                        $q->where('tenant_id', $user->tenant_id)->orWhereNull('tenant_id');
+                    })->find($validated['shift_id']);
+                    $shiftName = $shift?->name;
+                }
+
+                $register = CashRegister::create([
+                    'tenant_id' => $user->tenant_id,
+                    'branch_id' => $branchId,
+                    'shift_id' => $validated['shift_id'] ?? null,
+                    'shift_name' => $shiftName,
+                    'user_id' => $user->id,
+                    'opening_cash' => $validated['opening_cash'],
+                    'status' => 'open',
+                    'opened_at' => now(),
+                    'last_activity_at' => now(),
+                    'note' => $validated['note'] ?? null,
+                ]);
+
+                \App\Models\RegisterSession::create([
+                    'tenant_id' => $user->tenant_id,
+                    'register_id' => $register->id,
+                    'user_id' => $user->id,
+                    'started_at' => now(),
+                ]);
+
+                return $register;
+            });
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Register open failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to open register.'], 500);
+        }
+
+        if (! $register) {
+            $existing = $this->currentRegister($user->id, $user->tenant_id, $branchId);
             return response()->json([
                 'message' => 'Register is already open for this branch.',
                 'data' => ['register' => $existing],
             ], 422);
         }
-
-        $shiftName = null;
-        if (!empty($validated['shift_id'])) {
-            $shift = \App\Models\Shift::find($validated['shift_id']);
-            $shiftName = $shift?->name;
-        }
-
-        $register = CashRegister::create([
-            'tenant_id' => $user->tenant_id,
-            'branch_id' => $branchId,
-            'shift_id' => $validated['shift_id'] ?? null,
-            'shift_name' => $shiftName,
-            'user_id' => $user->id,
-            'opening_cash' => $validated['opening_cash'],
-            'status' => 'open',
-            'opened_at' => now(),
-            'last_activity_at' => now(),
-            'note' => $validated['note'] ?? null,
-        ]);
-
-        \App\Models\RegisterSession::create([
-            'tenant_id' => $user->tenant_id,
-            'register_id' => $register->id,
-            'user_id' => $user->id,
-            'started_at' => now(),
-        ]);
 
         return response()->json([
             'message' => 'Register opened.',
@@ -237,7 +257,7 @@ class CashRegisterController extends Controller
     /**
      * Find the current open register for a user/branch.
      */
-    private function currentRegister(string $userId, string $tenantId, ?string $branchId): ?CashRegister
+    private function currentRegister(string $userId, string $tenantId, ?string $branchId, bool $forUpdate = false): ?CashRegister
     {
         $query = CashRegister::where('user_id', $userId)
             ->where('tenant_id', $tenantId)
@@ -247,6 +267,10 @@ class CashRegisterController extends Controller
             $query->where('branch_id', $branchId);
         } else {
             $query->whereNull('branch_id');
+        }
+
+        if ($forUpdate) {
+            $query->lockForUpdate();
         }
 
         return $query->latest('opened_at')->first();

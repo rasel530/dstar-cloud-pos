@@ -11,6 +11,7 @@ class DocumentController extends Controller
     public function index(Request $request)
     {
         $query = Document::query()
+            ->where('tenant_id', auth()->user()->tenant_id)
             ->with([
                 'customer',
                 'user',
@@ -68,7 +69,7 @@ class DocumentController extends Controller
             'documentItems.product.productGroup',
             'documentItems.documentItemTaxes',
             'payments.paymentType',
-        ])->find($id);
+        ])->where('tenant_id', auth()->user()->tenant_id)->find($id);
 
         if (!$document) {
             return response()->json(['message' => 'Document not found'], 404);
@@ -79,10 +80,12 @@ class DocumentController extends Controller
 
     public function store(Request $request)
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $request->validate([
-            'customer_id'                 => 'nullable|exists:customers,id',
-            'document_type_id'            => 'required|exists:document_types,id',
-            'warehouse_id'                => 'required|exists:warehouses,id',
+            'customer_id'                 => "nullable|exists:customers,id,tenant_id,$tenantId",
+            'document_type_id'            => "required|exists:document_types,id,tenant_id,$tenantId",
+            'warehouse_id'                => "required|exists:warehouses,id,tenant_id,$tenantId",
             'date'                        => 'required|date',
             'discount'                    => 'nullable|numeric|min:0',
             'discount_type'               => 'nullable|integer',
@@ -91,7 +94,7 @@ class DocumentController extends Controller
             'due_date'                    => 'nullable|date',
             'reference_document_number'   => 'nullable|string',
             'items'                       => 'required|array|min:1',
-            'items.*.product_id'          => 'required|exists:products,id',
+            'items.*.product_id'          => "required|exists:products,id,tenant_id,$tenantId",
             'items.*.quantity'            => 'required|numeric|min:0.001',
             'items.*.price'              => 'required|numeric|min:0',
             'items.*.discount'            => 'nullable|numeric|min:0',
@@ -178,7 +181,7 @@ class DocumentController extends Controller
 
     public function update(Request $request, $id)
     {
-        $document = Document::find($id);
+        $document = Document::where('tenant_id', auth()->user()->tenant_id)->find($id);
 
         if (!$document) {
             return response()->json(['message' => 'Document not found'], 404);
@@ -228,6 +231,7 @@ class DocumentController extends Controller
             'documentItems.product',
             'payments.paymentType',
         ])
+            ->where('tenant_id', auth()->user()->tenant_id)
             ->whereDate('date', '>=', $request->date_from)
             ->whereDate('date', '<=', $request->date_to)
             ->orderBy('date', 'desc')
@@ -246,6 +250,7 @@ class DocumentController extends Controller
             'documentItems.product',
             'payments.paymentType',
         ])
+            ->where('tenant_id', auth()->user()->tenant_id)
             ->where('customer_id', $customerId)
             ->orderBy('created_at', 'desc')
             ->paginate(25);
@@ -263,6 +268,7 @@ class DocumentController extends Controller
             'documentItems.product',
             'payments.paymentType',
         ])
+            ->where('tenant_id', auth()->user()->tenant_id)
             ->where('document_type_id', $typeId)
             ->orderBy('created_at', 'desc')
             ->paginate(25);
@@ -274,7 +280,9 @@ class DocumentController extends Controller
     {
         $prefix = 'DOC-';
         $date = now()->format('Ymd');
-        $count = Document::whereDate('created_at', now()->toDateString())->count() + 1;
+        $count = Document::where('tenant_id', auth()->user()->tenant_id)
+            ->whereDate('created_at', now()->toDateString())
+            ->count() + 1;
         return $prefix . $date . '-' . str_pad((string) $count, 4, '0', STR_PAD_LEFT);
     }
 }

@@ -12,9 +12,10 @@ class TenantController extends Controller
 {
     public function index(): JsonResponse
     {
-        $tenants = Tenant::orderBy('is_headquarters', 'desc')
+        $user = auth()->user();
+        $tenants = Tenant::whereIn('id', $user->allowedBranchIds())
+            ->orderBy('is_headquarters', 'desc')
             ->orderBy('name')
-            ->when(auth()->user()->access_level < 9, fn($q) => $q->whereIn('id', auth()->user()->branches->pluck('id')))
             ->get();
 
         return response()->json(['data' => $tenants]);
@@ -22,6 +23,10 @@ class TenantController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        if (auth()->user()->access_level < 9) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'branch_code' => 'nullable|string|max:50|unique:tenants,branch_code',
@@ -43,12 +48,21 @@ class TenantController extends Controller
 
     public function show(string $id): JsonResponse
     {
+        $user = auth()->user();
+        if ($user->access_level < 9 || ! $user->canAccessBranch($id)) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
         $tenant = Tenant::findOrFail($id);
         return response()->json(['data' => $tenant]);
     }
 
     public function update(Request $request, string $id): JsonResponse
     {
+        $user = auth()->user();
+        if ($user->access_level < 9 || ! $user->canAccessBranch($id)) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
         $tenant = Tenant::findOrFail($id);
 
         $validated = $request->validate([
@@ -70,6 +84,11 @@ class TenantController extends Controller
 
     public function destroy(string $id): JsonResponse
     {
+        $user = auth()->user();
+        if ($user->access_level < 9 || ! $user->canAccessBranch($id)) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
         $tenant = Tenant::findOrFail($id);
         \App\Models\BranchInventory::where('branch_id', $id)->delete();
         \App\Models\StockTransfer::where('from_branch_id', $id)->orWhere('to_branch_id', $id)->delete();
@@ -81,7 +100,16 @@ class TenantController extends Controller
 
     public function switch(string $id): JsonResponse
     {
-        $tenant = Tenant::findOrFail($id);
+        $user = auth()->user();
+        if (! $user->canAccessBranch($id)) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $tenant = Tenant::where('id', $id)->where('is_active', true)->first();
+        if (! $tenant) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+
         session(['tenant_id' => $tenant->id, 'active_branch_id' => $tenant->id]);
         return response()->json(['data' => $tenant]);
     }

@@ -12,7 +12,9 @@ class PriceListController extends Controller
 {
     public function index(): JsonResponse
     {
-        $priceLists = PriceList::with('items')->paginate(25);
+        $priceLists = PriceList::with('items')
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->paginate(25);
 
         return response()->json($priceLists);
     }
@@ -24,6 +26,7 @@ class PriceListController extends Controller
             'description' => 'nullable|string',
         ]);
 
+        $validated['tenant_id'] = auth()->user()->tenant_id;
         $priceList = PriceList::create($validated);
 
         return response()->json([
@@ -34,7 +37,9 @@ class PriceListController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $priceList = PriceList::with('items')->findOrFail($id);
+        $priceList = PriceList::with('items')
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->findOrFail($id);
 
         return response()->json([
             'price_list' => $priceList,
@@ -43,7 +48,7 @@ class PriceListController extends Controller
 
     public function update(Request $request, int $id): JsonResponse
     {
-        $priceList = PriceList::findOrFail($id);
+        $priceList = PriceList::where('tenant_id', auth()->user()->tenant_id)->findOrFail($id);
 
         $validated = $request->validate([
             'name'        => 'sometimes|string|max:255',
@@ -60,7 +65,7 @@ class PriceListController extends Controller
 
     public function destroy(int $id): JsonResponse
     {
-        $priceList = PriceList::findOrFail($id);
+        $priceList = PriceList::where('tenant_id', auth()->user()->tenant_id)->findOrFail($id);
         $priceList->delete();
 
         return response()->json([
@@ -70,12 +75,14 @@ class PriceListController extends Controller
 
     public function addItem(Request $request, int $priceListId): JsonResponse
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $validated = $request->validate([
-            'product_id' => 'required|exists:products,id',
+            'product_id' => "required|exists:products,id,tenant_id,$tenantId",
             'price'      => 'required|numeric|min:0',
         ]);
 
-        $priceList = PriceList::findOrFail($priceListId);
+        $priceList = PriceList::where('tenant_id', $tenantId)->findOrFail($priceListId);
 
         $item = $priceList->items()->create($validated);
 
@@ -87,7 +94,9 @@ class PriceListController extends Controller
 
     public function removeItem(int $priceListId, int $itemId): JsonResponse
     {
-        $item = PriceListItem::where('price_list_id', $priceListId)
+        $priceList = PriceList::where('tenant_id', auth()->user()->tenant_id)->findOrFail($priceListId);
+
+        $item = PriceListItem::where('price_list_id', $priceList->id)
             ->where('id', $itemId)
             ->firstOrFail();
 

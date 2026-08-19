@@ -60,20 +60,18 @@
 
     <div class="px-4 sm:px-6 flex-1 overflow-hidden flex flex-col pb-4">
         <div class="bg-white dark:bg-[#1a1f3d] rounded-xl border border-gray-100 dark:border-white/5 flex flex-col flex-1 overflow-hidden">
-            <div class="border-b border-gray-100 dark:border-white/5">
-                <nav class="flex gap-0 -mb-px flex-wrap lg:flex-nowrap lg:overflow-x-auto hide-scrollbar">
+            <nav class="flex gap-1 overflow-x-auto px-3 sm:px-4 pt-3 sm:pt-4 pb-2 shrink-0">
                     <template x-for="tab in tabs" :key="tab.key">
                     <button
                         @click="activeTab = tab.key; fetchTabData()"
-                        class="px-4 sm:px-5 py-2.5 sm:py-3 text-sm font-medium transition border-b-2 shrink-0"
+                        class="shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition whitespace-nowrap"
                         :class="activeTab === tab.key
-                            ? 'tab-active border-blue-500 text-blue-600 dark:text-blue-400'
-                            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-700'"
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-100 dark:bg-[#1a1f3d] text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/5'"
                         x-text="tab.label"
                     ></button>
                     </template>
                 </nav>
-            </div>
 
             <div x-show="loading" class="flex justify-center py-20 flex-1 items-center">
                 <svg class="animate-spin h-8 w-8 text-gray-400 dark:text-white/30" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -87,7 +85,7 @@
                     <template x-if="activeTab === 'sales'">
                         <div class="flex flex-col flex-1 overflow-auto">
                             <div class="p-4 sm:p-6">
-                                <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-5 mb-4 shrink-0">
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-5 mb-4 shrink-0">
                                     <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                         <span class="text-xs text-gray-500 dark:text-white/50">Net Sales</span>
                                         <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="formatMoney(tabData.total_sales || 0)"></div>
@@ -217,7 +215,7 @@
                     <!-- Profit & Loss Tab -->
                     <div x-show="activeTab === 'profit-loss'" class="flex-1 flex flex-col">
                         <div class="p-4 sm:p-6">
-                            <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-5 mb-5 shrink-0">
+                            <div class="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-5 mb-5 shrink-0">
                                 <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                     <span class="text-xs text-gray-500 dark:text-white/50">Gross Sales</span>
                                     <div class="text-lg sm:text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="formatMoney(tabData.gross_sales || 0)"></div>
@@ -466,7 +464,7 @@
                                             <p class="text-sm text-gray-500 dark:text-gray-400" x-text="tabData.customer.email || tabData.customer.phone || '--'"></p>
                                         </div>
                                     </div>
-                                    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4 mb-4 shrink-0">
+                                    <div class="grid grid-cols-1 sm:grid-cols-5 gap-3 sm:gap-4 mb-4 shrink-0">
                                         <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                             <span class="text-xs text-gray-500 dark:text-white/50">Total Orders</span>
                                             <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="tabData.summary.order_count || 0"></div>
@@ -578,7 +576,7 @@
                                         </tbody>
                                     </table>
                                 </div>
-                                <div class="flex items-center justify-between gap-2 sm:gap-3 px-4 sm:px-6 py-3 border-t border-gray-100 dark:border-white/5 shrink-0">
+                                <div class="flex flex-wrap items-center justify-between gap-2 sm:gap-3 px-4 sm:px-6 py-3 border-t border-gray-100 dark:border-white/5 shrink-0">
                                     <span class="text-xs text-gray-500 dark:text-white/50" x-text="((pagination && pagination.total) || 0) + ' records'"></span>
                                     <span class="text-xs text-gray-500 dark:text-white/50" x-text="'Page ' + (pagination?.current_page || 1) + ' of ' + (pagination?.last_page || 1)"></span>
                                     <div class="flex items-center gap-2">
@@ -610,7 +608,7 @@
                                             <p class="text-sm text-gray-500 dark:text-gray-400" x-text="tabData.employee.email || '--'"></p>
                                         </div>
                                     </div>
-                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 shrink-0">
+                                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4 mb-4 shrink-0">
                                         <div class="bg-gray-50 dark:bg-[#0f1535] rounded-lg p-4 border border-gray-100 dark:border-white/5">
                                             <span class="text-xs text-gray-500 dark:text-white/50">Total Orders</span>
                                             <div class="text-xl font-bold mt-1 text-gray-900 dark:text-white" x-text="tabData.summary.order_count || 0"></div>
@@ -685,7 +683,7 @@
                     </div>
 
                     <template x-if="activeTab !== 'tax' && pagination && pagination.last_page > 1">
-                        <div class="flex items-center justify-between px-4 sm:px-6 py-3 border-t border-gray-100 dark:border-white/5 shrink-0">
+                        <div class="flex flex-wrap items-center justify-between gap-2 px-4 sm:px-6 py-3 border-t border-gray-100 dark:border-white/5 shrink-0">
                             <span class="text-sm text-gray-500 dark:text-gray-400" x-text="'Page ' + pagination.current_page + ' of ' + pagination.last_page + ' (' + pagination.total + ' records)'"></span>
                             <div class="flex gap-2">
                                 <button @click="fetchTabData(pagination.current_page - 1)" :disabled="pagination.current_page <= 1" class="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-white/5">Previous</button>

@@ -33,11 +33,24 @@ class AppServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('login', function (Request $request) {
-            return Limit::perMinute(5)->by($request->input('email') ?: $request->ip());
+            return Limit::perMinute(5)->by(($request->input('email') ?: $request->ip()).'|'.$request->ip());
         });
 
         RateLimiter::for('pin', function (Request $request) {
-            return Limit::perMinute(10)->by($request->input('email').'|'.$request->ip());
+            $id = $request->input('email') ?: $request->input('employee_number');
+            return Limit::perMinute(10)->by(($id ?: 'guest').'|'.$request->ip());
+        });
+
+        RateLimiter::for('checkout', function (Request $request) {
+            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+        });
+
+        RateLimiter::for('refund', function (Request $request) {
+            return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());
+        });
+
+        RateLimiter::for('assets', function (Request $request) {
+            return Limit::perMinute(120)->by($request->ip());
         });
     }
 }

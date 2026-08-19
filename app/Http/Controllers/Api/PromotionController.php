@@ -37,13 +37,13 @@ class PromotionController extends Controller
 
     public function show($id): JsonResponse
     {
-        $promotion = Promotion::findOrFail($id);
+        $promotion = Promotion::where('tenant_id', auth()->user()->tenant_id)->findOrFail($id);
         return response()->json(['data' => $promotion]);
     }
 
     public function update(Request $request, $id): JsonResponse
     {
-        $promotion = Promotion::findOrFail($id);
+        $promotion = Promotion::where('tenant_id', auth()->user()->tenant_id)->findOrFail($id);
 
         $validated = $request->validate([
             'name'         => 'sometimes|string|max:255',
@@ -63,7 +63,7 @@ class PromotionController extends Controller
 
     public function destroy($id): JsonResponse
     {
-        $promotion = Promotion::findOrFail($id);
+        $promotion = Promotion::where('tenant_id', auth()->user()->tenant_id)->findOrFail($id);
         $promotion->delete();
 
         return response()->json(null, 204);
@@ -71,7 +71,7 @@ class PromotionController extends Controller
 
     public function toggleEnabled($id): JsonResponse
     {
-        $promotion = Promotion::findOrFail($id);
+        $promotion = Promotion::where('tenant_id', auth()->user()->tenant_id)->findOrFail($id);
         $promotion->is_enabled = !$promotion->is_enabled;
         $promotion->save();
 

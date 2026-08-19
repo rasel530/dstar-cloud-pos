@@ -89,24 +89,52 @@ class PosController extends Controller
 
     public function store(Request $request)
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $request->validate([
             "items" => "required|array|min:1",
-            "items.*.product_id" => "required|exists:products,id",
+            "items.*.product_id" => "required|exists:products,id,tenant_id,$tenantId",
             "items.*.quantity" => "required|numeric|min:0.01",
             "items.*.price" => "required|numeric|min:0",
-            "customer_id" => "nullable|exists:customers,id",
+            "customer_id" => "nullable|exists:customers,id,tenant_id,$tenantId",
             "service_type" => "nullable|integer|min:0|max:1",
             "table_number" => "nullable|string|max:50",
         ]);
 
         $user = auth()->user();
-        $tenantId = $user->tenant_id;
-        $branchId = $user->branch_id ?? $user->tenant_id;
+        $branchId = $request->header('X-Active-Branch');
+        if ($branchId && ! $user->canAccessBranch($branchId)) {
+            $branchId = $user->branch_id ?? $user->tenant_id;
+        }
+        $branchId = $branchId ?: ($user->branch_id ?? $user->tenant_id);
+
+        $canEditPrice = $user->can_edit_price || $user->access_level >= 5;
+
+        foreach ($request->items as $item) {
+            $product = \App\Models\Product::where('tenant_id', $tenantId)
+                ->orWhere('is_global', true)
+                ->find($item["product_id"]);
+            if (! $product) {
+                return response()->json(['message' => 'Product not found.'], 422);
+            }
+            if (! $canEditPrice) {
+                $price = (float) $item['price'];
+                if ($product->price > 0 && $price < $product->price) {
+                    return response()->json(['message' => "Price cannot be below the catalog price for '{$product->name}'."], 422);
+                }
+                if ($price > $product->price * 5) {
+                    return response()->json(['message' => 'Price exceeds maximum allowed (5x product price).'], 422);
+                }
+            }
+        }
 
         $branch = \App\Models\Tenant::find($branchId);
         $branchCode = (!\App\Services\SystemModeService::isSingleMode() && $branch?->branch_code) ? $branch->branch_code . '-' : '';
         $dateFmt = $branchCode . "ORD-" . now()->format("Ymd") . "-";
-        $count = PosOrder::whereDate("created_at", today())->where('number', 'like', $dateFmt . '%')->count() + 1;
+        $count = PosOrder::where('tenant_id', $tenantId)
+            ->whereDate("created_at", today())
+            ->where('number', 'like', $dateFmt . '%')
+            ->count() + 1;
         $orderNumber = $dateFmt . str_pad($count, 4, "0", STR_PAD_LEFT);
 
         $order = PosOrder::create([
@@ -125,7 +153,9 @@ class PosController extends Controller
         ]);
 
         foreach ($request->items as $item) {
-            $product = \App\Models\Product::find($item["product_id"]);
+            $product = \App\Models\Product::where('tenant_id', $tenantId)
+                ->orWhere('is_global', true)
+                ->find($item["product_id"]);
             PosOrderItem::create([
                 "pos_order_id" => $order->id,
                 "product_id"   => $item["product_id"],
@@ -220,19 +250,32 @@ class PosController extends Controller
 
     public function addItem(Request $request, $orderId)
     {
+        $tenantId = auth()->user()->tenant_id;
+
         $validated = $request->validate([
-            'product_id' => 'required|exists:products,id',
+            'product_id' => "required|exists:products,id,tenant_id,$tenantId",
             'quantity'   => 'required|numeric|min:0.01|max:9999',
             'price'      => 'required|numeric|min:0',
         ]);
 
         $order = PosOrder::where('id', $orderId)
-            ->where('tenant_id', auth()->user()->tenant_id)
+            ->where('tenant_id', $tenantId)
             ->firstOrFail();
 
-        $product = \App\Models\Product::findOrFail($validated['product_id']);
+        if ($order->status !== 'open') {
+            return response()->json(['message' => 'Only open orders can be modified.'], 422);
+        }
+
+        $product = \App\Models\Product::where('tenant_id', $tenantId)
+            ->orWhere('is_global', true)
+            ->findOrFail($validated['product_id']);
         if ($validated['price'] > ($product->price * 5)) {
             return response()->json(['message' => 'Price exceeds maximum allowed (5x product price).'], 422);
+        }
+        // Cashiers without price-edit permission cannot undercharge below catalog price.
+        $canEditPrice = auth()->user()->can_edit_price || auth()->user()->access_level >= 5;
+        if (! $canEditPrice && $product->price > 0 && (float) $validated['price'] < (float) $product->price) {
+            return response()->json(['message' => "Price cannot be below the catalog price for '{$product->name}'."], 422);
         }
 
         $item = PosOrderItem::create([
@@ -248,6 +291,18 @@ class PosController extends Controller
 
     public function removeItem(Request $request, $orderId, $itemId)
     {
+        $order = PosOrder::where('id', $orderId)
+            ->where('tenant_id', auth()->user()->tenant_id)
+            ->first();
+
+        if (! $order) {
+            return response()->json(['message' => 'Order not found'], 404);
+        }
+
+        if ($order->status !== 'open') {
+            return response()->json(['message' => 'Only open orders can be modified.'], 422);
+        }
+
         $item = PosOrderItem::where("pos_order_id", $orderId)->where("id", $itemId)->firstOrFail();
         $item->delete();
         return response()->json(null, 204);
@@ -282,7 +337,7 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
         $finalTotal = $this->applyRoundingRule((float) $finalTotal, $roundingRule);
 
         $branchId = $request->header('X-Active-Branch') ?: $order->branch_id;
-        if ($branchId && !\App\Models\Tenant::where('id', $branchId)->exists()) {
+        if ($branchId && ! $user->canAccessBranch($branchId)) {
             $branchId = $user->branch_id ?? $user->tenant_id;
         }
         $paymentMethod = $request->input('payment_type', 'cash');
@@ -293,13 +348,22 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
         $branch = $branchId ? \App\Models\Tenant::find($branchId) : null;
         $branchCode = (!\App\Services\SystemModeService::isSingleMode() && $branch?->branch_code) ? $branch->branch_code . '-' : '';
         $dateFmt = $branchCode . "ORD-" . now()->format("Ymd") . "-";
-        $count = Document::whereDate("created_at", today())->where('number', 'like', $dateFmt . '%')->count() + 1;
+        $count = Document::where('tenant_id', $tenantId)
+            ->whereDate("created_at", today())
+            ->where('number', 'like', $dateFmt . '%')
+            ->count() + 1;
         $docNumber = $dateFmt . str_pad($count, 4, "0", STR_PAD_LEFT);
-        $docType = \App\Models\DocumentType::where("code", "200")->first();
-        $warehouse = \App\Models\Warehouse::where("tenant_id", $user->tenant_id)->first();
-        $paymentType = \App\Models\PaymentType::where(function ($q) use ($paymentMethod) {
+        $docType = \App\Models\DocumentType::where(function ($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
+        })->where("code", "200")->first();
+        $warehouse = \App\Models\Warehouse::where("tenant_id", $tenantId)->first();
+        $paymentType = \App\Models\PaymentType::where(function ($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
+        })->where(function ($q) use ($paymentMethod) {
             $q->where('code', $paymentMethod)->orWhere('name', 'ilike', $paymentMethod);
-        })->first() ?? \App\Models\PaymentType::first();
+        })->first() ?? \App\Models\PaymentType::where(function ($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
+        })->first();
 
         $openRegister = \App\Models\CashRegister::where('user_id', $user->id)
             ->where('tenant_id', $user->tenant_id)
@@ -308,6 +372,15 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
                 fn($q) => $q->where('branch_id', $branchId),
                 fn($q) => $q->whereNull('branch_id'))
             ->latest('opened_at')->first();
+
+        // Optional policy: block sales until the cashier opens a register.
+        $requireRegister = \App\Models\ApplicationSetting::where('tenant_id', $tenantId)
+            ->where('key', 'require_cash_register')
+            ->value('value');
+        $requireRegister = $requireRegister === 'true' || $requireRegister === '1';
+        if ($requireRegister && ! $openRegister) {
+            return response()->json(['message' => 'Please open the cash register before completing this sale.'], 422);
+        }
 
         $isCredit = $paymentType && !$paymentType->mark_as_paid;
         $effectiveCustomerId = $request->input('customer_id', $order->customer_id);
@@ -321,94 +394,116 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
         $docPaidStatus = $isCredit ? 0 : ($dueAmount > 0.0001 ? 2 : 1);
         $paymentAmount = $appliedPaid;
 
-        $doc = Document::create([
-            "tenant_id" => $user->tenant_id,
-            "user_id" => $user->id,
-            "customer_id" => $effectiveCustomerId,
-            "number" => $docNumber,
-            "order_number" => $order->number,
-            "document_type_id" => $docType?->id,
-            "warehouse_id" => $warehouse?->id,
-            "date" => now()->toDateString(),
-            "stock_date" => now(),
-            "total" => $finalTotal,
-            "paid_amount" => $docPaidAmount,
-            "due_amount" => $docDueAmount,
-            "tax_amount" => $taxAmount,
-            "discount" => $discountAmount,
-            "discount_type" => $discountType,
-            "paid_status" => $docPaidStatus,
-        ]);
-
-        foreach ($order->posOrderItems as $oi) {
-            DocumentItem::create([
-                "document_id" => $doc->id,
-                "product_id" => $oi->product_id,
-                "quantity" => $oi->quantity,
-                "price" => $oi->price,
-                "total" => $oi->quantity * $oi->price,
-            ]);
-        }
-
-        Payment::create([
-            "tenant_id" => $user->tenant_id,
-            "document_id" => $doc->id,
-            "payment_type_id" => $paymentType?->id,
-            "user_id" => $user->id,
-            "amount" => $paymentAmount,
-            "cash_register_id" => $openRegister?->id,
-        ]);
-
-        if ($openRegister) {
-            $openRegister->update(['last_activity_at' => now()]);
-        }
-
-        \DB::table('pos_orders')->where('id', $orderId)->update([
-            'status' => 'closed',
-            'total' => $finalTotal,
-            'discount' => $discountAmount,
-            'discount_type' => $discountType,
-            'paid_amount' => $paidAmount,
-            'change_amount' => $changeAmount,
-            'payment_method' => $paymentMethod,
-            'tax_amount' => $taxAmount,
-            'customer_id' => $effectiveCustomerId,
-            'branch_id' => $branchId,
-            'updated_at' => now(),
-        ]);
-
-        $warehouseId = $request->input('warehouse_id') ?: \App\Models\Warehouse::where('is_default', true)->value('id');
-        $allowNegative = \App\Models\ApplicationSetting::where('tenant_id', $user->tenant_id)->where('key', 'allow_negative_stock')->value('value');
+        $warehouseId = $request->input('warehouse_id') ?: \App\Models\Warehouse::where('tenant_id', $tenantId)->where('is_default', true)->value('id');
+        $allowNegative = \App\Models\ApplicationSetting::where('tenant_id', $tenantId)->where('key', 'allow_negative_stock')->value('value');
         $allowNegative = $allowNegative === 'true' || $allowNegative === '1';
-        $branchId = $request->input('branch_id') ?: $request->header('X-Active-Branch');
+        $stockBranchId = $request->input('branch_id') ?: $branchId;
+        if ($stockBranchId && ! $user->canAccessBranch($stockBranchId)) {
+            $stockBranchId = null;
+        }
 
-        if ($warehouseId) {
-            $stockService = new \App\Services\Inventory\StockService;
-            \Illuminate\Support\Facades\DB::transaction(function () use ($order, $stockService, $warehouseId, $branchId, $user, $allowNegative, $orderId) {
-                foreach ($order->posOrderItems as $item) {
-                    $product = \App\Models\Product::find($item->product_id);
-                    if (!$product || $product->is_service || !$product->track_inventory) continue;
-                    $qty = (float) ($item->quantity ?? 1);
-                    try {
-                        if ($branchId) {
-                            $bi = \App\Models\BranchInventory::where('product_id', $item->product_id)->where('branch_id', $branchId)->first();
-                            $current = $bi ? (float) $bi->stock : 0;
-                            if (!$allowNegative && $current < $qty) {
-                                throw new \RuntimeException("Insufficient stock for '{$product->name}'. Available: {$current}");
+        try {
+            $doc = \Illuminate\Support\Facades\DB::transaction(function () use ($request, $orderId, $order, $user, $tenantId, $docNumber, $docType, $warehouse, $finalTotal, $taxAmount, $discountAmount, $discountType, $docPaidAmount, $docDueAmount, $docPaidStatus, $effectiveCustomerId, $paymentAmount, $paymentType, $openRegister, $stockBranchId, $warehouseId, $allowNegative, $paidAmount, $changeAmount, $paymentMethod) {
+                // Atomic replay protection: lock the order row and require it to still be open.
+                $locked = PosOrder::where('id', $orderId)->lockForUpdate()->first();
+                if (! $locked || $locked->status !== 'open') {
+                    throw new \Illuminate\Validation\ValidationException(validator([], ['order' => 'This order has already been processed.']));
+                }
+
+                $doc = Document::create([
+                    "tenant_id" => $user->tenant_id,
+                    "user_id" => $user->id,
+                    "customer_id" => $effectiveCustomerId,
+                    "number" => $docNumber,
+                    "order_number" => $order->number,
+                    "document_type_id" => $docType?->id,
+                    "warehouse_id" => $warehouse?->id,
+                    "date" => now()->toDateString(),
+                    "stock_date" => now(),
+                    "total" => $finalTotal,
+                    "paid_amount" => $docPaidAmount,
+                    "due_amount" => $docDueAmount,
+                    "tax_amount" => $taxAmount,
+                    "discount" => $discountAmount,
+                    "discount_type" => $discountType,
+                    "paid_status" => $docPaidStatus,
+                ]);
+
+                foreach ($order->posOrderItems as $oi) {
+                    DocumentItem::create([
+                        "document_id" => $doc->id,
+                        "product_id" => $oi->product_id,
+                        "quantity" => $oi->quantity,
+                        "price" => $oi->price,
+                        "total" => $oi->quantity * $oi->price,
+                    ]);
+                }
+
+                Payment::create([
+                    "tenant_id" => $user->tenant_id,
+                    "document_id" => $doc->id,
+                    "payment_type_id" => $paymentType?->id,
+                    "user_id" => $user->id,
+                    "amount" => $paymentAmount,
+                    "cash_register_id" => $openRegister?->id,
+                ]);
+
+                if ($openRegister) {
+                    $openRegister->update(['last_activity_at' => now()]);
+                }
+
+                $closed = \DB::table('pos_orders')->where('id', $orderId)->where('status', 'open')->update([
+                    'status' => 'closed',
+                    'total' => $finalTotal,
+                    'discount' => $discountAmount,
+                    'discount_type' => $discountType,
+                    'paid_amount' => $paidAmount,
+                    'change_amount' => $changeAmount,
+                    'payment_method' => $paymentMethod,
+                    'tax_amount' => $taxAmount,
+                    'customer_id' => $effectiveCustomerId,
+                    'branch_id' => $stockBranchId ?? $order->branch_id,
+                    'updated_at' => now(),
+                ]);
+
+                if (! $closed) {
+                    throw new \Illuminate\Validation\ValidationException(validator([], ['order' => 'This order has already been processed.']));
+                }
+
+                if ($warehouseId) {
+                    $stockService = new \App\Services\Inventory\StockService;
+                    foreach ($order->posOrderItems as $item) {
+                        $product = \App\Models\Product::find($item->product_id);
+                        if (!$product || $product->is_service || !$product->track_inventory) continue;
+                        $qty = (float) ($item->quantity ?? 1);
+                        try {
+                            if ($stockBranchId) {
+                                $bi = \App\Models\BranchInventory::where('product_id', $item->product_id)->where('branch_id', $stockBranchId)->first();
+                                $current = $bi ? (float) $bi->stock : 0;
+                                if (!$allowNegative && $current < $qty) {
+                                    throw new \RuntimeException("Insufficient stock for '{$product->name}'. Available: {$current}");
+                                }
                             }
-                        }
-                        $stockService->decrement($item->product_id, $warehouseId, $qty, $user->id, $user->tenant_id, 'sale', $orderId);
+                            $stockService->decrement($item->product_id, $warehouseId, $qty, $user->id, $user->tenant_id, 'sale', $orderId);
 
-                        if ($branchId) {
-                            $bi = \App\Models\BranchInventory::where('product_id', $item->product_id)->where('branch_id', $branchId)->first();
-                            if ($bi) { $bi->updateStock(-$qty); }
-                            else { \App\Models\BranchInventory::create(['tenant_id' => $user->tenant_id, 'product_id' => $item->product_id, 'branch_id' => $branchId, 'stock' => -$qty]); }
+                            if ($stockBranchId) {
+                                $bi = \App\Models\BranchInventory::where('product_id', $item->product_id)->where('branch_id', $stockBranchId)->first();
+                                if ($bi) { $bi->updateStock(-$qty); }
+                                else { \App\Models\BranchInventory::create(['tenant_id' => $user->tenant_id, 'product_id' => $item->product_id, 'branch_id' => $stockBranchId, 'stock' => -$qty]); }
+                            }
+                        } catch (\RuntimeException $e) {
+                            if (!$allowNegative) { throw $e; }
                         }
-                    } catch (\RuntimeException $e) {
-                        if (!$allowNegative) { throw $e; }
                     }
                 }
+
+                return $doc;
             });
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(['message' => 'This order has already been processed.'], 422);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Checkout failed: ' . $e->getMessage(), ['order_id' => $orderId]);
+            return response()->json(['message' => 'Checkout failed. Please try again.'], 500);
         }
 
         $order->status = 'closed';
@@ -471,26 +566,35 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
             ->where('tenant_id', $user->tenant_id)
             ->first();
 
-        $alreadyRefunded = false;
-            if ($doc) {
-            try {
-                $checkoutService = app(\App\Services\Pos\CheckoutService::class);
-                $refundResult = $checkoutService->processRefund($doc->id, $user->id, $reason);
+        if (! $doc) {
+            return response()->json(['message' => 'No sale document found for this order.'], 422);
+        }
 
-                $openRegister = \App\Models\CashRegister::where('user_id', $user->id)
-                    ->where('tenant_id', $user->tenant_id)
-                    ->where('status', 'open')
-                    ->when($order->branch_id && !\App\Services\SystemModeService::isSingleMode(),
-                        fn($q) => $q->where('branch_id', $order->branch_id),
-                        fn($q) => $q->whereNull('branch_id'))
-                    ->latest('opened_at')->first();
-                if ($openRegister && isset($refundResult['document'])) {
-                    \App\Models\Payment::where('document_id', $refundResult['document']->id)
-                        ->update(['cash_register_id' => $openRegister->id]);
-                }
-            } catch (\InvalidArgumentException|\RuntimeException $e) {
-                $alreadyRefunded = true;
+        $alreadyRefunded = false;
+        try {
+            $checkoutService = app(\App\Services\Pos\CheckoutService::class);
+            $refundResult = $checkoutService->processRefund($doc->id, $user->id, $reason);
+
+            $openRegister = \App\Models\CashRegister::where('user_id', $user->id)
+                ->where('tenant_id', $user->tenant_id)
+                ->where('status', 'open')
+                ->when($order->branch_id && !\App\Services\SystemModeService::isSingleMode(),
+                    fn($q) => $q->where('branch_id', $order->branch_id),
+                    fn($q) => $q->whereNull('branch_id'))
+                ->latest('opened_at')->first();
+            if ($openRegister && isset($refundResult['document'])) {
+                \App\Models\Payment::where('document_id', $refundResult['document']->id)
+                    ->update(['cash_register_id' => $openRegister->id]);
             }
+        } catch (\InvalidArgumentException $e) {
+            if (str_contains($e->getMessage(), 'already been fully refunded')) {
+                $alreadyRefunded = true;
+            } else {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+        } catch (\RuntimeException $e) {
+            \Illuminate\Support\Facades\Log::error('Refund processing failed: ' . $e->getMessage(), ['order_id' => $orderId]);
+            return response()->json(['message' => 'Refund failed. Please try again.'], 500);
         }
 
         if (! $alreadyRefunded) {

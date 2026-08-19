@@ -16,7 +16,7 @@ class ReceiptBuilder
             $qty = number_format($item['quantity'] ?? 0, 2);
             $price = number_format($item['price'] ?? 0, 2);
             $lineTotal = number_format(($item['quantity'] ?? 0) * ($item['price'] ?? 0), 2);
-            $productName = $item['product_name'] ?? $item['name'] ?? 'Item';
+            $productName = htmlspecialchars($item['product_name'] ?? $item['name'] ?? 'Item');
             $itemRows .= <<<ROW
             <tr>
                 <td class="name">{$sno}. {$productName}</td>
@@ -75,7 +75,7 @@ class ReceiptBuilder
 
         $headerText = htmlspecialchars($settings['receipt_header'] ?? '');
         $footerText = htmlspecialchars($settings['receipt_footer'] ?? 'Thank you for your purchase!');
-        $extraFooter = $settings['receipt_extra_footer'] ?? '';
+        $extraFooter = htmlspecialchars($settings['receipt_extra_footer'] ?? '');
         $receiptTitle = htmlspecialchars($settings['receipt_title'] ?? 'RECEIPT');
         $logoUrl = !empty($settings['receipt_logo'] ?? '') ? $settings['receipt_logo'] : ($settings['logo'] ?? '');
         $currencySymbol = htmlspecialchars(
@@ -338,7 +338,7 @@ class ReceiptBuilder
         );
         $headerText = htmlspecialchars($settings['receipt_header'] ?? '');
         $footerText = htmlspecialchars($settings['receipt_footer'] ?? 'Thank you for your purchase!');
-        $extraFooter = $settings['receipt_extra_footer'] ?? '';
+        $extraFooter = htmlspecialchars($settings['receipt_extra_footer'] ?? '');
         $logoUrl = !empty($settings['receipt_logo'] ?? '') ? $settings['receipt_logo'] : ($settings['logo'] ?? '');
 
         $serviceType = (int) ($document['service_type'] ?? 0);

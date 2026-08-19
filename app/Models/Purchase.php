@@ -76,10 +76,12 @@ class Purchase extends Model
         return $this->belongsTo(User::class, 'received_by');
     }
 
-    public static function generateNumber(): string
+    public static function generateNumber(?string $tenantId = null): string
     {
+        $tenantId = $tenantId ?? auth()->user()?->tenant_id;
         $prefix = 'PO-' . now()->format('Ym') . '-';
-        $last = static::where('purchase_number', 'like', $prefix . '%')
+        $last = static::where('tenant_id', $tenantId)
+            ->where('purchase_number', 'like', $prefix . '%')
             ->orderBy('purchase_number', 'desc')
             ->first();
 

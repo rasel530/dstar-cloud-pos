@@ -38,7 +38,6 @@ app.get('/', (req, res) => {
   <div class="row"><span>Status</span><span style="color:#22c55e">Online</span></div>
   <div class="row"><span>Port</span><span>${PORT}</span></div>
   <div class="row"><span>Platform</span><span>${os.platform()}</span></div>
-  <div class="row"><span>Hostname</span><span>${os.hostname()}</span></div>
   <pre>
 Endpoints:
   POST /print/escpos   → ESC/POS thermal
@@ -50,17 +49,32 @@ Endpoints:
 });
 
 app.get('/health', (req, res) => {
-    res.json({ status: 'running', port: PORT, platform: os.platform(), timestamp: new Date().toISOString() });
+    res.json({ status: 'running', port: PORT, timestamp: new Date().toISOString() });
 });
 
 // ─── Auth Middleware (protected routes below) ───
 app.use((req, res, next) => {
-    const token = req.headers['x-proxy-token'] || req.query.token;
-    if (token !== AUTH_TOKEN) {
+    if (!AUTH_TOKEN) {
+        return res.status(503).json({ error: 'Print proxy is not configured: set PROXY_TOKEN (and the matching PRINT_PROXY_TOKEN in the POS .env) before use.' });
+    }
+    const token = req.headers['x-proxy-token'];
+    if (!token || token !== AUTH_TOKEN) {
         return res.status(403).json({ error: 'Invalid proxy token' });
     }
     next();
 });
+
+// Printer names must be safe to embed in a Windows print command.
+function isSafePrinterName(name) {
+    if (typeof name !== 'string' || name.length === 0 || name.length > 200) return false;
+    // Allow letters, digits, spaces and common printer-name punctuation.
+    // Reject quotes and shell metacharacters (cmd injection guard).
+    return /^[A-Za-z0-9 _\-()\[\]#.\\/]+$/.test(name);
+}
+
+function printerNameError(req, res) {
+    return res.status(400).json({ error: 'printerName is required and may only contain letters, digits, spaces, - _ ( ) [ ] # . \\ /' });
+}
 
 /**
  * ESC/POS Print — Formats receipt text for thermal printer and prints
@@ -70,8 +84,8 @@ app.post('/print/escpos', async (req, res) => {
     try {
         const { printerName, content, cutPaper = true, openDrawer = true } = req.body;
 
-        if (!printerName) {
-            return res.status(400).json({ error: 'printerName is required' });
+        if (!isSafePrinterName(printerName)) {
+            return printerNameError(req, res);
         }
 
         // Build ESC/POS commands
@@ -131,8 +145,8 @@ app.post('/print/windows', async (req, res) => {
     try {
         const { printerName, content } = req.body;
 
-        if (!printerName) {
-            return res.status(400).json({ error: 'printerName is required' });
+        if (!isSafePrinterName(printerName)) {
+            return printerNameError(req, res);
         }
 
         const tmpFile = path.join(os.tmpdir(), `print-${Date.now()}.txt`);
@@ -169,19 +183,6 @@ app.get('/printers', (req, res) => {
             .map(l => l.trim())
             .filter(l => l && l !== 'Name');
         res.json({ printers: lines });
-    });
-});
-
-/**
- * Health check (no auth required)
- */
-app.get('/health', (req, res) => {
-    res.json({
-        status: 'running',
-        port: PORT,
-        platform: os.platform(),
-        hostname: os.hostname(),
-        timestamp: new Date().toISOString(),
     });
 });
 

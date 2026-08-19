@@ -26,7 +26,7 @@
         .dark .sun-icon { display: block; }
         .dark .moon-icon { display: none; }
         .pin-cell {
-            width: 52px; height: 56px; text-align: center; font-size: 1.4rem; font-weight: 600;
+            width: min(3.25rem, 13vw); height: 56px; text-align: center; font-size: 1.4rem; font-weight: 600;
             border-radius: 0.5rem; border: 2px solid #d1d5db; outline: none;
             transition: border-color 0.15s, box-shadow 0.15s;
         }
@@ -50,7 +50,9 @@
 
         <div class="flex flex-col items-center mb-8">
             @if($companyLogo)
-                <img src="/logo" class="h-16 max-w-[200px] object-contain mb-4" alt="Logo">
+                <div class="w-40 h-16 max-w-[200px] bg-white rounded-xl flex items-center justify-center px-2 py-1.5 shadow-sm mb-4">
+                    <img src="/logo" class="max-w-full max-h-full object-contain" alt="Logo">
+                </div>
             @else
                 <div class="w-14 h-14 rounded-full bg-blue-600 flex items-center justify-center mb-4 ring-2 ring-white/20 dark:ring-white/10">
                     <span class="text-white text-xl font-bold">{{ Str::substr($companyName, 0, 1) }}</span>

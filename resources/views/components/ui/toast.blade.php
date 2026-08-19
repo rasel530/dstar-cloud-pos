@@ -39,8 +39,8 @@ $icon = match($type) {
     x-transition:leave-end="opacity-0 translate-y-4"
     class="fixed z-[100] {{ $positionClasses }} pointer-events-none"
 >
-    <div class="flex items-center gap-2.5 {{ $bgColor }} text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-semibold min-w-[200px]">
+    <div class="flex items-center gap-2.5 {{ $bgColor }} text-white px-5 py-3 rounded-xl shadow-2xl text-sm font-semibold min-w-[200px] max-w-[calc(100vw-2rem)]">
         <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">{!! $icon !!}</svg>
-        <span x-text="typeof {{ $message }} === 'string' ? {{ $message }} : (message || '')">{{ $message }}</span>
+        <span x-text="typeof {{ $message }} === 'string' ? {{ $message }} : (message || '')" class="min-w-0">{{ $message }}</span>
     </div>
 </div>

@@ -353,7 +353,12 @@ window.POS = {
         const cols = this.posSettings.grid_columns || 4;
         if (w < 640) return `grid-template-columns: repeat(2, minmax(0, 1fr))`;
         if (w < 768) return `grid-template-columns: repeat(3, minmax(0, 1fr))`;
-        return `grid-template-columns: repeat(${cols}, minmax(0, 1fr))`;
+        const rawMin = getComputedStyle(document.documentElement).getPropertyValue('--pos-card-min').trim();
+        const rootFont = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+        const minCard = (rawMin.endsWith('rem') ? (parseFloat(rawMin) || 168) * rootFont : (parseFloat(rawMin) || 168));
+        const container = document.querySelector('.pos-product-grid')?.clientWidth || w;
+        const fit = Math.max(2, Math.floor(container / minCard));
+        return `grid-template-columns: repeat(${Math.min(cols, fit)}, minmax(0, 1fr))`;
     },
 
     async init() {

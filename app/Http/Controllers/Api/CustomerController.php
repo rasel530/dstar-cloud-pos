@@ -47,7 +47,7 @@ class CustomerController extends Controller
         try {
             $data['tenant_id'] = auth()->user()->tenant_id;
             if (empty($data['code'])) {
-                $data['code'] = 'CUST-' . str_pad(Customer::count() + 1, 4, '0', STR_PAD_LEFT);
+                $data['code'] = 'CUST-' . str_pad(Customer::where('tenant_id', $data['tenant_id'])->count() + 1, 4, '0', STR_PAD_LEFT);
             }
             $customer = Customer::create($data);
 
@@ -55,7 +55,7 @@ class CustomerController extends Controller
                 ['customer_id' => $customer->id],
                 [
                     'tenant_id' => auth()->user()->tenant_id,
-                    'card_number' => 'LC-' . str_pad(\App\Models\LoyaltyCard::count() + 1, 4, '0', STR_PAD_LEFT),
+                    'card_number' => 'LC-' . str_pad(\App\Models\LoyaltyCard::where('tenant_id', auth()->user()->tenant_id)->count() + 1, 4, '0', STR_PAD_LEFT),
                     'points_balance' => 0,
                     'total_points_earned' => 0,
                 ]
@@ -88,7 +88,7 @@ class CustomerController extends Controller
             'tenant_id'    => $user->tenant_id,
             'name'         => $name,
             'phone_number' => $request->phone_number,
-            'code'         => 'CUST-' . str_pad(Customer::count() + 1, 4, '0', STR_PAD_LEFT),
+            'code'         => 'CUST-' . str_pad(Customer::where('tenant_id', $user->tenant_id)->count() + 1, 4, '0', STR_PAD_LEFT),
             'is_enabled'   => true,
         ]);
 
@@ -96,7 +96,7 @@ class CustomerController extends Controller
             ['customer_id' => $customer->id],
             [
                 'tenant_id'          => $user->tenant_id,
-                'card_number'        => 'LC-' . str_pad(\App\Models\LoyaltyCard::count() + 1, 4, '0', STR_PAD_LEFT),
+                'card_number'        => 'LC-' . str_pad(\App\Models\LoyaltyCard::where('tenant_id', $user->tenant_id)->count() + 1, 4, '0', STR_PAD_LEFT),
                 'points_balance'     => 0,
                 'total_points_earned'=> 0,
             ]
@@ -107,7 +107,9 @@ class CustomerController extends Controller
 
     public function show($id)
     {
-        $customer = Customer::find($id);
+        $customer = Customer::where(function ($q) {
+            $q->where('tenant_id', auth()->user()->tenant_id)->orWhereNull('tenant_id');
+        })->find($id);
 
         if (!$customer) {
             return response()->json(['message' => 'Customer not found'], 404);
@@ -118,7 +120,9 @@ class CustomerController extends Controller
 
     public function update(Request $request, $id)
     {
-        $customer = Customer::find($id);
+        $customer = Customer::where(function ($q) {
+            $q->where('tenant_id', auth()->user()->tenant_id)->orWhereNull('tenant_id');
+        })->find($id);
 
         if (!$customer) {
             return response()->json(['message' => 'Customer not found'], 404);
@@ -137,12 +141,14 @@ class CustomerController extends Controller
 
             return response()->json(['data' => $customer], 200);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Customer update: ' . $e->getMessage(), ['id' => $id, 'error' => $e->getMessage()]);
-            return response()->json(['message' => 'Failed to update customer', 'error' => $e->getMessage()], 500);
+            \Illuminate\Support\Facades\Log::error('Customer update: ' . $e->getMessage(), ['id' => $id]);
+            return response()->json(['message' => 'Failed to update customer'], 500);
         }
     }    public function destroy($id)
     {
-        $customer = Customer::find($id);
+        $customer = Customer::where(function ($q) {
+            $q->where('tenant_id', auth()->user()->tenant_id)->orWhereNull('tenant_id');
+        })->find($id);
 
         if (!$customer) {
             return response()->json(['message' => 'Customer not found'], 404);
@@ -166,7 +172,8 @@ class CustomerController extends Controller
 
         $customer = Customer::where(function ($q) { $q->where('tenant_id', auth()->user()->tenant_id)->orWhereNull('tenant_id'); })->findOrFail($id);
 
-        $docs = \App\Models\Document::where('customer_id', $id)
+        $docs = \App\Models\Document::where('tenant_id', auth()->user()->tenant_id)
+            ->where('customer_id', $id)
             ->where('due_amount', '>', 0)
             ->orderBy('date')
             ->get();
@@ -181,8 +188,10 @@ class CustomerController extends Controller
 
         $remaining = $amount;
         $allocated = 0;
-        $paymentType = \App\Models\PaymentType::where('code', $validated['payment_method'] ?? 'cash')->first()
-            ?? \App\Models\PaymentType::first();
+        $paymentType = \App\Models\PaymentType::where('tenant_id', auth()->user()->tenant_id)
+            ->where('code', $validated['payment_method'] ?? 'cash')
+            ->first()
+            ?? \App\Models\PaymentType::where('tenant_id', auth()->user()->tenant_id)->first();
 
         foreach ($docs as $doc) {
             if ($remaining <= 0.0001) break;
@@ -254,7 +263,9 @@ class CustomerController extends Controller
     {
         $customer = Customer::where(function ($q) { $q->where('tenant_id', auth()->user()->tenant_id)->orWhereNull('tenant_id'); })->findOrFail($id);
 
-        $documentIds = \App\Models\Document::where('customer_id', $id)->pluck('id');
+        $documentIds = \App\Models\Document::where('tenant_id', auth()->user()->tenant_id)
+            ->where('customer_id', $id)
+            ->pluck('id');
 
         $payments = \App\Models\Payment::with('paymentType:id,name')
             ->whereIn('document_id', $documentIds)

@@ -141,20 +141,20 @@ class CheckoutService
 
     public function processRefund(string $documentId, string $userId, string $reason = null): array
     {
-        $originalDocument = Document::with('documentItems')->find($documentId);
-        if (!$originalDocument) {
-            throw new InvalidArgumentException("Document {$documentId} not found.");
-        }
+        return DB::transaction(function () use ($documentId, $userId, $reason) {
+            $originalDocument = Document::with('documentItems')->lockForUpdate()->find($documentId);
+            if (!$originalDocument) {
+                throw new InvalidArgumentException("Document {$documentId} not found.");
+            }
 
-        $alreadyRefunded = Document::where('reference_document_number', $originalDocument->number)
-            ->where('tenant_id', $originalDocument->tenant_id)
-            ->where('total', '<=', -$originalDocument->total)
-            ->exists();
-        if ($alreadyRefunded) {
-            throw new InvalidArgumentException('This document has already been fully refunded.');
-        }
+            $alreadyRefunded = Document::where('reference_document_number', $originalDocument->number)
+                ->where('tenant_id', $originalDocument->tenant_id)
+                ->where('total', '<=', -$originalDocument->total)
+                ->exists();
+            if ($alreadyRefunded) {
+                throw new InvalidArgumentException('This document has already been fully refunded.');
+            }
 
-        return DB::transaction(function () use ($originalDocument, $userId, $reason) {
             $refundDocument = Document::create([
                 'tenant_id' => $originalDocument->tenant_id,
                 'user_id' => $userId,

@@ -174,7 +174,7 @@ class ReportController extends Controller
                 'customers.name',
                 DB::raw('COUNT(*) as order_count'),
                 DB::raw('SUM(pos_orders.total) as total_spent'),
-                DB::raw("COALESCE((SELECT SUM(d.due_amount) FROM documents d WHERE d.customer_id = pos_orders.customer_id AND d.tenant_id = '" . auth()->user()->tenant_id . "'), 0) as total_due")
+                DB::raw("COALESCE((SELECT SUM(d.due_amount) FROM documents d WHERE d.customer_id = pos_orders.customer_id AND d.tenant_id = ?), 0) as total_due", [auth()->user()->tenant_id])
             )
             ->groupBy('pos_orders.customer_id', 'customers.id', 'customers.name')
             ->orderByDesc('total_spent');

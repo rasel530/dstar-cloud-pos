@@ -55,7 +55,9 @@ class ShiftController extends Controller
     public function update(Request $request, string $id): JsonResponse
     {
         $tenantId = auth()->user()->tenant_id;
-        $shift = Shift::findOrFail($id);
+        $shift = Shift::where(function ($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
+        })->findOrFail($id);
 
         $validated = $request->validate([
             'name' => [
@@ -77,7 +79,10 @@ class ShiftController extends Controller
 
     public function destroy(string $id): JsonResponse
     {
-        $shift = Shift::findOrFail($id);
+        $tenantId = auth()->user()->tenant_id;
+        $shift = Shift::where(function ($q) use ($tenantId) {
+            $q->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
+        })->findOrFail($id);
         $shift->delete();
 
         return response()->json(['message' => 'Shift deleted.']);
