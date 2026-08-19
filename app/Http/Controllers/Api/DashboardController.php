@@ -20,8 +20,11 @@ class DashboardController extends Controller
         $yesterday = now()->subDay()->toDateString();
         $weekStart = now()->subDays(6)->toDateString();
 
-        $docQuery = function () use ($tenantId, $branchId) {
-            $q = Document::where('tenant_id', $tenantId);
+        $saleTypeIds = \App\Models\DocumentType::where('code', '200')->pluck('id');
+
+        $docQuery = function () use ($tenantId, $branchId, $saleTypeIds) {
+            $q = Document::where('tenant_id', $tenantId)
+                ->whereIn('document_type_id', $saleTypeIds);
             if ($branchId) $q->where('warehouse_id', $branchId);
             return $q;
         };
@@ -80,8 +83,10 @@ class DashboardController extends Controller
         $outOfStockCount = $outOfStockQuery()->count();
 
         $weekRevenue = round((float) $docQuery()->whereBetween('date', [$weekStart, $today])->sum('total'), 2);
-        $avgOrderValue = $todayOrders > 0 ? round($todaySales / $todayOrders, 2) : 0;
-        $customersToday = $docQuery()->whereDate('date', $today)->whereNotNull('customer_id')->distinct('customer_id')->count('customer_id');
+        $todayGrossSales = round((float) $docQuery()->whereDate('date', $today)->where('total', '>', 0)->sum('total'), 2);
+        // Average order value uses gross sales so refunds don't drag the average down.
+        $avgOrderValue = $todayOrders > 0 ? round($todayGrossSales / $todayOrders, 2) : 0;
+        $customersToday = $docQuery()->whereDate('date', $today)->where('total', '>', 0)->whereNotNull('customer_id')->distinct('customer_id')->count('customer_id');
 
         // Top seller & best category (today's closed orders, by quantity sold)
         $itemBase = function () use ($tenantId, $today) {

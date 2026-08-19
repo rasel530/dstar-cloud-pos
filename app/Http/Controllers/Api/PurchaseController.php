@@ -291,13 +291,28 @@ class PurchaseController extends Controller
             return response()->json(['message' => 'Already fully paid'], 422);
         }
 
+        $remaining = round((float) $purchase->due_amount, 4);
         $purchase->update([
             'paid_amount'    => $purchase->grand_total,
             'due_amount'     => 0,
             'payment_status' => 'paid',
         ]);
 
-        return response()->json(['data' => $purchase]);
+        // Keep the supplier ledger in sync: the payment list must show the record.
+        if ($remaining > 0) {
+            \App\Models\PurchasePayment::create([
+                'tenant_id'   => $purchase->tenant_id,
+                'purchase_id' => $purchase->id,
+                'supplier_id' => $purchase->supplier_id,
+                'amount'      => $remaining,
+                'date'        => now()->toDateString(),
+                'user_id'     => auth()->id(),
+                'payment_method' => 'cash',
+                'note'        => 'Marked as paid',
+            ]);
+        }
+
+        return response()->json(['data' => $purchase->load('payments')]);
     }
 
     public function nextNumber(): JsonResponse

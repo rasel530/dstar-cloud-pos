@@ -176,24 +176,142 @@ class PosController extends Controller
         if (! $o) return response()->json(["message" => "Order not found"], 404);
         if ($o->status === "closed") return response()->json(["message" => "Order is already closed"], 422);
 
-        $orderModel = PosOrder::with('posOrderItems.product')->find($order);
-        $calc = (new \App\Services\Pricing\TaxCalculator)->calculate($orderModel);
+        $user = auth()->user();
+        $tenantId = $user->tenant_id;
 
-        $o->update([
-            'status' => 'closed',
-            'closed_at' => now(),
-            'total' => $calc['total'],
-            'discount' => $calc['discount'],
-            'updated_at' => now(),
-        ]);
-        $o->refresh();
         try {
-            $orderModel = PosOrder::with('customer')->find($order);
-            if ($orderModel) {
-                (new \App\Services\LoyaltyAutoAwardService)->awardForOrder($orderModel);
-            }
-        } catch (\Exception $e) { /* loyalty award is non-critical */ }
-        return response()->json(["data" => $o]);
+            $doc = \Illuminate\Support\Facades\DB::transaction(function () use ($o, $order, $user, $tenantId) {
+                // Atomic: only one process may close the order and write its records.
+                $locked = PosOrder::where('id', $order)->lockForUpdate()->first();
+                if (! $locked || $locked->status === 'closed') {
+                    throw new \Illuminate\Validation\ValidationException(validator([], ['order' => 'Order is already closed.']));
+                }
+
+                $orderModel = PosOrder::with('posOrderItems.product')->find($order);
+                $calc = (new \App\Services\Pricing\TaxCalculator)->calculate($orderModel);
+                $finalTotal = $calc['total'];
+
+                $roundingRule = (string) (\App\Models\ApplicationSetting::where('tenant_id', $tenantId)->where('key', 'rounding_rule')->value('value') ?? 'none');
+                $finalTotal = $this->applyRoundingRule((float) $finalTotal, $roundingRule);
+
+                $branch = $o->branch_id ? \App\Models\Tenant::find($o->branch_id) : null;
+                $branchCode = (!\App\Services\SystemModeService::isSingleMode() && $branch?->branch_code) ? $branch->branch_code . '-' : '';
+                $dateFmt = $branchCode . "ORD-" . now()->format("Ymd") . "-";
+                $count = Document::where('tenant_id', $tenantId)
+                    ->whereDate("created_at", today())
+                    ->where('number', 'like', $dateFmt . '%')
+                    ->count() + 1;
+                $docNumber = $dateFmt . str_pad($count, 4, "0", STR_PAD_LEFT);
+
+                $docType = \App\Models\DocumentType::where(function ($q) use ($tenantId) {
+                    $q->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
+                })->where("code", "200")->first();
+                $warehouse = \App\Models\Warehouse::where("tenant_id", $tenantId)->first();
+                $paymentType = \App\Models\PaymentType::where(function ($q) use ($tenantId) {
+                    $q->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
+                })->where('code', 'cash')->first()
+                    ?? \App\Models\PaymentType::where(function ($q) use ($tenantId) {
+                        $q->where('tenant_id', $tenantId)->orWhereNull('tenant_id');
+                    })->first();
+
+                $doc = Document::create([
+                    "tenant_id" => $tenantId,
+                    "user_id" => $user->id,
+                    "customer_id" => $o->customer_id,
+                    "number" => $docNumber,
+                    "order_number" => $o->number,
+                    "document_type_id" => $docType?->id,
+                    "warehouse_id" => $warehouse?->id,
+                    "date" => now()->toDateString(),
+                    "stock_date" => now(),
+                    "total" => $finalTotal,
+                    "paid_amount" => $finalTotal,
+                    "due_amount" => 0,
+                    "tax_amount" => $calc['tax'] ?? 0,
+                    "discount" => $calc['discount'] ?? 0,
+                    "discount_type" => 0,
+                    "paid_status" => 1,
+                ]);
+
+                foreach ($orderModel->posOrderItems as $oi) {
+                    DocumentItem::create([
+                        "document_id" => $doc->id,
+                        "product_id" => $oi->product_id,
+                        "quantity" => $oi->quantity,
+                        "price" => $oi->price,
+                        "total" => $oi->quantity * $oi->price,
+                    ]);
+                }
+
+                if ($finalTotal > 0) {
+                    Payment::create([
+                        "tenant_id" => $tenantId,
+                        "document_id" => $doc->id,
+                        "payment_type_id" => $paymentType?->id,
+                        "user_id" => $user->id,
+                        "amount" => $finalTotal,
+                    ]);
+                }
+
+                \DB::table('pos_orders')->where('id', $order)->where('status', '!=', 'closed')->update([
+                    'status' => 'closed',
+                    'closed_at' => now(),
+                    'total' => $finalTotal,
+                    'discount' => $calc['discount'] ?? 0,
+                    'paid_amount' => $finalTotal,
+                    'payment_method' => $paymentType?->code ?? 'cash',
+                    'tax_amount' => $calc['tax'] ?? 0,
+                    'updated_at' => now(),
+                ]);
+
+                // Stock decrement (warehouse + branch inventory), same as checkout.
+                $warehouseId = $warehouse?->id;
+                $allowNegative = \App\Models\ApplicationSetting::where('tenant_id', $tenantId)->where('key', 'allow_negative_stock')->value('value');
+                $allowNegative = $allowNegative === 'true' || $allowNegative === '1';
+                $branchId = $o->branch_id;
+                if ($warehouseId && $user->canAccessBranch($branchId ?? $tenantId)) {
+                    $stockService = new \App\Services\Inventory\StockService;
+                    foreach ($orderModel->posOrderItems as $item) {
+                        $product = \App\Models\Product::find($item->product_id);
+                        if (!$product || $product->is_service || !$product->track_inventory) continue;
+                        $qty = (float) ($item->quantity ?? 1);
+                        try {
+                            if ($branchId) {
+                                $bi = \App\Models\BranchInventory::where('product_id', $item->product_id)->where('branch_id', $branchId)->first();
+                                $current = $bi ? (float) $bi->stock : 0;
+                                if (!$allowNegative && $current < $qty) {
+                                    throw new \RuntimeException("Insufficient stock for '{$product->name}'. Available: {$current}");
+                                }
+                            }
+                            $stockService->decrement($item->product_id, $warehouseId, $qty, $user->id, $tenantId, 'sale', $order);
+                            if ($branchId) {
+                                $bi = \App\Models\BranchInventory::where('product_id', $item->product_id)->where('branch_id', $branchId)->first();
+                                if ($bi) { $bi->updateStock(-$qty); }
+                                else { \App\Models\BranchInventory::create(['tenant_id' => $tenantId, 'product_id' => $item->product_id, 'branch_id' => $branchId, 'stock' => -$qty]); }
+                            }
+                        } catch (\RuntimeException $e) {
+                            if (!$allowNegative) { throw $e; }
+                        }
+                    }
+                }
+
+                return $doc;
+            });
+
+            try {
+                $orderModel = PosOrder::with('customer')->find($order);
+                if ($orderModel) {
+                    (new \App\Services\LoyaltyAutoAwardService)->awardForOrder($orderModel);
+                }
+            } catch (\Exception $e) { /* loyalty award is non-critical */ }
+
+            return response()->json(["data" => $o->refresh()]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json(["message" => "Order is already closed"], 422);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('closeOrder failed: ' . $e->getMessage(), ['order_id' => $order]);
+            return response()->json(["message" => "Failed to close order. Please try again."], 500);
+        }
     }
 
     public function holdOrders(Request $request): \Illuminate\Http\JsonResponse
@@ -319,12 +437,15 @@ class PosController extends Controller
         $discount = $request->input('discount', $order->discount ?? 0);
         $discountType = $request->input('discount_type', $order->discount_type ?? 0);
         $discountAmount = round(floatval($discount), 2);
+        // Promotions are a separate flat discount so the 50% guard below only
+        // applies to the manual discount, never blocking admin-configured promos.
+        $promoDiscount = round(max(0, floatval($request->input('promo_discount', 0))), 2);
 
 if ($discountAmount > $calculatedTotal * 0.5) {
 return response()->json(['message' => 'Discount cannot exceed 50% of order total.'], 422);
 }
 
-        $order->discount = $discountAmount;
+        $order->discount = $discountAmount + $promoDiscount;
         $order->discount_type = $discountType;
         $calc = (new \App\Services\Pricing\TaxCalculator)->calculate($order);
         $finalTotal = $calc['total'];
@@ -457,7 +578,7 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
                     'total' => $finalTotal,
                     'discount' => $discountAmount,
                     'discount_type' => $discountType,
-                    'paid_amount' => $paidAmount,
+                    'paid_amount' => $docPaidAmount,
                     'change_amount' => $changeAmount,
                     'payment_method' => $paymentMethod,
                     'tax_amount' => $taxAmount,
@@ -623,6 +744,32 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
         }
 
         $order->update(['status' => 'refunded', 'updated_at' => now()]);
+
+        // Reverse loyalty points earned on the refunded order so balances
+        // never retain points for purchases that were returned.
+        if (! $alreadyRefunded && (float) $order->loyalty_points_earned > 0 && $order->customer_id) {
+            try {
+                $card = \App\Models\LoyaltyCard::where('customer_id', $order->customer_id)
+                    ->where('tenant_id', $user->tenant_id)
+                    ->first();
+                if ($card) {
+                    $points = (int) $order->loyalty_points_earned;
+                    $card->points_balance = max(0, $card->points_balance - $points);
+                    $card->total_points_earned = max(0, $card->total_points_earned - $points);
+                    $card->save();
+                    \App\Models\LoyaltyTransaction::create([
+                        'loyalty_card_id' => $card->id,
+                        'transaction_type' => 'redeem',
+                        'points' => $points,
+                        'reference_type' => 'order_refund',
+                        'reference_id' => $order->id,
+                    ]);
+                    \DB::table('pos_orders')->where('id', $order->id)->update(['loyalty_points_earned' => 0]);
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Loyalty reversal failed: ' . $e->getMessage(), ['order_id' => $order->id]);
+            }
+        }
 
         return response()->json(['message' => 'Order refunded successfully.', 'data' => $order]);
     }

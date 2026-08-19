@@ -155,6 +155,10 @@ class CheckoutService
                 throw new InvalidArgumentException('This document has already been fully refunded.');
             }
 
+            // Only money that was actually collected can be refunded. A credit
+            // sale that was never paid refunds nothing (the sale is cancelled).
+            $collected = round(min((float) $originalDocument->total, (float) $originalDocument->paid_amount), 4);
+
             $refundDocument = Document::create([
                 'tenant_id' => $originalDocument->tenant_id,
                 'user_id' => $userId,
@@ -173,6 +177,14 @@ class CheckoutService
                 'internal_note' => $reason,
                 'paid_status' => 1,
                 'service_type' => 0,
+            ]);
+
+            // The refund cancels the full sale for invoicing/netting purposes,
+            // and clears any remaining balance on the original invoice so no
+            // report or statement keeps showing a refunded invoice as collectible.
+            $originalDocument->update([
+                'due_amount' => 0,
+                'paid_status' => 1,
             ]);
 
             foreach ($originalDocument->documentItems as $item) {
@@ -207,15 +219,19 @@ class CheckoutService
                 }
             }
 
-            Payment::create([
-                'tenant_id' => $originalDocument->tenant_id,
-                'document_id' => $refundDocument->id,
-                'payment_type_id' => $originalDocument->payments()->first()?->payment_type_id,
-                'user_id' => $userId,
-                'amount' => -$originalDocument->total,
-                'rounding_adjustment' => 0,
-                'date' => now(),
-            ]);
+            if ($collected > 0.004) {
+                Payment::create([
+                    'tenant_id' => $originalDocument->tenant_id,
+                    'document_id' => $refundDocument->id,
+                    'payment_type_id' => $originalDocument->payments()->first()?->payment_type_id,
+                    'user_id' => $userId,
+                    'amount' => -$collected,
+                    'rounding_adjustment' => 0,
+                    'date' => now(),
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
 
             return [
                 'document' => $refundDocument,

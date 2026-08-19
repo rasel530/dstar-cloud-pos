@@ -66,35 +66,46 @@ class PaymentController extends Controller
         }
 
         try {
-            $existingTotal = Payment::where('document_id', $document->id)->sum('amount');
-            $newTotal = $existingTotal + $request->amount;
+            \Illuminate\Support\Facades\DB::transaction(function () use ($request, $document) {
+                $existingTotal = Payment::where('document_id', $document->id)->sum('amount');
+                $newTotal = $existingTotal + $request->amount;
 
-            $payment = Payment::create([
-                'tenant_id'      => $document->tenant_id,
-                'document_id'    => $document->id,
-                'payment_type_id' => $request->payment_type_id,
-                'user_id'        => $request->user()->id,
-                'amount'         => $request->amount,
-                'date'           => $request->date,
-            ]);
+                $payment = Payment::create([
+                    'tenant_id'      => $document->tenant_id,
+                    'document_id'    => $document->id,
+                    'payment_type_id' => $request->payment_type_id,
+                    'user_id'        => $request->user()->id,
+                    'amount'         => $request->amount,
+                    'date'           => $request->date,
+                ]);
 
-            if ($newTotal >= $document->total && $document->paid_status !== 1) {
-                $adjustment = round($newTotal - $document->total, 4);
-                if (abs($adjustment) > 0.0001) {
-                    $payment->rounding_adjustment = $adjustment;
-                    $payment->save();
+                if ($newTotal >= $document->total && $document->paid_status !== 1) {
+                    $adjustment = round($newTotal - $document->total, 4);
+                    if (abs($adjustment) > 0.0001) {
+                        $payment->rounding_adjustment = $adjustment;
+                        $payment->save();
+                    }
+                    $document->paid_status = 1;
+                    $document->paid_amount = $document->total;
+                    $document->due_amount = 0;
+                    $document->save();
+                } elseif ($document->paid_status === 0 && $newTotal > 0) {
+                    $document->paid_status = 2;
+                    $document->paid_amount = min($newTotal, $document->total);
+                    $document->due_amount = max(0, $document->total - $newTotal);
+                    $document->save();
+                } elseif ($newTotal > 0 && $newTotal < $document->total) {
+                    // Partial payment on an already partially-paid invoice.
+                    $document->paid_amount = min($newTotal, $document->total);
+                    $document->due_amount = max(0, $document->total - $newTotal);
+                    $document->paid_status = 2;
+                    $document->save();
                 }
-                $document->paid_status = 1;
-                $document->save();
-            } elseif ($document->paid_status === 0 && $newTotal > 0) {
-                $document->paid_status = 2;
-                $document->save();
-            }
+            });
 
-            $payment->load(['paymentType', 'user', 'document']);
-
-            return response()->json(['data' => $payment], 201);
+            return response()->json(['data' => Payment::with(['paymentType', 'user', 'document'])->find($document->id)], 201);
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Payment create failed: ' . $e->getMessage(), ['document_id' => $document->id]);
             return response()->json(['message' => 'Failed to create payment'], 500);
         }
     }

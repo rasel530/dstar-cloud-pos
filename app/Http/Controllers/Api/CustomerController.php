@@ -18,7 +18,7 @@ class CustomerController extends Controller
             })
             ->select('customers.*')
             ->selectRaw('COALESCE((SELECT SUM(points_balance) FROM loyalty_cards WHERE customer_id = customers.id), 0) as loyalty_points')
-            ->selectRaw('COALESCE((SELECT SUM(due_amount) FROM documents WHERE customer_id = customers.id), 0) as outstanding_balance');
+            ->selectRaw('COALESCE((SELECT SUM(due_amount) FROM documents WHERE customer_id = customers.id AND tenant_id = ?), 0) as outstanding_balance', [$tenantId]);
 
         if ($search = $request->query('search')) {
             $query->where(function ($q) use ($search) {

@@ -138,21 +138,27 @@ class IncomeExpenseController extends Controller
         // Each document is attributed to its first payment method and its FULL
         // total is counted, so income equals actual sales (accrual basis) —
         // credit and partial-payment sales are no longer understated.
+        // Refunds (negative documents) are netted against the same day/method,
+        // so income is not overstated after returns.
         $salesByPayment = DB::table('documents')
-            ->join('payment_types', function ($join) {
+            ->leftJoin('payment_types', function ($join) {
                 $join->on('payment_types.id', '=', DB::raw("(
-                    SELECT p.payment_type_id FROM payments p
-                    WHERE p.document_id = documents.id
-                    ORDER BY p.created_at ASC, p.id ASC
-                    LIMIT 1
+                    SELECT COALESCE(
+                        (SELECT p2.payment_type_id FROM payments p2
+                         JOIN documents d2 ON d2.id = p2.document_id
+                         WHERE d2.number = documents.reference_document_number
+                         ORDER BY p2.created_at ASC, p2.id ASC LIMIT 1),
+                        (SELECT p3.payment_type_id FROM payments p3
+                         WHERE p3.document_id = documents.id
+                         ORDER BY p3.created_at ASC, p3.id ASC LIMIT 1)
+                    )
                 )"));
             })
             ->where('documents.tenant_id', $tenantId)
             ->whereBetween('documents.date', [$dateFrom, $dateTo])
-            ->where('documents.total', '>', 0)
             ->selectRaw("
                 DATE(documents.date) as sale_date,
-                payment_types.name as payment_method,
+                COALESCE(payment_types.name, 'Customer Due') as payment_method,
                 SUM(documents.total) as total_amount,
                 COUNT(DISTINCT documents.id) as order_count,
                 STRING_AGG(DISTINCT documents.number, ', ' ORDER BY documents.number) as order_numbers

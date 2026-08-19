@@ -138,6 +138,8 @@ class DocumentController extends Controller
                 'internal_note'            => $request->internal_note,
                 'note'                     => $request->note,
                 'due_date'                 => $request->due_date,
+                'paid_amount'              => 0,
+                'due_amount'               => $total,
                 'paid_status'              => 0,
                 'service_type'             => $request->service_type ?? 0,
             ]);

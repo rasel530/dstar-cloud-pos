@@ -281,7 +281,9 @@ class CashRegisterController extends Controller
      */
     private function summarize(CashRegister $register): array
     {
-        $cashTypeId = PaymentType::where(function ($q) {
+        $cashTypeId = PaymentType::where(function ($q) use ($register) {
+            $q->where('tenant_id', $register->tenant_id)->orWhereNull('tenant_id');
+        })->where(function ($q) {
             $q->where('code', 'cash')->orWhere('name', 'ilike', 'cash');
         })->orderBy('code')->value('id');
 

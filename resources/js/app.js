@@ -977,14 +977,14 @@ window.POS = {
                 await Promise.all(payload.items.map(item =>
                     window.POS.api('/api/orders/' + this.existingOrderId + '/items', { method: 'POST', body: JSON.stringify({ product_id: item.product_id, quantity: item.quantity, price: item.price }) })
                 ));
-                checkoutRes = await window.POS.api('/api/orders/' + this.existingOrderId + '/checkout', { method: 'POST', body: JSON.stringify({ payment_type: paymentTypeName, paid_amount: payload.paid_amount, discount: this.discount, discount_type: this.discountType === 'percent' ? 0 : 1, total: this.grandTotal, customer_id: payload.customer_id, table_number: payload.table_number }) });
+                checkoutRes = await window.POS.api('/api/orders/' + this.existingOrderId + '/checkout', { method: 'POST', body: JSON.stringify({ payment_type: paymentTypeName, paid_amount: payload.paid_amount, discount: this.discount, discount_type: this.discountType === 'percent' ? 0 : 1, promo_discount: this.promoDiscount || 0, total: this.grandTotal, customer_id: payload.customer_id, table_number: payload.table_number }) });
                 this.receiptApiUrl = '/api/receipts/' + this.existingOrderId;
             } else {
                 const orderRes = await window.POS.api('/api/orders', { method: 'POST', body: JSON.stringify(payload) });
                 const orderId = orderRes?.data?.id;
                 if (orderId) {
                     this.receiptApiUrl = '/api/receipts/' + orderId;
-                    checkoutRes = await window.POS.api('/api/orders/' + orderId + '/checkout', { method: 'POST', body: JSON.stringify({ payment_type: paymentTypeName, paid_amount: payload.paid_amount, discount: this.discount, discount_type: this.discountType === 'percent' ? 0 : 1, total: this.grandTotal, customer_id: payload.customer_id, table_number: payload.table_number }) });
+                    checkoutRes = await window.POS.api('/api/orders/' + orderId + '/checkout', { method: 'POST', body: JSON.stringify({ payment_type: paymentTypeName, paid_amount: payload.paid_amount, discount: this.discount, discount_type: this.discountType === 'percent' ? 0 : 1, promo_discount: this.promoDiscount || 0, total: this.grandTotal, customer_id: payload.customer_id, table_number: payload.table_number }) });
                 }
             }
             const receipt = checkoutRes?.data?.receipt;
