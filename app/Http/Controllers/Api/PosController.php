@@ -268,8 +268,8 @@ class PosController extends Controller
                 $warehouseId = $warehouse?->id;
                 $allowNegative = \App\Models\ApplicationSetting::where('tenant_id', $tenantId)->where('key', 'allow_negative_stock')->value('value');
                 $allowNegative = $allowNegative === 'true' || $allowNegative === '1';
-                $branchId = $o->branch_id;
-                if ($warehouseId && $user->canAccessBranch($branchId ?? $tenantId)) {
+                $branchId = \App\Services\SystemModeService::isSingleMode() ? null : $o->branch_id;
+                if ($warehouseId && (! $branchId || $user->canAccessBranch($branchId))) {
                     $stockService = new \App\Services\Inventory\StockService;
                     foreach ($orderModel->posOrderItems as $item) {
                         $product = \App\Models\Product::find($item->product_id);
@@ -457,9 +457,13 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
         $roundingRule = (string) (\App\Models\ApplicationSetting::where('tenant_id', $tenantId)->where('key', 'rounding_rule')->value('value') ?? 'none');
         $finalTotal = $this->applyRoundingRule((float) $finalTotal, $roundingRule);
 
-        $branchId = $request->header('X-Active-Branch') ?: $order->branch_id;
+        $branchId = $request->header('X-Active-Branch');
         if ($branchId && ! $user->canAccessBranch($branchId)) {
             $branchId = $user->branch_id ?? $user->tenant_id;
+        }
+        // Single mode: stock is tracked in the warehouse only — no branch logic.
+        if (\App\Services\SystemModeService::isSingleMode()) {
+            $branchId = null;
         }
         $paymentMethod = $request->input('payment_type', 'cash');
         $paidAmount = (float) ($request->input('paid_amount') ?: $finalTotal);
@@ -519,7 +523,9 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
         $allowNegative = \App\Models\ApplicationSetting::where('tenant_id', $tenantId)->where('key', 'allow_negative_stock')->value('value');
         $allowNegative = $allowNegative === 'true' || $allowNegative === '1';
         $stockBranchId = $request->input('branch_id') ?: $branchId;
-        if ($stockBranchId && ! $user->canAccessBranch($stockBranchId)) {
+        if (\App\Services\SystemModeService::isSingleMode()) {
+            $stockBranchId = null;
+        } elseif ($stockBranchId && ! $user->canAccessBranch($stockBranchId)) {
             $stockBranchId = null;
         }
 
