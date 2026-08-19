@@ -83,7 +83,7 @@ class IncomeExpenseReportController extends Controller
         $customerDue = DB::table('documents')
             ->where('tenant_id', $tenantId)
             ->where('due_amount', '>', 0)
-            ->selectRaw('COALESCE(SUM(due_amount), 0) as total_due, COUNT(DISTINCT COALESCE(CAST(customer_id AS TEXT), \'walk-in\')) as customer_count')
+            ->selectRaw('COALESCE(SUM(due_amount), 0) as total_due, COUNT(DISTINCT customer_id) as customer_count')
             ->first();
 
         return response()->json(['data' => [
