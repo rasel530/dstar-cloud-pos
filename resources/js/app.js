@@ -1348,7 +1348,7 @@ Alpine.data('customersManager', () => ({
     form: { name: '', email: '', phone_number: '', code: '', is_enabled: true },
     showPaymentModal: false, showStatementModal: false,
     paymentForm: { amount: '', payment_method: 'cash' }, paymentSaving: false, paymentCustomer: null,
-    statement: null, statementLoading: false,
+    statement: null, statementLoading: false, statementCustomer: null,
     get gridStyle() {
         const w = this.$store.screen.width;
         const cols = this.posSettings.grid_columns || 4;
@@ -1393,6 +1393,10 @@ Alpine.data('customersManager', () => ({
             });
             this.showPaymentModal = false;
             await this.fetchCustomers();
+            // Keep the statement (if open for this customer) in sync instantly.
+            if (this.showStatementModal && this.statementCustomer && this.statementCustomer.id === this.paymentCustomer.id) {
+                await this.openStatement(this.statementCustomer);
+            }
             if (r?.data?.excess > 0) {
                 alert('Payment recorded. ' + r.data.allocated + ' applied, ' + r.data.excess + ' overpaid (excess ignored).');
             }
@@ -1401,6 +1405,7 @@ Alpine.data('customersManager', () => ({
         finally { this.paymentSaving = false; }
     },
     async openStatement(customer) {
+        this.statementCustomer = customer;
         this.showStatementModal = true;
         this.statementLoading = true;
         this.statement = null;

@@ -477,7 +477,7 @@
                                 <input type="number" x-model.number="purchaseForm.discount" @input="calcPurchaseTotals()" min="0" class="w-16 px-2 py-1 border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm text-right">
                                 <select x-model.number="purchaseForm.discount_type" class="w-14 px-1 py-1 border border-gray-200 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-xs">
                                     <option value="0">%</option>
-                                    <option value="1">$</option>
+                                    <option value="1" x-text="Alpine.store('currency')?.symbol || '৳'"></option>
                                 </select>
                             </div>
                         </div>

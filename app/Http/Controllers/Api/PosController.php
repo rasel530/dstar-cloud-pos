@@ -247,6 +247,7 @@ class PosController extends Controller
                         "product_id" => $oi->product_id,
                         "quantity" => $oi->quantity,
                         "price" => $oi->price,
+                        "product_cost" => $oi->cost ?? 0,
                         "total" => $oi->quantity * $oi->price,
                     ]);
                 }
@@ -578,6 +579,7 @@ return response()->json(['message' => 'Discount cannot exceed 50% of order total
                         "product_id" => $oi->product_id,
                         "quantity" => $oi->quantity,
                         "price" => $oi->price,
+                        "product_cost" => $oi->cost ?? 0,
                         "total" => $oi->quantity * $oi->price,
                     ]);
                 }

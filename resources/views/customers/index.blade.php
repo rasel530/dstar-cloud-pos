@@ -191,7 +191,7 @@
     </div>
 
     {{-- Payment Modal --}}
-    <div x-show="showPaymentModal" x-cloak class="fixed inset-0 z-50 flex items-end sm:items-center justify-center" @keydown.escape="showPaymentModal = false">
+    <div x-show="showPaymentModal" x-cloak class="fixed inset-0 flex items-end sm:items-center justify-center" :class="showPaymentModal ? 'z-[60]' : 'z-50'" @keydown.escape="showPaymentModal = false">
         <div class="absolute inset-0 bg-black/60" @click="showPaymentModal = false"></div>
         <div class="relative bg-white dark:bg-[#1a1f3d] w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl shadow-2xl max-h-[85vh] overflow-y-auto animate-slide-up sm:animate-none pb-[env(safe-area-inset-bottom,0px)]">
             <div class="sm:hidden flex justify-center pt-3 pb-1"><div class="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full"></div></div>
@@ -280,6 +280,9 @@
                                 <p x-show="!statement.payments?.length" class="text-xs text-gray-400 py-2 text-center">No payments yet</p>
                             </div>
                         </div>
+                        <button type="button" @click="openPayment(statementCustomer)" :disabled="parseFloat(statement?.summary?.total_due || 0) <= 0" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-semibold rounded-xl transition text-sm mt-2">
+                            <span>Record Payment</span>
+                        </button>
                     </div>
                 </template>
             </div>
